@@ -10,6 +10,7 @@ COPY packages/db/package.json ./packages/db/
 COPY packages/domain/package.json ./packages/domain/
 COPY packages/queue/package.json ./packages/queue/
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/db/prisma/schema.prisma ./packages/db/prisma/schema.prisma
 RUN npm ci
 
 FROM deps AS build

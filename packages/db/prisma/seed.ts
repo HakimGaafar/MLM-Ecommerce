@@ -2,6 +2,12 @@ import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import { DEFAULT_MARKET_ID, MARKET_IDS, type MarketCode } from "@mlm/shared";
 
+if (process.env.NODE_ENV === "production" && process.env.ALLOW_PRODUCTION_SEED !== "true") {
+  throw new Error(
+    "Refusing to seed a production database. Set ALLOW_PRODUCTION_SEED=true only for an intentional controlled seed.",
+  );
+}
+
 const prisma = new PrismaClient();
 
 const DEMO_ADMIN_EMAIL = "admin@mlm.seed";
