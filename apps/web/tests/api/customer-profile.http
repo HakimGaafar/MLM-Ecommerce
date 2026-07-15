@@ -1,0 +1,54 @@
+### Login as CUSTOMER (stores cookies in REST client session)
+POST http://localhost:3000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "test.user@example.com",
+  "password": "StrongPass123!"
+}
+
+### Get customer profile (expected 200)
+GET http://localhost:3000/api/v1/customer/profile
+
+### Patch customer profile with valid payload (expected 200)
+PATCH http://localhost:3000/api/v1/customer/profile
+Content-Type: application/json
+
+{
+  "name": "Test User Updated",
+  "phone": "+966500000000",
+  "countryCode": "SA",
+  "city": "Riyadh",
+  "addressLine1": "King Fahd Road",
+  "postalCode": "11564",
+  "preferredLanguage": "ar"
+}
+
+### Get customer profile again (expected updated values)
+GET http://localhost:3000/api/v1/customer/profile
+
+### Patch customer profile with invalid phone (expected 400)
+PATCH http://localhost:3000/api/v1/customer/profile
+Content-Type: application/json
+
+{
+  "phone": "abc"
+}
+
+### Logout customer session
+POST http://localhost:3000/api/v1/auth/logout
+
+### Get customer profile after logout (expected 401)
+GET http://localhost:3000/api/v1/customer/profile
+
+### Login as VENDOR-only account
+POST http://localhost:3000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "vendor.user@example.com",
+  "password": "StrongPass123!"
+}
+
+### Get customer profile as non-customer role (expected 403)
+GET http://localhost:3000/api/v1/customer/profile

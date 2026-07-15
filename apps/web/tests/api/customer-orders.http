@@ -1,0 +1,32 @@
+### Login as CUSTOMER (stores cookies in REST client session)
+POST http://localhost:3000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "test.user@example.com",
+  "password": "StrongPass123!"
+}
+
+### Get customer orders (expected 200; items populated if seed sample orders exist for this user)
+GET http://localhost:3000/api/v1/customer/orders
+
+### Get one customer order — replace ORDER_ID with an id from the list response (expected 200 or 404)
+GET http://localhost:3000/api/v1/customer/orders/ORDER_ID
+
+### Logout customer session
+POST http://localhost:3000/api/v1/auth/logout
+
+### Get customer orders after logout (expected 401)
+GET http://localhost:3000/api/v1/customer/orders
+
+### Login as VENDOR-only account
+POST http://localhost:3000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "vendor.user@example.com",
+  "password": "StrongPass123!"
+}
+
+### Get customer orders as non-customer role (expected 403)
+GET http://localhost:3000/api/v1/customer/orders

@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+
+# Build and test output
+.next/
+out/
+build/
+dist/
+coverage/
+*.tsbuildinfo
+packages/db/generated/
+
+# Local environment and secrets
+.env*
+
+# Internal and client documentation
+docs/
+NEXTJS_MLM_ECOMMERCE_DOCUMENTATION.md
+*.md
+
+# Logs and caches
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.turbo/
+.cache/
+tsc-warnings.txt
+scripts/reports/
+
+# Local editor and OS state
+.cursor/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Deployment provider state
+.vercel/
+.railway/
+
+# Runtime uploads and private documents
+apps/web/public/uploads/products/*
+!apps/web/public/uploads/products/.gitkeep
+apps/web/public/uploads/invoices/*
+apps/web/storage/kyc-documents/
+
+# Certificates and private keys
+*.pem
+*.key
+*.p12
+*.pfx

@@ -1,0 +1,39 @@
+{
+  "name": "mlm-ecommerce",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "dependencies": {
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "dev:web": "dotenv -e .env -- npm run dev --workspace @mlm/web",
+    "dev:worker": "dotenv -e .env -- npm run dev --workspace @mlm/worker",
+    "start:worker": "dotenv -e .env -- npm run start --workspace @mlm/worker",
+    "build": "dotenv -e .env -- npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run db:generate && tsc -p packages/shared/tsconfig.json --noEmit && tsc -p packages/db/tsconfig.json --noEmit && tsc -p packages/domain/tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit",
+    "test": "npm run test --workspace @mlm/domain",
+    "test:domain": "npm run test --workspace @mlm/domain",
+    "db:generate": "npm run prisma:generate --workspace @mlm/db",
+    "db:migrate": "npm run prisma:migrate --workspace @mlm/db",
+    "db:migrate:deploy": "npm run prisma:migrate:deploy --workspace @mlm/db",
+    "db:migrate:status": "npm run prisma:migrate:status --workspace @mlm/db",
+    "db:reset": "npm run prisma:reset --workspace @mlm/db",
+    "db:seed": "npm run prisma:seed --workspace @mlm/db",
+    "media:migrate": "dotenv -e .env -- npx tsx apps/web/scripts/migrate-product-images-to-s3.ts",
+    "vendor-earnings:backfill": "dotenv -e .env -- npx tsx scripts/backfill-vendor-earnings.ts",
+    "return-ledger:repair": "dotenv -e .env -- npx tsx scripts/repair-return-ledger.ts",
+    "order-units:backfill": "dotenv -e .env -- npx tsx scripts/backfill-order-item-units.ts",
+    "test:uat:xi": "dotenv -e .env -- node scripts/e2e-phase-xi-security-uat.mjs",
+    "test:uat:xii1": "dotenv -e .env -- node scripts/e2e-phase-xii1-worker-uat.mjs",
+    "test:load:xii6": "node scripts/load-test-xii6.mjs"
+  }
+}

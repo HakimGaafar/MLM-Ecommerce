@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+    "baseUrl": ".",
+    "paths": {
+      "@mlm/db": ["../db/src/index.ts"],
+      "@mlm/shared": ["../shared/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "vitest.config.ts", "vitest.setup.ts"]
+}

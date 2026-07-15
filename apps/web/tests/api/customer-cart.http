@@ -1,0 +1,31 @@
+### Login as CUSTOMER (session cookie)
+POST http://localhost:3000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "YourPasswordHere"
+}
+
+### Get cart (empty or with lines)
+GET http://localhost:3000/api/v1/customer/cart
+
+### Add product — replace PRODUCT_ID with a real active product id from GET /api/v1/catalog/products
+POST http://localhost:3000/api/v1/customer/cart/items
+Content-Type: application/json
+
+{
+  "productId": "PRODUCT_ID",
+  "quantity": 2
+}
+
+### Update line quantity — replace ITEM_ID from cart response
+PATCH http://localhost:3000/api/v1/customer/cart/items/ITEM_ID
+Content-Type: application/json
+
+{
+  "quantity": 1
+}
+
+### Remove line
+DELETE http://localhost:3000/api/v1/customer/cart/items/ITEM_ID

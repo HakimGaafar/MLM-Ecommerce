@@ -1,0 +1,88 @@
+### Health check (db + redis)
+GET http://localhost:3000/api/v1/health
+
+### Register (customer + affiliate by default)
+POST http://localhost:3000/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "name": "Test User",
+  "email": "test.user@example.com",
+  "password": "StrongPass123!",
+  "asVendor": false
+}
+
+### Register validation failure (weak password)
+POST http://localhost:3000/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "name": "Bad Password User",
+  "email": "bad.password@example.com",
+  "password": "12345",
+  "accountType": "CUSTOMER"
+}
+
+### Register (vendor only)
+POST http://localhost:3000/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "name": "Vendor User",
+  "email": "vendor.user@example.com",
+  "password": "StrongPass123!",
+  "accountType": "VENDOR"
+}
+
+### Register (customer + vendor)
+POST http://localhost:3000/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "name": "Hybrid User",
+  "email": "hybrid.user@example.com",
+  "password": "StrongPass123!",
+  "accountType": "BOTH"
+}
+
+### Login failure (wrong password, generic message)
+POST http://localhost:3000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "test.user@example.com",
+  "password": "WrongPassword123!"
+}
+
+### Login (stores cookies in REST client session)
+POST http://localhost:3000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "test.user@example.com",
+  "password": "StrongPass123!"
+}
+
+### Auth me (requires login cookie)
+GET http://localhost:3000/api/v1/auth/me
+
+### Refresh access token (requires refresh cookie)
+POST http://localhost:3000/api/v1/auth/refresh
+
+### Referral profile (requires access cookie)
+GET http://localhost:3000/api/v1/referral/me
+
+### Wallet profile (requires access cookie)
+GET http://localhost:3000/api/v1/wallet
+
+### Vendor protected API (for VENDOR or BOTH user session)
+GET http://localhost:3000/api/v1/vendor/ping
+
+### Admin protected API (should be 403 for non-admin)
+GET http://localhost:3000/api/v1/admin/ping
+
+### Logout (clears auth + refresh cookies)
+POST http://localhost:3000/api/v1/auth/logout
+
+### Me after logout (should return 401)
+GET http://localhost:3000/api/v1/auth/me

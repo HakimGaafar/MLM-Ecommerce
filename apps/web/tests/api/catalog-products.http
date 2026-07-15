@@ -1,0 +1,8 @@
+### List catalog products (public, no auth)
+GET http://localhost:3000/api/v1/catalog/products
+
+### List with limit
+GET http://localhost:3000/api/v1/catalog/products?limit=10
+
+### Product detail — replace PRODUCT_ID
+GET http://localhost:3000/api/v1/catalog/products/PRODUCT_ID
