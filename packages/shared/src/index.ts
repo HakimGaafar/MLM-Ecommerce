@@ -67,4 +67,5 @@ export * from "./validation/admin-platform-config";
 export * from "./validation/admin-markets";
 export * from "./validation/security";
 export * from "./validation/order-ops";
+export * from "./validation/contact-inquiry";
 export * from "./vendor-slug";

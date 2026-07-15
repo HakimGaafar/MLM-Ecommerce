@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import AppOverlay from "@/components/ui/AppOverlay";
 import {
   flattenShellNavSections,
@@ -44,6 +45,86 @@ function SidebarNavLinks({
   );
 }
 
+function CollapsibleSidebarSection({
+  section,
+  allItems,
+  pathname,
+  onClose,
+}: {
+  section: ShellNavSection;
+  allItems: ShellNavItem[];
+  pathname: string | null;
+  onClose: () => void;
+}) {
+  const sectionActive = section.items.some((item) =>
+    isShellNavItemActive(pathname, item, allItems),
+  );
+  const [manuallyOpen, setManuallyOpen] = useState(false);
+  const isOpen = sectionActive || manuallyOpen;
+
+  if (!section.label?.trim()) {
+    return (
+      <nav className="flex flex-col gap-0.5">
+        <SidebarNavLinks
+          items={section.items}
+          allItems={allItems}
+          pathname={pathname}
+          onClose={onClose}
+        />
+      </nav>
+    );
+  }
+
+  if (section.collapsible === false) {
+    return (
+      <div>
+        <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+          {section.label}
+        </p>
+        <nav className="flex flex-col gap-0.5">
+          <SidebarNavLinks
+            items={section.items}
+            allItems={allItems}
+            pathname={pathname}
+            onClose={onClose}
+          />
+        </nav>
+      </div>
+    );
+  }
+
+  return (
+    <details
+      open={isOpen}
+      onToggle={(event) => {
+        if (!sectionActive) setManuallyOpen(event.currentTarget.open);
+      }}
+      className="group rounded-lg"
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)] transition hover:bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] hover:text-[var(--foreground)] [&::-webkit-details-marker]:hidden">
+        <span>{section.label}</span>
+        <svg
+          className="h-3.5 w-3.5 shrink-0 transition-transform group-open:rotate-180"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          aria-hidden
+        >
+          <path d="m5 7.5 5 5 5-5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </summary>
+      <nav className="mt-0.5 flex flex-col gap-0.5 ps-1">
+        <SidebarNavLinks
+          items={section.items}
+          allItems={allItems}
+          pathname={pathname}
+          onClose={onClose}
+        />
+      </nav>
+    </details>
+  );
+}
+
 export default function AppSidebar({
   locale,
   title,
@@ -71,30 +152,22 @@ export default function AppSidebar({
       }`}
       dir={direction}
     >
-      <div className="animate-sidebar-enter flex-1 overflow-y-auto p-3">
+      <div className="animate-sidebar-enter flex-1 overflow-y-auto p-3 lg:overflow-visible">
         {title.trim() ? (
           <p className="px-3 pb-3 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
             {title}
           </p>
         ) : null}
         {sections ? (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
             {sections.map((section) => (
-              <div key={section.id}>
-                {section.label?.trim() ? (
-                  <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                    {section.label}
-                  </p>
-                ) : null}
-                <nav className="flex flex-col gap-0.5">
-                  <SidebarNavLinks
-                    items={section.items}
-                    allItems={allItems}
-                    pathname={pathname}
-                    onClose={onClose}
-                  />
-                </nav>
-              </div>
+              <CollapsibleSidebarSection
+                key={section.id}
+                section={section}
+                allItems={allItems}
+                pathname={pathname}
+                onClose={onClose}
+              />
             ))}
           </div>
         ) : (

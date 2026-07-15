@@ -183,6 +183,12 @@ enum VendorShippingChangeRequestStatus {
   REJECTED
 }
 
+enum ContactInquiryStatus {
+  NEW
+  READ
+  RESOLVED
+}
+
 enum VendorShippingAuditActor {
   ADMIN
   VENDOR_REQUEST_APPROVED
@@ -1058,6 +1064,7 @@ model Market {
   platformConfigs PlatformConfig[]
   wallets         Wallet[]
   banners         MarketBanner[]
+  contactInquiries ContactInquiry[]
 
   @@map("markets")
 }
@@ -1117,4 +1124,22 @@ model StripeWebhookEvent {
 
   @@index([processedAt])
   @@map("stripe_webhook_events")
+}
+
+model ContactInquiry {
+  id        String               @id @default(cuid())
+  marketId  String               @map("market_id")
+  firstName String               @map("first_name") @db.VarChar(80)
+  lastName  String               @map("last_name") @db.VarChar(80)
+  email     String               @db.VarChar(254)
+  message   String               @db.Text
+  status    ContactInquiryStatus @default(NEW)
+  createdAt DateTime             @default(now()) @map("created_at")
+  updatedAt DateTime             @updatedAt @map("updated_at")
+  market    Market               @relation(fields: [marketId], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@index([marketId, createdAt])
+  @@index([email])
+  @@map("contact_inquiries")
 }

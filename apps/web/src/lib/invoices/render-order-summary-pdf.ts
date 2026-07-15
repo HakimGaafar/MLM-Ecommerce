@@ -62,7 +62,7 @@ export async function renderOrderSummaryPdf(
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
-      const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "Forseiz";
+      const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "Fources";
       let y = MARGIN;
 
       doc.font(fonts.labelBold).fontSize(16).fillColor("#111111");

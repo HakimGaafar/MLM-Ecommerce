@@ -9,10 +9,10 @@ export type PlatformInvoiceEntity = {
   logoUrl: string | null;
 };
 
-/** Forseiz platform entity on commission invoices (env with dev fallbacks). */
+/** Fources platform entity on commission invoices (env with dev fallbacks). */
 export function getPlatformInvoiceEntity(): PlatformInvoiceEntity {
   return {
-    legalName: process.env.FORSEIZ_LEGAL_NAME?.trim() || "Forseiz Marketplace",
+    legalName: process.env.FORSEIZ_LEGAL_NAME?.trim() || "Fources Marketplace",
     vatTrn: process.env.FORSEIZ_VAT_TRN?.trim() || null,
     addressLine1: process.env.FORSEIZ_ADDRESS_LINE1?.trim() || "Riyadh, Saudi Arabia",
     addressLine2: process.env.FORSEIZ_ADDRESS_LINE2?.trim() || null,

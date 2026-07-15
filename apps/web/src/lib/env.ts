@@ -19,7 +19,7 @@ const envSchema = z
     AUTH_COOKIE_NAME: z.string().min(3).default("mlm_session"),
     AUTH_REFRESH_COOKIE_NAME: z.string().min(3).default("mlm_refresh"),
     APP_BASE_URL: z.url().default("http://localhost:3000"),
-    NEXT_PUBLIC_APP_NAME: z.string().default("MLM Ecommerce"),
+    NEXT_PUBLIC_APP_NAME: z.string().default("Fources"),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV !== "production") return;

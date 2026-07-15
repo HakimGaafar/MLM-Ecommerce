@@ -128,7 +128,7 @@ export async function createStripeCheckoutSession(
           unit_amount: amountMinor,
           product_data: {
             name: "Marketplace order",
-            description: "MLM Ecommerce marketplace order",
+            description: "Fources marketplace order",
           },
         },
       },

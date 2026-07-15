@@ -78,8 +78,6 @@ function roundMoney(n: number): number {
 const SEED_CATEGORY_GENERAL = "cat_general";
 const SEED_CATEGORY_ELECTRONICS = "cat_electronics";
 /** Stable Unsplash asset (previous seed ID returned 404 from upstream). */
-const SEED_IMAGE_DEFAULT =
-  "https://images.unsplash.com/photo-1505740420922-5e560c06d30d?w=800&auto=format&fit=crop&q=80";
 const SEED_VENDOR_LOGO_URL =
   "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=256&auto=format&fit=crop&q=80";
 const SEED_VENDOR_BANNER_URL =
@@ -131,7 +129,6 @@ async function seedPublishedProduct(
   price: number,
   marketId: string = DEFAULT_MARKET_ID,
   currency = "SAR",
-  imageUrl: string = SEED_IMAGE_DEFAULT,
 ) {
   return prisma.product.create({
     data: {
@@ -145,7 +142,7 @@ async function seedPublishedProduct(
       isActive: true,
       images: {
         create: {
-          url: imageUrl,
+          url: SEED_VENDOR_LOGO_URL,
           sortOrder: 0,
           isPrimary: true,
         },

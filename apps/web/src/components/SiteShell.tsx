@@ -4,9 +4,11 @@ import en from "@/i8n/en.json";
 import AppShell from "@/components/shell/AppShell";
 import { ACTIVE_ROLE_COOKIE, getRolesUserCanSwitch, resolveActiveRole } from "@/lib/active-role";
 import {
+  buildAdminSidebarSections,
   buildCustomerSidebarSections,
   buildHeaderNav,
   buildSidebarNav,
+  buildVendorSidebarSections,
   roleSwitcherLabel,
   type ShellNavDict,
 } from "@/lib/build-app-nav";
@@ -15,8 +17,7 @@ import { getAppLocale } from "@/lib/ui-locale";
 import { getActiveMarket, listMarketsForPicker } from "@/lib/market-server";
 import { getThemePreference } from "@/lib/theme-preference";
 import { getServerSession } from "@/lib/server-session";
-
-const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "MLM Ecommerce";
+import { getBrandName } from "@/lib/brand";
 
 export default async function SiteShell({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
@@ -25,6 +26,7 @@ export default async function SiteShell({ children }: { children: React.ReactNod
   const activeMarket = await getActiveMarket();
   const marketRows = await listMarketsForPicker();
   const dict = locale === "ar" ? ar : en;
+  const appName = getBrandName(locale);
   const cookieStore = await cookies();
   const roles = session?.roles ?? [];
   const activeRole = resolveActiveRole(roles, cookieStore.get(ACTIVE_ROLE_COOKIE)?.value);
@@ -47,7 +49,13 @@ export default async function SiteShell({ children }: { children: React.ReactNod
 
   const headerLinks = buildHeaderNav(activeRole, navDict, isLoggedIn);
   const sidebarSections =
-    activeRole === "CUSTOMER" ? buildCustomerSidebarSections(navDict) : undefined;
+    activeRole === "CUSTOMER"
+      ? buildCustomerSidebarSections(navDict)
+      : activeRole === "ADMIN"
+        ? buildAdminSidebarSections(navDict, roles)
+        : activeRole === "VENDOR"
+          ? buildVendorSidebarSections(navDict, vendorPermissions)
+          : undefined;
   const sidebarLinks = buildSidebarNav(activeRole, navDict, vendorPermissions, roles);
 
   const switchable = getRolesUserCanSwitch(roles);

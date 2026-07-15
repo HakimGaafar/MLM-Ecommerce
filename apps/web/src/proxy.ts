@@ -219,6 +219,7 @@ export const config = {
     "/products/:path*",
     "/stores/:path*",
     "/sell/:path*",
+    "/contact/:path*",
     "/api/v1/admin/:path*",
     "/api/v1/vendor/:path*",
     "/api/v1/customer/:path*",

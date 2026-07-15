@@ -5,13 +5,13 @@ import HomePageContent from "@/components/home/HomePageContent";
 import { getAppLocale } from "@/lib/ui-locale";
 import { getServerSession } from "@/lib/server-session";
 import { getActiveMarket } from "@/lib/market-server";
-
-const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "MLM Ecommerce";
+import { getBrandName } from "@/lib/brand";
 
 export default async function Home() {
   const session = await getServerSession();
   const locale = await getAppLocale();
   const dict = locale === "ar" ? ar : en;
+  const appName = getBrandName(locale);
 
   const market = await getActiveMarket();
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { ThemePreference } from "@/lib/theme-preference";
@@ -15,6 +16,7 @@ import MarketSwitcher, {
 import type { MarketCode } from "@mlm/shared";
 import { getToastDict } from "@/lib/toast-messages";
 import ThemeToggle from "@/components/shell/ThemeToggle";
+import { BRAND_LOGO_PATH } from "@/lib/brand";
 
 type Locale = "en" | "ar";
 
@@ -26,7 +28,6 @@ type NavLanguageLabels = {
 };
 
 export default function AppHeader({
-  locale: _serverLocale,
   appName,
   headerLinks,
   menuLabel,
@@ -38,7 +39,6 @@ export default function AppHeader({
   themeLabels,
   roleLabels,
   languageSwitcher,
-  guestLanguageMode,
   guestLoginLabel,
   marketSwitcher,
   onMenuToggle,
@@ -154,9 +154,17 @@ export default function AppHeader({
           ) : null}
           <Link
             href="/"
-            className="truncate text-sm font-bold tracking-tight text-[var(--foreground)] sm:text-base"
+            className="flex min-w-0 items-center gap-2 text-sm font-bold tracking-tight text-[var(--foreground)] sm:text-base"
           >
-            {appName}
+            <Image
+              src={BRAND_LOGO_PATH}
+              alt=""
+              width={72}
+              height={50}
+              priority
+              className="h-9 w-auto shrink-0 rounded bg-white object-contain p-0.5"
+            />
+            <span className="truncate">{appName}</span>
           </Link>
           {marketSwitcher ? (
             <span className="hidden shrink-0 rounded-full border border-[var(--border)] bg-[var(--surface-elevated)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)] sm:inline">
@@ -198,6 +206,18 @@ export default function AppHeader({
                 style={locale === "ar" ? { left: 0 } : { right: 0 }}
                 dir={direction}
               >
+                <div className="md:hidden">
+                  {headerLinks.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="block rounded-lg px-3 py-2 text-sm hover:bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
                 {menuItems.map((item) => (
                   <Link
                     key={item.href}
@@ -211,7 +231,11 @@ export default function AppHeader({
 
                 <div
                   className={
-                    menuItems.length > 0 ? "border-t border-[var(--border)] px-3 py-2" : "px-3 py-2"
+                    menuItems.length > 0 || headerLinks.length > 0
+                      ? `border-t border-[var(--border)] px-3 py-2 ${
+                          menuItems.length === 0 ? "md:border-t-0" : ""
+                        }`
+                      : "px-3 py-2"
                   }
                 >
                   <div className="flex items-center justify-between gap-2">

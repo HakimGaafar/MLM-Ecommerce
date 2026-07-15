@@ -58,7 +58,7 @@ const EN: InvoicePdfLabels = {
   vatTrn: "VAT TRN",
   footerTax: (seller) => `Tax invoice issued by ${seller}. Retain for your records.`,
   footerTaxSimple: "Tax invoice. Retain for your records.",
-  footerMarketplace: "Issued via Forseiz Marketplace",
+  footerMarketplace: "Issued via Fources Marketplace",
   footerCommission: (platform) => `Commission invoice from ${platform}. Retain for your records.`,
   footerCommissionSimple: "Commission invoice. Retain for your records.",
   forseiz: "FORSEIZ",

@@ -31,6 +31,27 @@ export function getClientIp(request: NextRequest) {
   return request.headers.get("x-real-ip") ?? "unknown";
 }
 
+export function isSameOriginRequest(
+  request: NextRequest,
+  options: { requireOrigin?: boolean } = {},
+): boolean {
+  const fetchSite = request.headers.get("sec-fetch-site");
+  if (fetchSite === "cross-site") return false;
+
+  const origin = request.headers.get("origin");
+  if (!origin) {
+    return options.requireOrigin !== true || fetchSite === "same-origin";
+  }
+
+  try {
+    const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+    const expectedHost = forwardedHost || request.headers.get("host") || request.nextUrl.host;
+    return new URL(origin).host.toLowerCase() === expectedHost.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
 function consumeInMemoryRateLimit(
   key: string,
   limit: number,

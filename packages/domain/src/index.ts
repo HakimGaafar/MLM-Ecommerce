@@ -122,3 +122,4 @@ export * from "./invoices/invoice-calculation";
 export * from "./invoices/vendor-invoice-profile.service";
 export * from "./invoices/order-invoice.service";
 export * from "./referral/referral-bind.service";
+export * from "./contact/contact-inquiry.service";

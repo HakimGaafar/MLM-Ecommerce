@@ -214,7 +214,14 @@ export default function VendorSetupForm({ locale, ui }: { locale: Locale; ui: Ui
           </label>
           <label className="block text-sm">
             {ui.shippingNotes}
-            <textarea className="mt-1 w-full rounded border px-3 py-2 dark:bg-[var(--surface)]" rows={4} value={shippingNotes} onChange={(e) => setShippingNotes(e.target.value)} required />
+            <textarea
+              className="app-input mt-1 min-h-28 w-full resize-y"
+              dir="auto"
+              rows={4}
+              value={shippingNotes}
+              onChange={(e) => setShippingNotes(e.target.value)}
+              required
+            />
           </label>
           <button type="submit" disabled={saving === "shipping" || setup.shipping.pendingRequest} className="btn-primary rounded-lg px-4 py-2 text-sm disabled:opacity-60">
             {saving === "shipping" ? ui.saving : ui.submitShippingRequest}

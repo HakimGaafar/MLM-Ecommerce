@@ -15,6 +15,7 @@ export { Prisma } from "@prisma/client";
 export {
   CouponDiscountType,
   CouponStatus,
+  ContactInquiryStatus,
   LedgerDirection,
   LedgerStatus,
   OrderReturnReason,

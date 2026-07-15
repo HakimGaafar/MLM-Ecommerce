@@ -67,7 +67,7 @@ export default function OrderSummaryView({
   stepLabel: string;
 }) {
   const direction = locale === "ar" ? "rtl" : "ltr";
-  const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "Forseiz";
+  const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "Fources";
   const paymentMethod = paymentMethodDisplayText(ui, order.paymentMethodDisplay);
   const paymentStatus = paymentStatusDisplayText(ui, order.paymentStatus);
 

@@ -7,11 +7,27 @@ import AppProviders from "@/components/providers/AppProviders";
 import { getAppLocale } from "@/lib/ui-locale";
 import { getThemePreference } from "@/lib/theme-preference";
 import { getServerSession } from "@/lib/server-session";
+import { getBrandName } from "@/lib/brand";
 
-export const metadata: Metadata = {
-  title: "MLM Ecommerce Platform",
-  description: "Shop from trusted marketplace vendors. Earn wallet cashback and grow with affiliate rewards.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getAppLocale();
+  const brandName = getBrandName(locale);
+  return {
+    title: {
+      default: brandName,
+      template: `%s | ${brandName}`,
+    },
+    description:
+      locale === "ar"
+        ? "تسوّق من بائعين موثوقين واكسب مكافآت واستردادًا نقديًا."
+        : "Shop from trusted marketplace vendors. Earn wallet cashback and affiliate rewards.",
+    icons: {
+      icon: [{ url: "/brand/fources-icon.png?v=3", type: "image/png" }],
+      shortcut: "/brand/fources-icon.png?v=3",
+      apple: "/brand/fources-apple-icon.png?v=3",
+    },
+  };
+}
 
 export default async function RootLayout({
   children,
