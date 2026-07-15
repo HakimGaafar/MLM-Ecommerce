@@ -12,6 +12,7 @@ packages/db/generated/
 
 # Local environment and secrets
 .env*
+!.env.example
 
 # Internal and client documentation
 docs/
