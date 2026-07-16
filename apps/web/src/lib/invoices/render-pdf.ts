@@ -1,6 +1,6 @@
 import PDFDocument from "pdfkit";
 import type { CommissionInvoiceRenderDto, VendorSaleInvoiceRenderDto } from "@mlm/domain";
-import { getInvoicePdfLabels, type InvoicePdfLabels, type InvoicePdfLocale } from "./invoice-pdf-locale";
+import { getInvoicePdfLabels, invoiceVatLabel, type InvoicePdfLabels, type InvoicePdfLocale } from "./invoice-pdf-locale";
 import { hasArabic, labelTextOptions } from "./pdf-arabic-text";
 import { invoicePdfFonts, registerInvoiceFonts, textAlign, type InvoicePdfFonts } from "./pdf-fonts";
 import { loadInvoiceLogo } from "./pdf-assets";
@@ -354,7 +354,7 @@ export async function renderVendorSaleInvoicePdf(
             { label: labels.subtotal, value: money(data.subtotal, data.currency) },
             ...(Number(data.discountShare) > 0 ? [{ label: labels.discount, value: `-${money(data.discountShare, data.currency)}` }] : []),
             ...(Number(data.shippingShare) > 0 ? [{ label: labels.shipping, value: money(data.shippingShare, data.currency) }] : []),
-            { label: labels.vat, value: money(data.vatTotal, data.currency) },
+            { label: invoiceVatLabel(labels, data.vatPercent), value: money(data.vatTotal, data.currency) },
             { label: labels.total, value: money(data.totalAmount, data.currency), bold: true },
           ],
           tableY + 14,
@@ -436,7 +436,7 @@ export async function renderCommissionInvoicePdf(
           fonts,
           [
             { label: labels.platformCommission, value: money(data.commissionSubtotal, data.currency) },
-            { label: labels.vat, value: money(data.vatTotal, data.currency) },
+            { label: invoiceVatLabel(labels, data.vatPercent), value: money(data.vatTotal, data.currency) },
             { label: labels.totalDue, value: money(data.totalAmount, data.currency), bold: true },
           ],
           totalsY,

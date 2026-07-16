@@ -1,3 +1,5 @@
+import { BRAND_NAME_AR, BRAND_NAME_EN } from "@/lib/brand";
+
 export type InvoicePdfLocale = "en" | "ar";
 
 export type InvoicePdfLabels = {
@@ -20,6 +22,7 @@ export type InvoicePdfLabels = {
   discount: string;
   shipping: string;
   vat: string;
+  vatWithPercent: (percent: number) => string;
   total: string;
   platformCommission: string;
   totalDue: string;
@@ -51,7 +54,8 @@ const EN: InvoicePdfLabels = {
   subtotal: "Subtotal",
   discount: "Discount",
   shipping: "Shipping",
-  vat: "VAT (15%)",
+  vat: "VAT",
+  vatWithPercent: (percent) => `VAT (${formatPercent(percent)}%)`,
   total: "Total",
   platformCommission: "Platform commission",
   totalDue: "Total due",
@@ -61,7 +65,7 @@ const EN: InvoicePdfLabels = {
   footerMarketplace: "Issued via Fources Marketplace",
   footerCommission: (platform) => `Commission invoice from ${platform}. Retain for your records.`,
   footerCommissionSimple: "Commission invoice. Retain for your records.",
-  forseiz: "FORSEIZ",
+  forseiz: BRAND_NAME_EN,
 };
 
 const AR: InvoicePdfLabels = {
@@ -84,6 +88,7 @@ const AR: InvoicePdfLabels = {
   discount: "الخصم",
   shipping: "الشحن",
   vat: "ضريبة القيمة المضافة",
+  vatWithPercent: (percent) => `ضريبة القيمة المضافة (${formatPercent(percent)}%)`,
   total: "الإجمالي",
   platformCommission: "عمولة المنصة",
   totalDue: "المبلغ المستحق",
@@ -93,11 +98,20 @@ const AR: InvoicePdfLabels = {
   footerMarketplace: "صادرة عبر منصة فورسيز",
   footerCommission: (platform) => `فاتورة عمولة من ${platform}. احتفظ بها لسجلاتك.`,
   footerCommissionSimple: "فاتورة عمولة. احتفظ بها لسجلاتك.",
-  forseiz: "فورسيز",
+  forseiz: BRAND_NAME_AR,
 };
 
 export function getInvoicePdfLabels(locale: InvoicePdfLocale): InvoicePdfLabels {
   return locale === "ar" ? AR : EN;
+}
+
+function formatPercent(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, "");
+}
+
+export function invoiceVatLabel(labels: InvoicePdfLabels, vatPercent: number | null | undefined): string {
+  if (vatPercent == null || Number.isNaN(vatPercent)) return labels.vat;
+  return labels.vatWithPercent(vatPercent);
 }
 
 export function normalizeInvoicePdfLocale(value: string | null | undefined): InvoicePdfLocale {

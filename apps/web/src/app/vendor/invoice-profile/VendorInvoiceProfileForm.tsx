@@ -8,8 +8,11 @@ type Locale = "en" | "ar";
 
 type Ui = {
   legalName: string;
+  vatTrnRegistered: string;
   vatTrn: string;
   vatTrnHint: string;
+  vatPercent: string;
+  vatPercentHint: string;
   addressLine1: string;
   addressLine2: string;
   city: string;
@@ -31,6 +34,8 @@ export default function VendorInvoiceProfileForm({ locale, ui }: { locale: Local
   const direction = locale === "ar" ? "rtl" : "ltr";
   const [legalName, setLegalName] = useState("");
   const [vatTrn, setVatTrn] = useState("");
+  const [vatPercent, setVatPercent] = useState("");
+  const [hasVatTrn, setHasVatTrn] = useState(false);
   const [addressLine1, setAddressLine1] = useState("");
   const [addressLine2, setAddressLine2] = useState("");
   const [city, setCity] = useState("");
@@ -52,6 +57,7 @@ export default function VendorInvoiceProfileForm({ locale, ui }: { locale: Local
           profile: {
             legalName: string;
             vatTrn: string | null;
+            vatPercent: number | null;
             addressLine1: string;
             addressLine2: string | null;
             city: string;
@@ -64,6 +70,13 @@ export default function VendorInvoiceProfileForm({ locale, ui }: { locale: Local
         if (!cancelled) {
           setLegalName(data.profile.legalName);
           setVatTrn(data.profile.vatTrn ?? "");
+          setVatPercent(data.profile.vatPercent != null ? String(data.profile.vatPercent) : "");
+          setHasVatTrn(
+            Boolean(
+              (data.profile.vatTrn && data.profile.vatTrn.trim().length > 0) ||
+                data.profile.vatPercent != null,
+            ),
+          );
           setAddressLine1(data.profile.addressLine1);
           setAddressLine2(data.profile.addressLine2 ?? "");
           setCity(data.profile.city);
@@ -94,7 +107,8 @@ export default function VendorInvoiceProfileForm({ locale, ui }: { locale: Local
         credentials: "include",
         body: JSON.stringify({
           legalName,
-          vatTrn: vatTrn.trim() || null,
+          vatTrn: hasVatTrn ? vatTrn.trim() || null : null,
+          vatPercent: hasVatTrn ? Number.parseFloat(vatPercent) : null,
           addressLine1,
           addressLine2: addressLine2.trim() || null,
           city,
@@ -120,7 +134,7 @@ export default function VendorInvoiceProfileForm({ locale, ui }: { locale: Local
   }
 
   if (loading) {
-    return <p className="text-sm text-[var(--muted)]">{ui.loading}</p>;
+    return <p className="text-sm text-(--muted)">{ui.loading}</p>;
   }
 
   return (
@@ -137,10 +151,52 @@ export default function VendorInvoiceProfileForm({ locale, ui }: { locale: Local
         <input required minLength={2} maxLength={200} className="app-input" value={legalName} onChange={(ev) => setLegalName(ev.target.value)} />
       </label>
 
+      <label className="flex cursor-pointer items-start gap-3 text-sm" dir={direction}>
+        <input
+          type="checkbox"
+          className="mt-1 rounded border-(--border-strong)"
+          checked={hasVatTrn}
+          onChange={(ev) => {
+            const next = ev.target.checked;
+            setHasVatTrn(next);
+            if (!next) {
+              setVatTrn("");
+              setVatPercent("");
+            }
+          }}
+        />
+        <span className="pt-0.5">{ui.vatTrnRegistered}</span>
+      </label>
+
       <label className="block space-y-1 text-sm">
         <span className="font-medium">{ui.vatTrn}</span>
-        <input minLength={5} maxLength={32} className="app-input" value={vatTrn} onChange={(ev) => setVatTrn(ev.target.value)} />
-        <span className="text-xs text-[var(--muted)]">{ui.vatTrnHint}</span>
+        <input
+          minLength={5}
+          maxLength={32}
+          className="app-input"
+          value={vatTrn}
+          onChange={(ev) => setVatTrn(ev.target.value)}
+          disabled={!hasVatTrn}
+          required={hasVatTrn}
+        />
+        <span className="text-xs text-(--muted)">{ui.vatTrnHint}</span>
+      </label>
+
+      <label className="block space-y-1 text-sm">
+        <span className="font-medium">{ui.vatPercent}</span>
+        <input
+          type="number"
+          min={0}
+          max={100}
+          step={0.01}
+          inputMode="decimal"
+          className="app-input"
+          value={vatPercent}
+          onChange={(ev) => setVatPercent(ev.target.value)}
+          disabled={!hasVatTrn}
+          required={hasVatTrn}
+        />
+        <span className="text-xs text-(--muted)">{ui.vatPercentHint}</span>
       </label>
 
       <label className="block space-y-1 text-sm">
@@ -172,7 +228,7 @@ export default function VendorInvoiceProfileForm({ locale, ui }: { locale: Local
       <label className="block space-y-1 text-sm">
         <span className="font-medium">{ui.logoUrl}</span>
         <input type="url" maxLength={500} className="app-input" value={logoUrl} onChange={(ev) => setLogoUrl(ev.target.value)} />
-        <span className="text-xs text-[var(--muted)]">{ui.logoUrlHint}</span>
+        <span className="text-xs text-(--muted)">{ui.logoUrlHint}</span>
       </label>
 
       <button type="submit" className="btn-primary btn-press" disabled={saving}>

@@ -4,6 +4,7 @@ import type { VendorInvoiceProfileInput } from "@mlm/shared";
 export type VendorInvoiceProfileDto = {
   legalName: string;
   vatTrn: string | null;
+  vatPercent: number | null;
   addressLine1: string;
   addressLine2: string | null;
   city: string;
@@ -23,6 +24,7 @@ type VendorInvoiceRow = {
   logoUrl: string | null;
   invoiceLegalName: string | null;
   invoiceVatTrn: string | null;
+  invoiceVatPercent: { toString(): string } | null;
   invoiceAddressLine1: string | null;
   invoiceAddressLine2: string | null;
   invoiceCity: string | null;
@@ -41,6 +43,7 @@ const profileSelect = {
   logoUrl: true,
   invoiceLegalName: true,
   invoiceVatTrn: true,
+  invoiceVatPercent: true,
   invoiceAddressLine1: true,
   invoiceAddressLine2: true,
   invoiceCity: true,
@@ -65,6 +68,7 @@ export function resolveVendorInvoiceProfile(row: VendorInvoiceRow): VendorInvoic
   return {
     legalName,
     vatTrn: row.invoiceVatTrn?.trim() || null,
+    vatPercent: row.invoiceVatPercent != null ? Number(row.invoiceVatPercent) : null,
     addressLine1,
     addressLine2: addressLine2 ?? null,
     city,
@@ -93,6 +97,7 @@ export async function updateVendorInvoiceProfile(
     data: {
       invoiceLegalName: input.legalName,
       invoiceVatTrn: input.vatTrn ?? null,
+      invoiceVatPercent: input.vatPercent ?? null,
       invoiceAddressLine1: input.addressLine1,
       invoiceAddressLine2: input.addressLine2 ?? null,
       invoiceCity: input.city,

@@ -3,7 +3,7 @@ import Image from "next/image";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { SocialIcon } from "@/components/SiteFooter";
-import { BRAND_LINKS, BRAND_LOGO_PATH, getBrandName } from "@/lib/brand";
+import { BRAND_LINKS, BRAND_LOGO_PATH, BRAND_WHATSAPP_DISPLAY, getBrandName } from "@/lib/brand";
 import { getAppLocale } from "@/lib/ui-locale";
 import ContactForm from "./ContactForm";
 
@@ -83,7 +83,27 @@ export default async function ContactPage() {
           </section>
         </div>
 
-        <ContactForm locale={locale} ui={ui} />
+        <div className="space-y-6">
+          <ContactForm locale={locale} ui={ui} />
+
+          <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+            <h2 className="text-xl font-semibold">{ui.whatsappTitle}</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{ui.whatsappText}</p>
+            <p className="mt-2 text-start text-sm font-medium">
+              <bdi dir="ltr">{BRAND_WHATSAPP_DISPLAY}</bdi>
+            </p>
+            <div className="mt-4">
+              <a
+                href={BRAND_LINKS.whatsapp}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary inline-flex"
+              >
+                {ui.whatsappButton}
+              </a>
+            </div>
+          </section>
+        </div>
       </div>
     </main>
   );

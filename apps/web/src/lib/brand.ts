@@ -10,7 +10,11 @@ export const BRAND_LINKS = {
   youtube: "https://www.youtube.com/channel/UCwyHpMeBFb5DbOCW014rv8g",
   x: "https://x.com/fources179721",
   maps: "https://maps.app.goo.gl/qYSFDbMNaF9YXAT9A?g_st=ic",
+  whatsapp: "https://wa.me/96877523743",
 } as const;
+
+/** Human-readable; always render with `dir="ltr"` in RTL layouts. */
+export const BRAND_WHATSAPP_DISPLAY = "+968 7752 3743";
 
 export function getBrandName(locale: BrandLocale): string {
   return locale === "ar" ? BRAND_NAME_AR : BRAND_NAME_EN;

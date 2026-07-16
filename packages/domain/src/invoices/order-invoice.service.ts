@@ -69,6 +69,7 @@ export type VendorSaleInvoiceRenderDto = {
   shippingShare: string;
   vatTotal: string;
   totalAmount: string;
+  vatPercent: number | null;
 };
 
 export type CommissionInvoiceRenderDto = {
@@ -100,6 +101,7 @@ export type CommissionInvoiceRenderDto = {
   vatTotal: string;
   totalAmount: string;
   relatedOrderNo: string;
+  vatPercent: number | null;
 };
 
 export type CustomerOrderInvoiceListItemDto = {
@@ -196,6 +198,7 @@ export async function listCustomerOrderInvoices(
       logoUrl: true,
       invoiceLegalName: true,
       invoiceVatTrn: true,
+      invoiceVatPercent: true,
       invoiceAddressLine1: true,
       invoiceAddressLine2: true,
       invoiceCity: true,
@@ -303,6 +306,7 @@ export async function buildVendorSaleInvoiceRender(
     shippingShare: totals.shippingShare.toFixed(2),
     vatTotal: totals.vatTotal.toFixed(2),
     totalAmount: totals.totalAmount.toFixed(2),
+    vatPercent: profile.vatPercent,
   };
 }
 
@@ -368,6 +372,7 @@ export async function buildCommissionInvoiceRender(
     vatTotal: totals.vatTotal.toFixed(2),
     totalAmount: totals.totalAmount.toFixed(2),
     relatedOrderNo: order.orderNo,
+    vatPercent: Math.round(platformConfig.vatRate * 10000) / 100,
   };
 }
 
