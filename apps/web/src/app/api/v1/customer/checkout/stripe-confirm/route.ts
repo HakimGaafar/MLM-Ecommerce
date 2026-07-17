@@ -1,4 +1,4 @@
-import { confirmStripeCheckoutForBuyer, StripeCheckoutError } from "@mlm/domain";
+import { getPaymentGateway, StripeCheckoutError } from "@mlm/domain";
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { requireCustomerSession } from "@/lib/require-customer-session";
@@ -26,7 +26,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await confirmStripeCheckoutForBuyer(auth.userId, parsed.data.sessionId);
+    const result = await getPaymentGateway().confirmCheckoutForBuyer(
+      auth.userId,
+      parsed.data.sessionId,
+    );
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof StripeCheckoutError) {

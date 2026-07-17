@@ -45,7 +45,15 @@ export const ContactInquiryCreateSchema = z
     email: z
       .string()
       .transform((value) => value.trim().toLowerCase())
-      .pipe(z.email("Enter a valid email address.").max(254)),
+      .pipe(
+        z
+          .email("Enter a valid email address.")
+          .max(254, "Email is too long.")
+          .refine(
+            (value) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/u.test(value),
+            "Enter a valid email address.",
+          ),
+      ),
     message: safeMessage,
     // Honeypot: legitimate clients leave this field empty.
     website: z.string().max(200).optional().default(""),

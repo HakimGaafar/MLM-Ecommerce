@@ -1,8 +1,9 @@
 import { prisma } from "@mlm/db";
+import { INTERNATIONAL_MARKETING_AGREEMENT_VERSION } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSessionTokenFromRequest, verifySessionToken } from "@/lib/auth";
-import { normalizeReferralCode } from "@/lib/security";
+import { isSameOriginRequest, normalizeReferralCode } from "@/lib/security";
 
 function buildReferralCodeSeed(email: string) {
   const prefix = (email.split("@")[0] ?? "user")
@@ -34,6 +35,10 @@ const UpdateReferralCodeSchema = z.object({
     .pipe(z.string().regex(/^[A-Z0-9]{4,24}$/)),
 });
 
+const EnrollAffiliateSchema = z.object({
+  internationalMarketingConsent: z.boolean().optional(),
+});
+
 export async function GET(request: NextRequest) {
   const token = getSessionTokenFromRequest(request);
   if (!token) {
@@ -60,10 +65,16 @@ export async function GET(request: NextRequest) {
     parentUserId: profile?.parent?.parentUserId ?? null,
     canEditReferralCode: referralUses === 0,
     referralUseCount: referralUses,
+    internationalMarketingConsentAccepted:
+      profile?.internationalMarketingConsentVersion ===
+      INTERNATIONAL_MARKETING_AGREEMENT_VERSION,
   });
 }
 
 export async function POST(request: NextRequest) {
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  }
   const token = getSessionTokenFromRequest(request);
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -74,11 +85,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const existingProfile = await prisma.affiliateProfile.findUnique({
+  const raw = await request.json().catch(() => ({}));
+  const parsed = EnrollAffiliateSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Validation failed" }, { status: 400 });
+  }
+  const consentData = parsed.data.internationalMarketingConsent
+    ? {
+        internationalMarketingConsentAt: new Date(),
+        internationalMarketingConsentVersion: INTERNATIONAL_MARKETING_AGREEMENT_VERSION,
+      }
+    : {};
+
+  let existingProfile = await prisma.affiliateProfile.findUnique({
     where: { userId: session.sub },
     include: { parent: true },
   });
   if (existingProfile) {
+    if (parsed.data.internationalMarketingConsent) {
+      existingProfile = await prisma.affiliateProfile.update({
+        where: { userId: session.sub },
+        data: consentData,
+        include: { parent: true },
+      });
+    }
     const referralUses = await prisma.referralRelation.count({ where: { parentUserId: session.sub } });
     return NextResponse.json({
       referralCode: existingProfile.referralCode,
@@ -87,6 +117,9 @@ export async function POST(request: NextRequest) {
       parentUserId: existingProfile.parent?.parentUserId ?? null,
       canEditReferralCode: referralUses === 0,
       referralUseCount: referralUses,
+      internationalMarketingConsentAccepted:
+        existingProfile.internationalMarketingConsentVersion ===
+        INTERNATIONAL_MARKETING_AGREEMENT_VERSION,
       enrolled: false,
     });
   }
@@ -122,6 +155,7 @@ export async function POST(request: NextRequest) {
         data: {
           userId: user.id,
           referralCode,
+          ...consentData,
         },
       });
     });
@@ -133,6 +167,9 @@ export async function POST(request: NextRequest) {
       parentUserId: null,
       canEditReferralCode: true,
       referralUseCount: 0,
+      internationalMarketingConsentAccepted:
+        created.internationalMarketingConsentVersion ===
+        INTERNATIONAL_MARKETING_AGREEMENT_VERSION,
       enrolled: true,
     });
   } catch {

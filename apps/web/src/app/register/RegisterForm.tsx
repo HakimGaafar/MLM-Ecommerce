@@ -2,14 +2,25 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import ar from "@/i8n/ar.json";
-import en from "@/i8n/en.json";
 import { useToast } from "@/components/toast/ToastProvider";
+import { LocalizedFieldError, useLiveCopy, useLiveLocale } from "@/components/ui/live-i18n";
+import {
+  inputClassName,
+  isStrongPassword,
+  isValidEmail,
+  REFERRAL_CODE_PATTERN,
+  REGISTER_NAME_PATTERN,
+} from "@/lib/field-validation";
 import { getToastDict } from "@/lib/toast-messages";
 
 type AccountType = "CUSTOMER" | "VENDOR" | "BOTH";
-type SupportedLanguage = "en" | "ar";
-const I18N = { en: en.register, ar: ar.register } as const;
+type FieldKey = "name" | "email" | "password" | "referralCode";
+type ErrorKey =
+  | "required"
+  | "invalidName"
+  | "invalidEmail"
+  | "invalidPassword"
+  | "invalidReferral";
 
 function normalizeReferralCode(code?: string) {
   const cleaned = code?.trim().toUpperCase();
@@ -17,16 +28,39 @@ function normalizeReferralCode(code?: string) {
   return /^[A-Z0-9]{4,24}$/.test(cleaned) ? cleaned : "";
 }
 
+function mapRegisterApiError(
+  status: number,
+  payloadError: string | undefined,
+  ui: {
+    rateLimited: string;
+    emailInUse: string;
+    invalidPassword: string;
+    invalidName: string;
+    invalidEmail: string;
+    registrationFailedInput: string;
+  },
+) {
+  if (status === 429) return ui.rateLimited;
+  if (payloadError?.toLowerCase().includes("already in use")) return ui.emailInUse;
+  if (payloadError?.toLowerCase().includes("password")) return ui.invalidPassword;
+  if (payloadError?.toLowerCase().includes("name")) return ui.invalidName;
+  if (payloadError?.toLowerCase().includes("email")) return ui.invalidEmail;
+  return ui.registrationFailedInput;
+}
+
 export default function RegisterForm({
   initialLocale,
   initialReferralCode,
 }: {
-  initialLocale: SupportedLanguage;
+  initialLocale: "en" | "ar";
   initialReferralCode?: string;
 }) {
+  const locale = useLiveLocale();
+  const ui = useLiveCopy("register");
+  void initialLocale;
   const router = useRouter();
   const toast = useToast();
-  const toastDict = getToastDict(initialLocale);
+  const toastDict = getToastDict(locale);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,8 +69,8 @@ export default function RegisterForm({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const ui = I18N[initialLocale];
-  const direction = initialLocale === "ar" ? "rtl" : "ltr";
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, ErrorKey>>>({});
+
   const accountTypeOptions: Array<{ value: AccountType; label: string; hint: string }> = [
     {
       value: "CUSTOMER",
@@ -55,10 +89,64 @@ export default function RegisterForm({
     },
   ];
 
+  function fieldValue(field: FieldKey) {
+    if (field === "name") return name;
+    if (field === "email") return email;
+    if (field === "password") return password;
+    return referralCode;
+  }
+
+  function validateField(field: FieldKey, value = fieldValue(field)): ErrorKey | null {
+    const trimmed = value.trim();
+
+    if (field === "name") {
+      if (!trimmed) return "required";
+      return REGISTER_NAME_PATTERN.test(trimmed) ? null : "invalidName";
+    }
+
+    if (field === "email") {
+      if (!trimmed) return "required";
+      return isValidEmail(trimmed) ? null : "invalidEmail";
+    }
+
+    if (field === "password") {
+      if (!value) return "required";
+      return isStrongPassword(value) ? null : "invalidPassword";
+    }
+
+    if (!trimmed) return null;
+    return REFERRAL_CODE_PATTERN.test(trimmed) ? null : "invalidReferral";
+  }
+
+  function showFieldError(field: FieldKey, value?: string) {
+    const key = validateField(field, value);
+    setFieldErrors((current) => {
+      if (!key) {
+        if (!current[field]) return current;
+        const next = { ...current };
+        delete next[field];
+        return next;
+      }
+      return { ...current, [field]: key };
+    });
+    return key;
+  }
+
+  function validateAll() {
+    const nextErrors: Partial<Record<FieldKey, ErrorKey>> = {};
+    (["name", "email", "password", "referralCode"] as const).forEach((field) => {
+      const key = validateField(field);
+      if (key) nextErrors[field] = key;
+    });
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setSuccess(null);
+    if (!validateAll()) return;
     setIsLoading(true);
 
     try {
@@ -78,20 +166,15 @@ export default function RegisterForm({
         const payload = (await response.json().catch(() => null)) as
           | { error?: string | { fieldErrors?: Record<string, string[]> } }
           | null;
-        if (typeof payload?.error === "string") {
-          throw new Error(payload.error);
-        }
-        throw new Error(ui.registrationFailedInput);
+        const payloadError = typeof payload?.error === "string" ? payload.error : undefined;
+        throw new Error(mapRegisterApiError(response.status, payloadError, ui));
       }
 
       const needsStoreSetup = accountType === "VENDOR" || accountType === "BOTH";
       const successMsg = needsStoreSetup ? ui.registrationSuccessVendor : ui.registrationSuccess;
       setSuccess(successMsg);
       toast.success(toastDict.registered);
-      setTimeout(
-        () => router.push("/login"),
-        700,
-      );
+      setTimeout(() => router.push("/login"), 700);
     } catch (submitError) {
       const msg = submitError instanceof Error ? submitError.message : ui.registrationFailed;
       setError(msg);
@@ -102,11 +185,15 @@ export default function RegisterForm({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 items-center px-6 py-16 animate-page-enter" dir={direction}>
+    <main
+      className="mx-auto flex w-full max-w-md flex-1 items-center px-6 py-16 animate-page-enter"
+      lang={locale}
+      dir={locale === "ar" ? "rtl" : "ltr"}
+    >
       <section className="app-card w-full p-6">
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">{ui.title}</h1>
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+        <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>
           <div className="space-y-1">
             <label className="text-sm font-medium" htmlFor="name">
               {ui.fullName}
@@ -115,12 +202,22 @@ export default function RegisterForm({
               id="name"
               type="text"
               required
-              minLength={2}
               maxLength={80}
-              pattern="^[A-Za-z0-9 .'-]{2,80}$"
+              autoComplete="name"
               value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="app-input"
+              aria-invalid={Boolean(fieldErrors.name)}
+              aria-describedby={fieldErrors.name ? "register-name-error" : undefined}
+              onChange={(event) => {
+                const next = event.target.value;
+                setName(next);
+                if (fieldErrors.name) showFieldError("name", next);
+              }}
+              onBlur={() => showFieldError("name")}
+              className={inputClassName(Boolean(fieldErrors.name))}
+            />
+            <LocalizedFieldError
+              id="register-name-error"
+              message={fieldErrors.name ? ui[fieldErrors.name] : null}
             />
           </div>
 
@@ -131,10 +228,25 @@ export default function RegisterForm({
             <input
               id="email"
               type="email"
+              inputMode="email"
+              autoComplete="email"
               required
+              maxLength={254}
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="app-input"
+              aria-invalid={Boolean(fieldErrors.email)}
+              aria-describedby={fieldErrors.email ? "register-email-error" : undefined}
+              dir="ltr"
+              onChange={(event) => {
+                const next = event.target.value;
+                setEmail(next);
+                if (fieldErrors.email) showFieldError("email", next);
+              }}
+              onBlur={() => showFieldError("email")}
+              className={inputClassName(Boolean(fieldErrors.email))}
+            />
+            <LocalizedFieldError
+              id="register-email-error"
+              message={fieldErrors.email ? ui[fieldErrors.email] : null}
             />
           </div>
 
@@ -145,14 +257,31 @@ export default function RegisterForm({
             <input
               id="password"
               type="password"
+              autoComplete="new-password"
               required
-              minLength={10}
               maxLength={128}
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="app-input"
+              aria-invalid={Boolean(fieldErrors.password)}
+              aria-describedby={
+                fieldErrors.password ? "register-password-error" : "register-password-hint"
+              }
+              onChange={(event) => {
+                const next = event.target.value;
+                setPassword(next);
+                if (fieldErrors.password) showFieldError("password", next);
+              }}
+              onBlur={() => showFieldError("password")}
+              className={inputClassName(Boolean(fieldErrors.password))}
             />
-            <p className="text-xs text-[var(--muted)]">{ui.passwordHint}</p>
+            <LocalizedFieldError
+              id="register-password-error"
+              message={fieldErrors.password ? ui[fieldErrors.password] : null}
+            />
+            {!fieldErrors.password ? (
+              <p id="register-password-hint" className="text-xs text-[var(--muted)]">
+                {ui.passwordHint}
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -186,32 +315,30 @@ export default function RegisterForm({
             <input
               id="referralCode"
               type="text"
-              pattern="^[A-Za-z0-9]{4,24}$"
               maxLength={24}
               value={referralCode}
-              onChange={(event) => setReferralCode(event.target.value)}
+              aria-invalid={Boolean(fieldErrors.referralCode)}
+              aria-describedby={fieldErrors.referralCode ? "register-referral-error" : undefined}
+              onChange={(event) => {
+                const next = event.target.value;
+                setReferralCode(next);
+                if (fieldErrors.referralCode) showFieldError("referralCode", next);
+              }}
+              onBlur={() => showFieldError("referralCode")}
               placeholder={ui.referralPlaceholder}
-              className="app-input uppercase"
+              className={inputClassName(Boolean(fieldErrors.referralCode), "uppercase")}
+            />
+            <LocalizedFieldError
+              id="register-referral-error"
+              message={fieldErrors.referralCode ? ui[fieldErrors.referralCode] : null}
             />
           </div>
 
-          {error ? (
-            <p className="app-alert-error">
-              {error}
-            </p>
-          ) : null}
+          {error ? <p className="app-alert-error">{error}</p> : null}
 
-          {success ? (
-            <p className="app-callout-success">
-              {success}
-            </p>
-          ) : null}
+          {success ? <p className="app-callout-success">{success}</p> : null}
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="btn-primary btn-press w-full"
-          >
+          <button type="submit" disabled={isLoading} className="btn-primary btn-press w-full">
             {isLoading ? ui.submitting : ui.submit}
           </button>
         </form>

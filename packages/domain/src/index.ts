@@ -54,6 +54,7 @@ export * from "./orders/order-admin-notes.service";
 export * from "./orders/order-customer-notice.service";
 export * from "./orders/order-vendor-cancel.service";
 export * from "./customer/profile.service";
+export * from "./customer/international-notice.service";
 export * from "./customer/customer-dashboard.service";
 export * from "./customer/orders.service";
 export * from "./customer/cart.service";
@@ -80,6 +81,8 @@ export * from "./vendor/vendor-team.service";
 export * from "./vendor/vendor-plans.service";
 export * from "./payments/stripe-checkout.service";
 export * from "./payments/stripe-refund.service";
+export * from "./payments/payment-gateway";
+export * from "./affiliate/international-consent.service";
 export {
   getStripeClient,
   stripeAmountFromDecimalString,

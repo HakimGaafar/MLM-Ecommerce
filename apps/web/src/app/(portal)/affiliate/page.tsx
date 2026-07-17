@@ -51,7 +51,14 @@ export default async function AffiliatePage() {
         </Link>
       </div>
 
-      <AffiliateView locale={locale} ui={ui} programRules={programRules} />
+      <AffiliateView
+        locale={locale}
+        ui={ui}
+        programRules={programRules}
+        internationalNotice={
+          market.code === "GLOBAL" ? dict.internationalNotices.affiliate : null
+        }
+      />
     </main>
   );
 }

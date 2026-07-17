@@ -2,9 +2,10 @@
 
 import { FormEvent, useState } from "react";
 import { useToast } from "@/components/toast/ToastProvider";
+import { LocalizedFieldError, useLiveCopy, useLiveLocale } from "@/components/ui/live-i18n";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
-
+import { inputClassName, isValidEmail } from "@/lib/field-validation";
 import { isMarketConfirmed, markMarketConfirmed } from "@/lib/market-client";
 
 type MeResponse = {
@@ -12,8 +13,8 @@ type MeResponse = {
   hasVendorStore?: boolean;
 };
 
-type SupportedLanguage = "en" | "ar";
-const I18N = { en: en.login, ar: ar.login } as const;
+type FieldKey = "email" | "password";
+type ErrorKey = "required" | "invalidEmail" | "passwordRequired";
 
 function homeAfterLogin(roles: string[], needsStoreSetup: boolean) {
   if (needsStoreSetup) return "/sell";
@@ -64,19 +65,67 @@ async function resolvePostLoginRedirect(roles: string[], needsStoreSetup: boolea
   return postLoginDestination(roles, needsStoreSetup);
 }
 
-export default function LoginForm({ initialLocale }: { initialLocale: SupportedLanguage }) {
+function mapLoginApiError(
+  status: number,
+  payloadError: string | undefined,
+  ui: {
+    rateLimited: string;
+    invalidCredentials: string;
+    loginFailed: string;
+  },
+) {
+  if (status === 429) return ui.rateLimited;
+  if (payloadError?.toLowerCase().includes("invalid")) return ui.invalidCredentials;
+  return ui.loginFailed;
+}
+
+export default function LoginForm({ initialLocale }: { initialLocale: "en" | "ar" }) {
+  const locale = useLiveLocale();
+  const ui = useLiveCopy("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const ui = I18N[initialLocale];
-  const toastDict = initialLocale === "ar" ? ar.toast : en.toast;
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, ErrorKey>>>({});
+  const toastDict = locale === "ar" ? ar.toast : en.toast;
   const toast = useToast();
-  const direction = initialLocale === "ar" ? "rtl" : "ltr";
+
+  function validateField(field: FieldKey, value = field === "email" ? email : password): ErrorKey | null {
+    if (field === "email") {
+      if (!value.trim()) return "required";
+      return isValidEmail(value) ? null : "invalidEmail";
+    }
+    return value ? null : "passwordRequired";
+  }
+
+  function showFieldError(field: FieldKey, value?: string) {
+    const key = validateField(field, value);
+    setFieldErrors((current) => {
+      if (!key) {
+        if (!current[field]) return current;
+        const next = { ...current };
+        delete next[field];
+        return next;
+      }
+      return { ...current, [field]: key };
+    });
+    return key;
+  }
+
+  function validateAll() {
+    const nextErrors: Partial<Record<FieldKey, ErrorKey>> = {};
+    const emailError = validateField("email");
+    const passwordError = validateField("password");
+    if (emailError) nextErrors.email = emailError;
+    if (passwordError) nextErrors.password = passwordError;
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    if (!validateAll()) return;
     setIsLoading(true);
 
     try {
@@ -91,7 +140,7 @@ export default function LoginForm({ initialLocale }: { initialLocale: SupportedL
         const payload = (await loginResponse.json().catch(() => null)) as
           | { error?: string }
           | null;
-        throw new Error(payload?.error ?? ui.loginFailed);
+        throw new Error(mapLoginApiError(loginResponse.status, payload?.error, ui));
       }
 
       const meResponse = await fetch("/api/v1/auth/me", {
@@ -111,13 +160,19 @@ export default function LoginForm({ initialLocale }: { initialLocale: SupportedL
     }
   }
 
+  void initialLocale;
+
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 items-center px-6 py-16 animate-page-enter" dir={direction}>
+    <main
+      className="mx-auto flex w-full max-w-md flex-1 items-center px-6 py-16 animate-page-enter"
+      lang={locale}
+      dir={locale === "ar" ? "rtl" : "ltr"}
+    >
       <section className="app-card w-full p-6">
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">{ui.title}</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">{ui.subtitle}</p>
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+        <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>
           <div className="space-y-1">
             <label className="text-sm font-medium" htmlFor="email">
               {ui.email}
@@ -125,10 +180,24 @@ export default function LoginForm({ initialLocale }: { initialLocale: SupportedL
             <input
               id="email"
               type="email"
+              inputMode="email"
+              autoComplete="email"
               required
-              className="app-input"
+              className={inputClassName(Boolean(fieldErrors.email))}
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              aria-invalid={Boolean(fieldErrors.email)}
+              aria-describedby={fieldErrors.email ? "login-email-error" : undefined}
+              dir="ltr"
+              onChange={(event) => {
+                const next = event.target.value;
+                setEmail(next);
+                if (fieldErrors.email) showFieldError("email", next);
+              }}
+              onBlur={() => showFieldError("email")}
+            />
+            <LocalizedFieldError
+              id="login-email-error"
+              message={fieldErrors.email ? ui[fieldErrors.email] : null}
             />
           </div>
 
@@ -139,26 +208,29 @@ export default function LoginForm({ initialLocale }: { initialLocale: SupportedL
             <input
               id="password"
               type="password"
+              autoComplete="current-password"
               required
-              minLength={10}
               maxLength={128}
-              className="app-input"
+              className={inputClassName(Boolean(fieldErrors.password))}
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              aria-invalid={Boolean(fieldErrors.password)}
+              aria-describedby={fieldErrors.password ? "login-password-error" : undefined}
+              onChange={(event) => {
+                const next = event.target.value;
+                setPassword(next);
+                if (fieldErrors.password) showFieldError("password", next);
+              }}
+              onBlur={() => showFieldError("password")}
+            />
+            <LocalizedFieldError
+              id="login-password-error"
+              message={fieldErrors.password ? ui[fieldErrors.password] : null}
             />
           </div>
 
-          {error ? (
-            <p className="app-alert-error">
-              {error}
-            </p>
-          ) : null}
+          {error ? <p className="app-alert-error">{error}</p> : null}
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="btn-primary btn-press w-full"
-          >
+          <button type="submit" disabled={isLoading} className="btn-primary btn-press w-full">
             {isLoading ? ui.submitting : ui.submit}
           </button>
         </form>

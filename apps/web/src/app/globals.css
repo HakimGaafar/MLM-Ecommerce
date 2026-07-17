@@ -366,6 +366,35 @@ body {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent);
 }
 
+.app-input.app-input-invalid,
+.app-input[aria-invalid="true"] {
+  border-color: color-mix(in srgb, var(--danger) 75%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 22%, transparent);
+}
+
+.app-input.app-input-invalid:focus,
+.app-input[aria-invalid="true"]:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 28%, transparent);
+}
+
+.app-field-error {
+  margin-top: 0.4rem;
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--border));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  color: var(--danger);
+  padding: 0.4rem 0.65rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.dark .app-field-error {
+  border-color: color-mix(in srgb, var(--danger) 48%, var(--border));
+  background: color-mix(in srgb, var(--danger) 16%, var(--surface));
+  color: color-mix(in srgb, var(--danger) 85%, white);
+}
+
 select.app-input {
   cursor: pointer;
   appearance: none;

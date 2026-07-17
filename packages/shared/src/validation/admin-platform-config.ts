@@ -29,6 +29,9 @@ export const AdminPlatformConfigUpdateSchema = z
     privacyText: optionalText,
     returnPolicyUrl: optionalUrl,
     returnPolicyText: optionalText,
+    showTapGateway: z.boolean(),
+    showHyperPayGateway: z.boolean(),
+    showMyFatoorahGateway: z.boolean(),
   })
   .superRefine((data, ctx) => {
     const splitSum = data.vendorPercent + data.platformPercent;

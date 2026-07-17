@@ -1,5 +1,11 @@
 import type { PaginatedResult } from "@mlm/shared";
-import { buildPaginatedResult, normalizePagination } from "@mlm/shared";
+import {
+  buildPaginatedResult,
+  INTERNATIONAL_MARKETING_AGREEMENT_VERSION,
+  INTERNATIONAL_SALES_AGREEMENT_VERSION,
+  INTERNATIONAL_SHOPPING_NOTICE_VERSION,
+  normalizePagination,
+} from "@mlm/shared";
 import type { KycDocumentStatus, KycDocumentType, KycSubjectType } from "@mlm/db";
 import { prisma } from "@mlm/db";
 import { getKycExpiryWarning, type KycExpiryWarning } from "../kyc/kyc-expiry";
@@ -30,12 +36,79 @@ export type AdminKycDocumentDto = {
 };
 
 export type AdminKycSubjectGroupDto = {
+  groupKey: string;
   subjectKey: string;
   subjectType: KycSubjectType;
   subjectLabel: string;
   subjectEmail: string | null;
+  agreement: AdminKycAgreementDto;
   documents: AdminKycDocumentDto[];
 };
+
+export type AdminKycAgreementDto = {
+  kind: "INTERNATIONAL_SALES" | "INTERNATIONAL_MARKETING" | "INTERNATIONAL_SHOPPING";
+  required: boolean;
+  accepted: boolean;
+  acceptedAt: string | null;
+  version: string | null;
+  currentVersion: string;
+};
+
+type KycSubjectRelations = {
+  subjectType: KycSubjectType;
+  subjectKey: string;
+  userId: string | null;
+  vendorId: string | null;
+  user: {
+    name: string;
+    email: string;
+    customerProfile: {
+      internationalShoppingNoticeAcceptedAt: Date | null;
+      internationalShoppingNoticeVersion: string | null;
+    } | null;
+    affiliateProfile: {
+      internationalMarketingConsentAt: Date | null;
+      internationalMarketingConsentVersion: string | null;
+    } | null;
+  } | null;
+  vendor: {
+    storeName: string;
+    owner: { email: string };
+    market: { code: string };
+    internationalSalesConsentAt: Date | null;
+    internationalSalesConsentVersion: string | null;
+  } | null;
+};
+
+const kycSubjectInclude = {
+  user: {
+    select: {
+      name: true,
+      email: true,
+      customerProfile: {
+        select: {
+          internationalShoppingNoticeAcceptedAt: true,
+          internationalShoppingNoticeVersion: true,
+        },
+      },
+      affiliateProfile: {
+        select: {
+          internationalMarketingConsentAt: true,
+          internationalMarketingConsentVersion: true,
+        },
+      },
+    },
+  },
+  vendor: {
+    select: {
+      storeName: true,
+      owner: { select: { email: true } },
+      market: { select: { code: true } },
+      internationalSalesConsentAt: true,
+      internationalSalesConsentVersion: true,
+    },
+  },
+} as const;
 
 export class AdminKycError extends Error {
   constructor(
@@ -55,14 +128,9 @@ function tabToStatuses(tab: KycTab): KycDocumentStatus[] {
   return ["REJECTED"];
 }
 
-function resolveSubjectLabel(row: {
-  subjectType: KycSubjectType;
-  subjectKey: string;
-  userId: string | null;
-  vendorId: string | null;
-  user: { name: string; email: string } | null;
-  vendor: { storeName: string; owner: { email: string } } | null;
-}): { subjectLabel: string; subjectEmail: string | null } {
+function resolveSubjectLabel(
+  row: KycSubjectRelations,
+): { subjectLabel: string; subjectEmail: string | null } {
   if (row.subjectType === "VENDOR" && row.vendor) {
     return { subjectLabel: row.vendor.storeName, subjectEmail: row.vendor.owner.email };
   }
@@ -75,6 +143,55 @@ function resolveSubjectLabel(row: {
     };
   }
   return { subjectLabel: row.subjectKey, subjectEmail: null };
+}
+
+function resolveAgreement(row: KycSubjectRelations): AdminKycAgreementDto {
+  if (row.subjectType === "VENDOR") {
+    const version = row.vendor?.internationalSalesConsentVersion ?? null;
+    const acceptedAt = row.vendor?.internationalSalesConsentAt ?? null;
+    const required = row.vendor?.market.code === "GLOBAL";
+    return {
+      kind: "INTERNATIONAL_SALES",
+      required,
+      accepted:
+        !required ||
+        (acceptedAt != null && version === INTERNATIONAL_SALES_AGREEMENT_VERSION),
+      acceptedAt: acceptedAt?.toISOString() ?? null,
+      version,
+      currentVersion: INTERNATIONAL_SALES_AGREEMENT_VERSION,
+    };
+  }
+
+  if (row.subjectType === "AFFILIATE") {
+    const version =
+      row.user?.affiliateProfile?.internationalMarketingConsentVersion ?? null;
+    const acceptedAt =
+      row.user?.affiliateProfile?.internationalMarketingConsentAt ?? null;
+    return {
+      kind: "INTERNATIONAL_MARKETING",
+      required: true,
+      accepted:
+        acceptedAt != null &&
+        version === INTERNATIONAL_MARKETING_AGREEMENT_VERSION,
+      acceptedAt: acceptedAt?.toISOString() ?? null,
+      version,
+      currentVersion: INTERNATIONAL_MARKETING_AGREEMENT_VERSION,
+    };
+  }
+
+  const version =
+    row.user?.customerProfile?.internationalShoppingNoticeVersion ?? null;
+  const acceptedAt =
+    row.user?.customerProfile?.internationalShoppingNoticeAcceptedAt ?? null;
+  return {
+    kind: "INTERNATIONAL_SHOPPING",
+    required: true,
+    accepted:
+      acceptedAt != null && version === INTERNATIONAL_SHOPPING_NOTICE_VERSION,
+    acceptedAt: acceptedAt?.toISOString() ?? null,
+    version,
+    currentVersion: INTERNATIONAL_SHOPPING_NOTICE_VERSION,
+  };
 }
 
 function mapAdminRow(
@@ -142,10 +259,7 @@ export async function listAdminKycDocuments(params: {
       orderBy: tab === "pending" ? { submittedAt: "asc" } : { reviewedAt: "desc" },
       skip,
       take,
-      include: {
-        user: { select: { name: true, email: true } },
-        vendor: { select: { storeName: true, owner: { select: { email: true } } } },
-      },
+      include: kycSubjectInclude,
     }),
   ]);
 
@@ -162,23 +276,23 @@ const CUSTOMER_SCOPE_TYPES: KycSubjectType[] = ["CUSTOMER", "AFFILIATE"];
 
 function ensureSubjectGroup(
   groups: Map<string, AdminKycSubjectGroupDto>,
-  row: {
-    subjectKey: string;
-    subjectType: KycSubjectType;
-  },
+  row: KycSubjectRelations,
   subjectLabel: string,
   subjectEmail: string | null,
 ): AdminKycSubjectGroupDto {
-  const existing = groups.get(row.subjectKey);
+  const groupKey = `${row.subjectType}:${row.subjectKey}`;
+  const existing = groups.get(groupKey);
   if (existing) return existing;
   const group: AdminKycSubjectGroupDto = {
+    groupKey,
     subjectKey: row.subjectKey,
     subjectType: row.subjectType,
     subjectLabel,
     subjectEmail,
+    agreement: resolveAgreement(row),
     documents: [],
   };
-  groups.set(row.subjectKey, group);
+  groups.set(groupKey, group);
   return group;
 }
 
@@ -193,8 +307,7 @@ export async function listAdminKycSubjectGroups(params: {
     where: { subjectType: { in: subjectTypes } },
     orderBy: [{ subjectKey: "asc" }, { documentType: "asc" }],
     include: {
-      user: { select: { name: true, email: true } },
-      vendor: { select: { storeName: true, owner: { select: { email: true } } } },
+      ...kycSubjectInclude,
     },
   });
 
@@ -251,8 +364,7 @@ export async function reviewAdminKycDocument(params: {
   const row = await prisma.kycDocument.findUnique({
     where: { id: params.documentId },
     include: {
-      user: { select: { name: true, email: true } },
-      vendor: { select: { storeName: true, owner: { select: { email: true } } } },
+      ...kycSubjectInclude,
     },
   });
   if (!row) throw new AdminKycError("NOT_FOUND");
@@ -282,8 +394,7 @@ export async function reviewAdminKycDocument(params: {
             reviewedAt: new Date(),
           },
     include: {
-      user: { select: { name: true, email: true } },
-      vendor: { select: { storeName: true, owner: { select: { email: true } } } },
+      ...kycSubjectInclude,
     },
   });
 

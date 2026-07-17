@@ -2,7 +2,8 @@ import { Prisma, prisma, raceSafeUpsert } from "@mlm/db";
 import type { OrderUnitStatus } from "@mlm/db";
 import { RETURN_STATUSES_BLOCKING_NEW } from "../customer/orders.service";
 import { rollupOrderStatus } from "./order-fulfillment-groups.service";
-import { StripeRefundError, refundStripeOrderAmount } from "../payments/stripe-refund.service";
+import { getPaymentGateway } from "../payments/payment-gateway";
+import { StripeRefundError } from "../payments/stripe-refund.service";
 import { ensureWalletInTx } from "../wallet/wallet.service";
 
 export class OrderVendorCancelError extends Error {
@@ -156,7 +157,10 @@ export async function cancelVendorFromOrder(input: {
 
   if (stripeRefund > 0 && order.stripeCheckoutSessionId) {
     try {
-      await refundStripeOrderAmount(order.stripeCheckoutSessionId, stripeRefund.toFixed(2));
+      await getPaymentGateway().refundOrderAmount(
+        order.stripeCheckoutSessionId,
+        stripeRefund.toFixed(2),
+      );
     } catch (e) {
       const msg =
         e instanceof StripeRefundError ? e.message : "Stripe refund failed.";

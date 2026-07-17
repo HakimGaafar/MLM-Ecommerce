@@ -3,64 +3,36 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/toast/ToastProvider";
+import { LocalizedFieldError, useLiveCopy, useLiveLocale } from "@/components/ui/live-i18n";
+import { inputClassName, isStrongPassword, isValidEmail } from "@/lib/field-validation";
 import { getToastDict } from "@/lib/toast-messages";
 
 type Locale = "en" | "ar";
 type Step = 1 | 2 | 3 | "done";
-
-type Ui = {
-  stepAccount: string;
-  stepStore: string;
-  stepPlan: string;
-  fullName: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-  storeName: string;
-  storeSlug: string;
-  storeSlugHint: string;
-  slugAvailable: string;
-  slugTaken: string;
-  slugInvalid: string;
-  country: string;
-  addressLine1: string;
-  addressLine2: string;
-  state: string;
-  city: string;
-  postalCode: string;
-  about: string;
-  planTitle: string;
-  planDescription: string;
-  planFeature1: string;
-  planFeature2: string;
-  planFeature3: string;
-  acceptPlan: string;
-  back: string;
-  next: string;
-  submit: string;
-  submitting: string;
-  successTitle: string;
-  successBody: string;
-  goToLogin: string;
-  existingAccount: string;
-  signIn: string;
-  loggedInTitle: string;
-  loggedInSubtitle: string;
-  errorGeneric: string;
-  countrySA: string;
-  countryAE: string;
-  countryOM: string;
-};
+type AccountField = "name" | "email" | "password" | "confirmPassword";
+type AccountErrorKey = "required" | "invalidEmail" | "invalidPassword" | "passwordMismatch";
 
 export default function SellWizard({
-  locale,
-  ui,
+  locale: serverLocale,
   mode,
+  internationalNotice,
 }: {
   locale: Locale;
-  ui: Ui;
+  ui?: unknown;
   mode: "guest" | "loggedIn";
+  internationalNotice: {
+    title: string;
+    intro: string;
+    point1: string;
+    point2: string;
+    point3: string;
+    point4: string;
+    platformClause: string;
+    agreement: string;
+  } | null;
 }) {
+  const locale = useLiveLocale();
+  const ui = useLiveCopy("sellOnboarding");
   const toast = useToast();
   const toastDict = getToastDict(locale);
   const direction = locale === "ar" ? "rtl" : "ltr";
@@ -68,6 +40,7 @@ export default function SellWizard({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [slugStatus, setSlugStatus] = useState<"idle" | "ok" | "bad">("idle");
+  const [accountErrors, setAccountErrors] = useState<Partial<Record<AccountField, AccountErrorKey>>>({});
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -83,6 +56,57 @@ export default function SellWizard({
   const [postalCode, setPostalCode] = useState("");
   const [about, setAbout] = useState("");
   const [acceptPlan, setAcceptPlan] = useState(false);
+  const [acceptInternationalSales, setAcceptInternationalSales] = useState(false);
+
+  void serverLocale;
+
+  function validateAccountField(
+    field: AccountField,
+    overrides?: Partial<Record<AccountField, string>>,
+  ): AccountErrorKey | null {
+    const currentName = overrides?.name ?? name;
+    const currentEmail = overrides?.email ?? email;
+    const currentPassword = overrides?.password ?? password;
+    const currentConfirm = overrides?.confirmPassword ?? confirmPassword;
+
+    if (field === "name") return currentName.trim() ? null : "required";
+    if (field === "email") {
+      if (!currentEmail.trim()) return "required";
+      return isValidEmail(currentEmail) ? null : "invalidEmail";
+    }
+    if (field === "password") {
+      if (!currentPassword) return "required";
+      return isStrongPassword(currentPassword) ? null : "invalidPassword";
+    }
+    if (!currentConfirm) return "required";
+    return currentPassword === currentConfirm ? null : "passwordMismatch";
+  }
+
+  function showAccountError(
+    field: AccountField,
+    overrides?: Partial<Record<AccountField, string>>,
+  ) {
+    const key = validateAccountField(field, overrides);
+    setAccountErrors((current) => {
+      if (!key) {
+        if (!current[field]) return current;
+        const next = { ...current };
+        delete next[field];
+        return next;
+      }
+      return { ...current, [field]: key };
+    });
+  }
+
+  function validateAccountStep() {
+    const nextErrors: Partial<Record<AccountField, AccountErrorKey>> = {};
+    (["name", "email", "password", "confirmPassword"] as const).forEach((field) => {
+      const key = validateAccountField(field);
+      if (key) nextErrors[field] = key;
+    });
+    setAccountErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }
 
   const checkSlug = useCallback(
     async (nextSlug: string, nextStoreName: string) => {
@@ -118,10 +142,12 @@ export default function SellWizard({
     postalCode,
     about: about || undefined,
     planCode: "FREE" as const,
+    internationalSalesConsent: internationalNotice ? acceptInternationalSales : undefined,
   });
 
   async function submitStoreOnly(e: FormEvent) {
     e.preventDefault();
+    if (internationalNotice && !acceptInternationalSales) return;
     setError(null);
     setLoading(true);
     try {
@@ -133,7 +159,7 @@ export default function SellWizard({
       });
       if (!res.ok) {
         const p = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(p?.error ?? ui.errorGeneric);
+        throw new Error(ui.errorGeneric);
       }
       setStep("done");
       toast.success(toastDict.storeCreated);
@@ -166,7 +192,10 @@ export default function SellWizard({
       });
       if (!res.ok) {
         const p = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(p?.error ?? ui.errorGeneric);
+        const raw = p?.error ?? "";
+        if (/password/i.test(raw)) throw new Error(ui.invalidPassword);
+        if (/email/i.test(raw) && /use|exist|already/i.test(raw)) throw new Error(ui.invalidEmail);
+        throw new Error(ui.errorGeneric);
       }
       setStep("done");
       toast.success(toastDict.onboardingComplete);
@@ -220,23 +249,89 @@ export default function SellWizard({
       {step === 1 && mode === "guest" ? (
         <form
           className="mx-auto max-w-md space-y-4"
+          noValidate
           onSubmit={(e) => {
             e.preventDefault();
-            if (password !== confirmPassword) {
-              setError(ui.confirmPassword);
-              return;
-            }
+            setError(null);
+            if (!validateAccountStep()) return;
             setStep(2);
           }}
         >
-          <label className="block text-sm font-medium">{ui.fullName}</label>
-          <input className={inputClass} required value={name} onChange={(e) => setName(e.target.value)} />
-          <label className="block text-sm font-medium">{ui.email}</label>
-          <input type="email" className={inputClass} required value={email} onChange={(e) => setEmail(e.target.value)} />
-          <label className="block text-sm font-medium">{ui.password}</label>
-          <input type="password" className={inputClass} required minLength={10} value={password} onChange={(e) => setPassword(e.target.value)} />
-          <label className="block text-sm font-medium">{ui.confirmPassword}</label>
-          <input type="password" className={inputClass} required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+          <div>
+            <label className="block text-sm font-medium">{ui.fullName}</label>
+            <input
+              className={inputClassName(Boolean(accountErrors.name))}
+              required
+              value={name}
+              aria-invalid={Boolean(accountErrors.name)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setName(next);
+                if (accountErrors.name) showAccountError("name", { name: next });
+              }}
+              onBlur={() => showAccountError("name")}
+            />
+            <LocalizedFieldError message={accountErrors.name ? ui[accountErrors.name] : null} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium">{ui.email}</label>
+            <input
+              type="email"
+              className={inputClassName(Boolean(accountErrors.email))}
+              required
+              value={email}
+              dir="ltr"
+              aria-invalid={Boolean(accountErrors.email)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setEmail(next);
+                if (accountErrors.email) showAccountError("email", { email: next });
+              }}
+              onBlur={() => showAccountError("email")}
+            />
+            <LocalizedFieldError message={accountErrors.email ? ui[accountErrors.email] : null} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium">{ui.password}</label>
+            <input
+              type="password"
+              className={inputClassName(Boolean(accountErrors.password))}
+              required
+              value={password}
+              aria-invalid={Boolean(accountErrors.password)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setPassword(next);
+                if (accountErrors.password) showAccountError("password", { password: next });
+                if (accountErrors.confirmPassword) {
+                  showAccountError("confirmPassword", { password: next });
+                }
+              }}
+              onBlur={() => showAccountError("password")}
+            />
+            <LocalizedFieldError message={accountErrors.password ? ui[accountErrors.password] : null} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium">{ui.confirmPassword}</label>
+            <input
+              type="password"
+              className={inputClassName(Boolean(accountErrors.confirmPassword))}
+              required
+              value={confirmPassword}
+              aria-invalid={Boolean(accountErrors.confirmPassword)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setConfirmPassword(next);
+                if (accountErrors.confirmPassword) {
+                  showAccountError("confirmPassword", { confirmPassword: next });
+                }
+              }}
+              onBlur={() => showAccountError("confirmPassword")}
+            />
+            <LocalizedFieldError
+              message={accountErrors.confirmPassword ? ui[accountErrors.confirmPassword] : null}
+            />
+          </div>
           <p className="text-sm text-[var(--muted)]">
             {ui.existingAccount}{" "}
             <Link href="/login" className="text-link underline">
@@ -281,13 +376,43 @@ export default function SellWizard({
           <input className={inputClass} required value={postalCode} onChange={(e) => setPostalCode(e.target.value)} />
           <label className="block text-sm font-medium">{ui.about}</label>
           <textarea className={inputClass} rows={3} value={about} onChange={(e) => setAbout(e.target.value)} />
+          {internationalNotice ? (
+            <section className="rounded-xl border border-amber-400/50 bg-amber-400/10 p-4 text-sm">
+              <h3 className="font-semibold">{internationalNotice.title}</h3>
+              <p className="mt-2 leading-6 text-[var(--muted)]">{internationalNotice.intro}</p>
+              <ul className="mt-3 list-inside list-disc space-y-1.5 text-[var(--muted)]">
+                <li>{internationalNotice.point1}</li>
+                <li>{internationalNotice.point2}</li>
+                <li>{internationalNotice.point3}</li>
+                <li>{internationalNotice.point4}</li>
+              </ul>
+              <p className="mt-3 font-medium">{internationalNotice.platformClause}</p>
+              <label className="mt-4 flex cursor-pointer items-start gap-2">
+                <input
+                  type="checkbox"
+                  required
+                  checked={acceptInternationalSales}
+                  onChange={(e) => setAcceptInternationalSales(e.target.checked)}
+                  className="mt-1"
+                />
+                <span>{internationalNotice.agreement}</span>
+              </label>
+            </section>
+          ) : null}
           <div className="flex gap-3">
             {mode === "guest" ? (
               <button type="button" onClick={() => setStep(1)} className="rounded-lg border px-4 py-2 text-sm">
                 {ui.back}
               </button>
             ) : null}
-            <button type="submit" disabled={slugStatus === "bad"} className="btn-primary rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50">
+            <button
+              type="submit"
+              disabled={
+                slugStatus === "bad" ||
+                Boolean(internationalNotice && !acceptInternationalSales)
+              }
+              className="btn-primary rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+            >
               {ui.next}
             </button>
           </div>

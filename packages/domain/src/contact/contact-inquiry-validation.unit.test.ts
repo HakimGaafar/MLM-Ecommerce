@@ -28,6 +28,9 @@ describe("ContactInquiryCreateSchema", () => {
     ["control characters", { ...valid, message: "Order issue\u0000 with invalid data." }],
     ["invalid name", { ...valid, firstName: "Robert'); DROP TABLE users;--" }],
     ["unknown fields", { ...valid, role: "SUPER_ADMIN" }],
+    ["missing email domain", { ...valid, email: "customer@" }],
+    ["email without TLD", { ...valid, email: "customer@example" }],
+    ["plain text email", { ...valid, email: "not-an-email" }],
   ])("rejects %s", (_label, input) => {
     expect(ContactInquiryCreateSchema.safeParse(input).success).toBe(false);
   });

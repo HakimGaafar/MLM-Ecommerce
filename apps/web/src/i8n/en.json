@@ -8,7 +8,12 @@
     "submitting": "Signing in...",
     "needAccount": "Need an account?",
     "createOne": "Create one",
-    "loginFailed": "Login failed"
+    "loginFailed": "Login failed",
+    "required": "This field is required.",
+    "invalidEmail": "Enter a valid email address.",
+    "passwordRequired": "Enter your password.",
+    "rateLimited": "Too many attempts. Please wait before trying again.",
+    "invalidCredentials": "Invalid email or password."
   },
   "register": {
     "title": "Create account",
@@ -33,7 +38,14 @@
     "accountTypeVendorLabel": "Vendor",
     "accountTypeVendorHint": "Seller account — after sign-in, complete store setup before using the vendor dashboard.",
     "accountTypeBothLabel": "Customer + Vendor",
-    "accountTypeBothHint": "Start with both customer and vendor capabilities."
+    "accountTypeBothHint": "Start with both customer and vendor capabilities.",
+    "required": "This field is required.",
+    "invalidName": "Enter a valid name using letters, numbers, spaces, or . ' -",
+    "invalidEmail": "Enter a valid email address.",
+    "invalidPassword": "Password must be at least 10 characters and include upper, lower, number, and symbol.",
+    "invalidReferral": "Referral code must be 4–24 letters or numbers.",
+    "emailInUse": "This email is already in use.",
+    "rateLimited": "Too many attempts. Please wait before trying again."
   },
   "customerDashboard": {
     "title": "Customer Dashboard",
@@ -295,7 +307,60 @@
     "error": "We could not send your inquiry. Please check the fields and try again.",
     "rateLimited": "Too many attempts. Please wait before trying again.",
     "privacy": "Your details are used only to review and respond to this inquiry.",
-    "required": "Required"
+    "required": "Required",
+    "invalidEmail": "Enter a valid email address.",
+    "invalidName": "Enter a valid name using letters only.",
+    "invalidMessage": "Please write at least 10 characters.",
+    "fieldRequired": "This field is required."
+  },
+  "internationalNotices": {
+    "customer": {
+      "title": "International Shopping Notice",
+      "body": "Prices in the global store are in US dollars. The receiving country may impose additional charges or requirements that are not included in the order or shipping cost and are the customer's responsibility.",
+      "points": [
+        "Customs duties and clearance fees",
+        "Taxes imposed by the receiving country",
+        "Import restrictions, permits, or other legal requirements"
+      ],
+      "continueShopping": "Continue Shopping",
+      "saveError": "Could not record your acknowledgement. Please try again.",
+      "checkoutTitle": "International order notice",
+      "checkoutBody": "Additional customs duties, taxes, clearance fees, or import requirements may apply in the receiving country and are your responsibility."
+    },
+    "vendor": {
+      "title": "International Sales Notice",
+      "intro": "You have chosen to make your products available for international sale. By continuing, you acknowledge and agree to:",
+      "point1": "Comply with the export laws and regulations of your country of business.",
+      "point2": "Comply with import restrictions and customs requirements in destination countries.",
+      "point3": "Ensure products are permitted for export and accurately describe their origin, value, and classification.",
+      "point4": "Accept responsibility for duties, delays, confiscation, regulatory action, or fines relating to your products.",
+      "platformClause": "FOURCES provides the technical platform only and is not responsible for customs or regulatory decisions made by the relevant authorities.",
+      "agreement": "I agree to the International Sales Notice and merchant responsibility clause.",
+      "accept": "Accept and continue",
+      "saving": "Saving agreement…",
+      "error": "Could not save your agreement. Please try again.",
+      "ownerOnly": "The store owner must accept this agreement before team members can use the GLOBAL vendor portal."
+    },
+    "affiliate": {
+      "title": "International Marketing Notice",
+      "body": "You are responsible for complying with the e-marketing, advertising, consumer-protection, tax, and other applicable laws in the country where you operate and in every country targeted by your campaigns.",
+      "platformClause": "FOURCES provides the technical platform only and is not responsible for violations, restrictions, or legal requirements related to your marketing activities.",
+      "agreement": "I agree to the International Marketing Notice and marketer responsibility clause.",
+      "accept": "Accept and continue",
+      "saving": "Saving agreement…",
+      "error": "Could not save your agreement. Please try again."
+    }
+  },
+  "agreementRecord": {
+    "vendorTitle": "International sales agreement",
+    "affiliateTitle": "International marketing agreement",
+    "accepted": "Accepted",
+    "pending": "Pending",
+    "acceptedAt": "Accepted on",
+    "version": "Agreement version",
+    "viewAgreement": "View agreement",
+    "close": "Close",
+    "pendingHint": "This agreement has not been accepted yet. Review and accept it on:"
   },
   "sellOnboarding": {
     "title": "Become a Seller",
@@ -340,7 +405,11 @@
     "errorGeneric": "Something went wrong. Please try again.",
     "countrySA": "Saudi Arabia",
     "countryAE": "United Arab Emirates",
-    "countryOM": "Oman"
+    "countryOM": "Oman",
+    "required": "This field is required.",
+    "invalidEmail": "Enter a valid email address.",
+    "invalidPassword": "Password must be at least 10 characters and include upper, lower, number, and symbol.",
+    "passwordMismatch": "Passwords do not match."
   },
   "publicStores": {
     "listTitle": "Stores",
@@ -453,12 +522,23 @@
     "paymentCod": "Cash on delivery (COD)",
     "paymentCodHint": "Pay when your order is delivered. Payment stays pending until collection.",
     "paymentCard": "Pay online (card)",
-    "paymentCardHint": "Secure checkout powered by Stripe. You will be redirected to complete payment.",
+    "paymentCardHint": "Pay securely by card. You will choose a payment gateway, then complete checkout.",
     "paymentCoveredByWallet": "Covered by wallet balance",
     "paymentCoveredByWalletHint": "Your wallet fully covers this order. No extra payment method is required.",
     "codOnlyNote": "Payment method: cash on delivery (COD). Payment stays pending until collected on delivery.",
     "payWithCard": "Pay with card",
     "redirectingToStripe": "Redirecting to Stripe…",
+    "gatewayPickerTitle": "Choose a payment gateway",
+    "gatewayPickerSubtitle": "Select how you want to pay online. More regional gateways are planned next.",
+    "gatewayStripe": "Stripe",
+    "gatewayStripeHint": "Available now. Secure card checkout.",
+    "gatewayTap": "Tap",
+    "gatewayHyperPay": "HyperPay",
+    "gatewayMyFatoorah": "MyFatoorah",
+    "gatewayComingSoon": "Coming soon",
+    "gatewayComingSoonHint": "Planned for a future release. Not available yet.",
+    "gatewayContinue": "Continue to payment",
+    "gatewayCancel": "Cancel",
     "couponTitle": "Coupon code",
     "couponPlaceholder": "Enter code",
     "couponApply": "Apply",
@@ -1996,7 +2076,8 @@
       "tax": "Tax / VAT",
       "withdrawal": "Withdrawals",
       "returns": "Returns",
-      "policies": "Legal & policies"
+      "policies": "Legal & policies",
+      "paymentGateways": "Payment gateway roadmap"
     },
     "fields": {
       "cashbackPercent": "Cashback (% of eligible order amount)",
@@ -2015,13 +2096,17 @@
       "privacyUrl": "Privacy URL (optional)",
       "privacyText": "Privacy text (optional)",
       "returnPolicyUrl": "Return policy URL (optional)",
-      "returnPolicyText": "Return policy text (optional)"
+      "returnPolicyText": "Return policy text (optional)",
+      "showTapGateway": "Show Tap in checkout",
+      "showHyperPayGateway": "Show HyperPay in checkout",
+      "showMyFatoorahGateway": "Show MyFatoorah in checkout"
     },
     "hints": {
       "affiliateLevels": "Level rates are a percentage of the affiliate pool, not the full order.",
       "commissionSplit": "Vendor and platform shares must total 100%.",
       "appliesToNewOrders": "Changes apply to new orders and future calculations only — not past orders or pending ledger rows.",
-      "policiesOptional": "Optional per-market legal copy. URLs take precedence when both URL and text are set."
+      "policiesOptional": "Optional per-market legal copy. URLs take precedence when both URL and text are set.",
+      "paymentGateways": "These controls show or hide planned gateways for customers. They remain disabled until their live adapters and credentials are installed."
     },
     "lastUpdated": "Last updated:",
     "neverUpdated": "Using seeded defaults (not edited in dashboard yet)."
@@ -2319,6 +2404,16 @@
       "updatePendingBadge": "Update requested",
       "verifiedBadge": "Verified",
       "pendingReviewBadge": "Pending review",
+      "agreementAccepted": "Agreement accepted",
+      "agreementNotAccepted": "Agreement not accepted",
+      "agreementNotRequired": "Agreement not required",
+      "agreementAcceptedAt": "Accepted on",
+      "agreementVersion": "Version",
+      "agreementKinds": {
+        "INTERNATIONAL_SALES": "International sales agreement",
+        "INTERNATIONAL_MARKETING": "International marketing agreement",
+        "INTERNATIONAL_SHOPPING": "International shopping notice"
+      },
       "defaultUpdateMessage": "Please upload an updated version of this document.",
       "expiryMonth": "Expires ≤30 days",
       "expiryWeek": "Expires ≤7 days",

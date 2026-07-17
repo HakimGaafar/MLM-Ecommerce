@@ -20,10 +20,19 @@ type DocRow = {
 };
 
 type SubjectGroup = {
+  groupKey: string;
   subjectKey: string;
   subjectType: string;
   subjectLabel: string;
   subjectEmail: string | null;
+  agreement: {
+    kind: string;
+    required: boolean;
+    accepted: boolean;
+    acceptedAt: string | null;
+    version: string | null;
+    currentVersion: string;
+  };
   documents: DocRow[];
 };
 
@@ -49,6 +58,12 @@ type Ui = {
   updatePendingBadge: string;
   verifiedBadge: string;
   pendingReviewBadge: string;
+  agreementAccepted: string;
+  agreementNotAccepted: string;
+  agreementNotRequired: string;
+  agreementAcceptedAt: string;
+  agreementVersion: string;
+  agreementKinds: Record<string, string>;
   toastApproved: string;
   toastRejected: string;
   toastError: string;
@@ -280,29 +295,68 @@ export default function AdminKycGroupedList({ locale, ui }: { locale: Locale; ui
 
       <ul className="space-y-3">
         {groups.map((group) => {
-          const open = openKey === group.subjectKey;
+          const open = openKey === group.groupKey;
           const groupDocIds = group.documents.map((d) => d.id);
           const allSelected = groupDocIds.length > 0 && groupDocIds.every((id) => selectedIds.has(id));
 
           return (
-            <li key={group.subjectKey} className="rounded-xl border border-[var(--border)]">
+            <li key={group.groupKey} className="rounded-xl border border-border">
               <button
                 type="button"
                 className="flex w-full items-center justify-between gap-3 px-4 py-3 text-start"
-                onClick={() => toggleOpen(group.subjectKey)}
+                onClick={() => toggleOpen(group.groupKey)}
               >
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{group.subjectLabel}</p>
-                  <p className="text-xs text-[var(--muted)]">
+                  <p className="text-xs text-(--muted)">
                     {ui.subjectTypes[group.subjectType] ?? group.subjectType}
                     {group.subjectEmail ? ` · ${group.subjectEmail}` : ""}
                   </p>
+                  <span
+                    className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                      !group.agreement.required
+                        ? "border-slate-500/40 bg-slate-500/10 text-slate-300"
+                        : group.agreement.accepted
+                          ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-200"
+                          : "border-amber-500/50 bg-amber-500/15 text-amber-200"
+                    }`}
+                  >
+                    {!group.agreement.required
+                      ? ui.agreementNotRequired
+                      : group.agreement.accepted
+                        ? ui.agreementAccepted
+                        : ui.agreementNotAccepted}
+                  </span>
                 </div>
-                <span className="text-xs text-[var(--muted)]">{open ? ui.collapse : ui.expand}</span>
+                <span className="text-xs text-(--muted)">{open ? ui.collapse : ui.expand}</span>
               </button>
 
               {open ? (
-                <div className="border-t border-[var(--border)] px-4 py-3">
+                <div className="border-t border-border px-4 py-3">
+                  <dl className="mb-4 grid gap-3 rounded-lg border border-border p-3 text-sm sm:grid-cols-3">
+                    <div>
+                      <dt className="text-xs text-(--muted)">
+                        {ui.agreementKinds[group.agreement.kind] ?? group.agreement.kind}
+                      </dt>
+                      <dd className="mt-1 font-medium">
+                        {!group.agreement.required
+                          ? ui.agreementNotRequired
+                          : group.agreement.accepted
+                            ? ui.agreementAccepted
+                            : ui.agreementNotAccepted}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-(--muted)">{ui.agreementAcceptedAt}</dt>
+                      <dd className="mt-1">{formatDate(group.agreement.acceptedAt)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-(--muted)">{ui.agreementVersion}</dt>
+                      <dd className="mt-1 font-mono">
+                        {group.agreement.version ?? group.agreement.currentVersion}
+                      </dd>
+                    </div>
+                  </dl>
                   <div className="mb-3 flex flex-wrap gap-2">
                     <button
                       type="button"

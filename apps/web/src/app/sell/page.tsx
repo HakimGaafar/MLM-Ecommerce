@@ -12,11 +12,13 @@ import { resolveVendorAccessForUser } from "@mlm/domain";
 export default async function SellPage() {
   const locale = await getAppLocale();
   const ui = locale === "ar" ? ar.sellOnboarding : en.sellOnboarding;
+  const internationalVendorUi =
+    locale === "ar" ? ar.internationalNotices.vendor : en.internationalNotices.vendor;
   const direction = locale === "ar" ? "rtl" : "ltr";
+  const market = await getActiveMarket();
 
   const session = await getServerSession();
   if (session) {
-    const market = await getActiveMarket();
     const access = await resolveVendorAccessForUser(session.sub, market.id);
     if (access) {
       const href = (await firstAllowedVendorHrefForUser(session.sub, market.id)) ?? "/vendor/products";
@@ -32,7 +34,12 @@ export default async function SellPage() {
         title={mode === "loggedIn" ? ui.loggedInTitle : ui.title}
         subtitle={mode === "loggedIn" ? ui.loggedInSubtitle : ui.subtitle}
       />
-      <SellWizard locale={locale} ui={ui} mode={mode} />
+      <SellWizard
+        locale={locale}
+        ui={ui}
+        mode={mode}
+        internationalNotice={market.code === "GLOBAL" ? internationalVendorUi : null}
+      />
     </PageShell>
   );
 }

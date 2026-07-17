@@ -19,6 +19,7 @@ export const SellerStoreFieldsSchema = z.object({
   postalCode: z.string().trim().min(2).max(20),
   about: z.string().trim().max(5000).optional().or(z.literal("")),
   planCode: z.literal("FREE").default("FREE"),
+  internationalSalesConsent: z.boolean().optional(),
 });
 
 export const SellerOnboardSchema = SellerStoreFieldsSchema.extend({

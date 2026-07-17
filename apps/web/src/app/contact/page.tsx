@@ -84,7 +84,7 @@ export default async function ContactPage() {
         </div>
 
         <div className="space-y-6">
-          <ContactForm locale={locale} ui={ui} />
+          <ContactForm locale={locale} />
 
           <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
             <h2 className="text-xl font-semibold">{ui.whatsappTitle}</h2>

@@ -58,6 +58,7 @@ export * from "./shipping-pricing";
 export * from "./product-fulfillment";
 export * from "./vendor-permissions";
 export * from "./vendor-route-access";
+export * from "./legal-agreements";
 export * from "./validation/vendor-permissions";
 export * from "./validation/seller-onboarding";
 export * from "./validation/vendor-invoice-profile";

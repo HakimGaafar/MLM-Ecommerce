@@ -1,4 +1,4 @@
-import { CheckoutError, createStripeCheckoutSession, StripeCheckoutError } from "@mlm/domain";
+import { CheckoutError, getPaymentGateway, StripeCheckoutError } from "@mlm/domain";
 import { CheckoutPostSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { enforceUserRateLimit } from "@/lib/rate-limit-response";
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const market = await resolveRequestMarket();
-    const result = await createStripeCheckoutSession(
+    const result = await getPaymentGateway().createCheckout(
       auth.userId,
       market.id,
       {
@@ -56,7 +56,15 @@ export async function POST(request: NextRequest) {
       },
       { appBaseUrl },
     );
-    return NextResponse.json(result, { status: 201, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      {
+        checkoutUrl: result.checkoutUrl,
+        orderId: result.orderId,
+        sessionId: result.providerReference,
+        paidWithoutStripe: result.paidWithoutGateway,
+      },
+      { status: 201, headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     if (error instanceof StripeCheckoutError) {
       return stripeErrorResponse(error);

@@ -1,6 +1,11 @@
 import { prisma, raceSafeUpsert, type Prisma } from "@mlm/db";
 import type { SellerOnboardInput, SellerStoreFieldsInput } from "@mlm/shared";
-import { DEFAULT_MARKET_ID, isReservedStoreSlug, slugifyStoreName } from "@mlm/shared";
+import {
+  DEFAULT_MARKET_ID,
+  INTERNATIONAL_SALES_AGREEMENT_VERSION,
+  isReservedStoreSlug,
+  slugifyStoreName,
+} from "@mlm/shared";
 import bcrypt from "bcryptjs";
 import { resolveWalletCurrency } from "../wallet/wallet.service";
 
@@ -61,6 +66,12 @@ function mapStoreFields(input: SellerStoreFieldsInput) {
     postalCode: input.postalCode,
     about: input.about?.trim() || null,
     planCode: input.planCode ?? "FREE",
+    ...(input.internationalSalesConsent
+      ? {
+          internationalSalesConsentAt: new Date(),
+          internationalSalesConsentVersion: INTERNATIONAL_SALES_AGREEMENT_VERSION,
+        }
+      : {}),
   };
 }
 
@@ -189,4 +200,49 @@ export async function createStoreForExistingUser(
   });
 
   return { vendorId: result.id, slug: result.slug };
+}
+
+export async function hasAcceptedInternationalSalesAgreement(
+  vendorId: string,
+): Promise<boolean> {
+  const status = await getInternationalSalesAgreementStatus(vendorId);
+  return status.accepted;
+}
+
+export async function getInternationalSalesAgreementStatus(
+  vendorId: string,
+): Promise<{
+  accepted: boolean;
+  acceptedAt: Date | null;
+  version: string | null;
+  currentVersion: string;
+}> {
+  const vendor = await prisma.vendor.findUnique({
+    where: { id: vendorId },
+    select: {
+      internationalSalesConsentAt: true,
+      internationalSalesConsentVersion: true,
+    },
+  });
+  const version = vendor?.internationalSalesConsentVersion ?? null;
+  return {
+    accepted:
+      vendor?.internationalSalesConsentAt != null &&
+      version === INTERNATIONAL_SALES_AGREEMENT_VERSION,
+    acceptedAt: vendor?.internationalSalesConsentAt ?? null,
+    version,
+    currentVersion: INTERNATIONAL_SALES_AGREEMENT_VERSION,
+  };
+}
+
+export async function acceptInternationalSalesAgreement(
+  vendorId: string,
+): Promise<void> {
+  await prisma.vendor.update({
+    where: { id: vendorId },
+    data: {
+      internationalSalesConsentAt: new Date(),
+      internationalSalesConsentVersion: INTERNATIONAL_SALES_AGREEMENT_VERSION,
+    },
+  });
 }

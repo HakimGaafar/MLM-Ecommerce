@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { CustomerProfileDto, CustomerShippingAddressDto, ProductFulfillmentTypeCode } from "@mlm/shared";
 import { previewCheckoutTotalsFromSubtotalString } from "@mlm/shared";
-import { getVatRate } from "../platform-config/platform-config.service";
+import {
+  getPlatformConfig,
+  getVatRate,
+} from "../platform-config/platform-config.service";
 import { Prisma, prisma } from "@mlm/db";
 import { buildUnitRowsForOrder } from "../orders/order-units.service";
 import {
@@ -313,6 +316,11 @@ export async function getCheckoutQuoteForUser(
   deliveryMismatchMarketCode: string | null;
   coupons: CheckoutQuoteCouponsDto | null;
   cardPaymentsEnabled: boolean;
+  plannedPaymentGateways: {
+    tap: boolean;
+    hyperpay: boolean;
+    myfatoorah: boolean;
+  };
   walletAvailableBalance: string;
   walletAppliedAmount: string;
   remainingAmount: string;
@@ -359,7 +367,8 @@ export async function getCheckoutQuoteForUser(
     shippingFeeTotal = sumVendorShippingFees(shippingLines).toFixed(2);
   }
 
-  const vatRate = await getVatRate(marketId);
+  const platformConfig = await getPlatformConfig(marketId);
+  const vatRate = platformConfig.vatRate;
   const totals = previewCheckoutTotalsFromSubtotalString(
     cart.subtotal,
     discountTotal,
@@ -401,6 +410,11 @@ export async function getCheckoutQuoteForUser(
     deliveryMismatchMarketCode: addressPick.deliveryMismatchMarketCode,
     coupons: couponsDto,
     cardPaymentsEnabled: isOnlineCardCheckoutEnabled(),
+    plannedPaymentGateways: {
+      tap: platformConfig.showTapGateway,
+      hyperpay: platformConfig.showHyperPayGateway,
+      myfatoorah: platformConfig.showMyFatoorahGateway,
+    },
     walletAvailableBalance: walletAvailable.toFixed(2),
     walletAppliedAmount: walletApplied.toFixed(2),
     remainingAmount: remainingAmount.toFixed(2),

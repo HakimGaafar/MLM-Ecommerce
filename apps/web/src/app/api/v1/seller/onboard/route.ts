@@ -29,6 +29,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const market = await resolveRequestMarket();
+    if (market.code === "GLOBAL" && parsed.data.internationalSalesConsent !== true) {
+      return NextResponse.json(
+        { error: "International sales agreement is required for the global marketplace." },
+        { status: 400 },
+      );
+    }
     const result = await onboardNewSeller(parsed.data, market.id);
     return NextResponse.json(result, { status: 201 });
   } catch (e) {

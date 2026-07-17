@@ -25,6 +25,9 @@ export type PlatformConfigSnapshot = {
   privacyText: string | null;
   returnPolicyUrl: string | null;
   returnPolicyText: string | null;
+  showTapGateway: boolean;
+  showHyperPayGateway: boolean;
+  showMyFatoorahGateway: boolean;
   updatedAt: string | null;
   updatedByUserId: string | null;
 };
@@ -69,6 +72,9 @@ export function getDefaultPlatformConfigSnapshot(marketId: string = DEFAULT_MARK
     privacyText: null,
     returnPolicyUrl: null,
     returnPolicyText: null,
+    showTapGateway: true,
+    showHyperPayGateway: true,
+    showMyFatoorahGateway: true,
     updatedAt: null,
     updatedByUserId: null,
   };
@@ -93,6 +99,9 @@ function mapRow(row: {
   privacyText: string | null;
   returnPolicyUrl: string | null;
   returnPolicyText: string | null;
+  showTapGateway: boolean;
+  showHyperPayGateway: boolean;
+  showMyFatoorahGateway: boolean;
   updatedAt: Date;
   updatedByUserId: string | null;
 }): PlatformConfigSnapshot {
@@ -117,6 +126,9 @@ function mapRow(row: {
     privacyText: row.privacyText,
     returnPolicyUrl: row.returnPolicyUrl,
     returnPolicyText: row.returnPolicyText,
+    showTapGateway: row.showTapGateway,
+    showHyperPayGateway: row.showHyperPayGateway,
+    showMyFatoorahGateway: row.showMyFatoorahGateway,
     updatedAt: row.updatedAt.toISOString(),
     updatedByUserId: row.updatedByUserId,
   };
@@ -209,5 +221,9 @@ export function buildPlatformConfigSeedData(
     privacyText: overrides?.privacyText ?? defaults.privacyText,
     returnPolicyUrl: overrides?.returnPolicyUrl ?? defaults.returnPolicyUrl,
     returnPolicyText: overrides?.returnPolicyText ?? defaults.returnPolicyText,
+    showTapGateway: overrides?.showTapGateway ?? defaults.showTapGateway,
+    showHyperPayGateway: overrides?.showHyperPayGateway ?? defaults.showHyperPayGateway,
+    showMyFatoorahGateway:
+      overrides?.showMyFatoorahGateway ?? defaults.showMyFatoorahGateway,
   };
 }

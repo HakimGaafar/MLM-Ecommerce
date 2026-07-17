@@ -24,6 +24,7 @@ type AffiliateState = {
   referralUseCount: number;
   parentUserId: string | null;
   rankTitle: string | null;
+  internationalMarketingConsentAccepted: boolean;
 };
 
 type GenealogyNode = {
@@ -62,10 +63,20 @@ export default function AffiliateView({
   locale,
   ui,
   programRules,
+  internationalNotice,
 }: {
   locale: Locale;
   ui: Ui;
   programRules: AffiliateProgramRules;
+  internationalNotice: {
+    title: string;
+    body: string;
+    platformClause: string;
+    agreement: string;
+    accept: string;
+    saving: string;
+    error: string;
+  } | null;
 }) {
   const toast = useToast();
   const direction = locale === "ar" ? "rtl" : "ltr";
@@ -73,6 +84,7 @@ export default function AffiliateView({
   const [error, setError] = useState<string | null>(null);
   const [affiliate, setAffiliate] = useState<AffiliateState | null>(null);
   const [enrolling, setEnrolling] = useState(false);
+  const [acceptInternationalMarketing, setAcceptInternationalMarketing] = useState(false);
 
   const pageSize = LIST_PAGE_SIZE;
   const [downline, setDownline] = useState<DownlineRow[]>([]);
@@ -97,6 +109,9 @@ export default function AffiliateView({
       referralUseCount: Number(data.referralUseCount ?? 0),
       parentUserId: data.parentUserId ?? null,
       rankTitle: (data as { rankTitle?: string | null }).rankTitle ?? null,
+      internationalMarketingConsentAccepted: Boolean(
+        data.internationalMarketingConsentAccepted,
+      ),
     };
   }, [ui.loadError]);
 
@@ -150,7 +165,11 @@ export default function AffiliateView({
         const state = await loadAffiliate();
         if (cancelled) return;
         setAffiliate(state);
-        if (state.isActive && state.referralCode) {
+        if (
+          state.isActive &&
+          state.referralCode &&
+          (!internationalNotice || state.internationalMarketingConsentAccepted)
+        ) {
           await Promise.all([
             loadDownlinePage(1),
             loadCommissionPage(1),
@@ -166,7 +185,42 @@ export default function AffiliateView({
     return () => {
       cancelled = true;
     };
-  }, [loadAffiliate, loadDownlinePage, loadCommissionPage, loadGenealogy, ui.loadError]);
+  }, [
+    internationalNotice,
+    loadAffiliate,
+    loadDownlinePage,
+    loadCommissionPage,
+    loadGenealogy,
+    ui.loadError,
+  ]);
+
+  const acceptInternationalNotice = async () => {
+    if (!acceptInternationalMarketing) return;
+    setEnrolling(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/v1/referral/me", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ internationalMarketingConsent: true }),
+      });
+      if (!res.ok) throw new Error(internationalNotice?.error ?? ui.enrollError);
+      const state = await loadAffiliate();
+      setAffiliate(state);
+      await Promise.all([
+        loadDownlinePage(1),
+        loadCommissionPage(1),
+        loadGenealogy(),
+      ]);
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : internationalNotice?.error ?? ui.enrollError,
+      );
+    } finally {
+      setEnrolling(false);
+    }
+  };
 
   const becomeAffiliate = async () => {
     setEnrolling(true);
@@ -216,6 +270,42 @@ export default function AffiliateView({
 
   if (loading) {
     return <p className="mt-8 text-sm text-[var(--muted)]">{ui.loading}</p>;
+  }
+
+  if (
+    internationalNotice &&
+    !affiliate?.internationalMarketingConsentAccepted
+  ) {
+    return (
+      <section
+        dir={direction}
+        className="mt-8 rounded-xl border border-amber-400/50 bg-amber-400/10 p-6"
+      >
+        <h2 className="text-xl font-semibold">{internationalNotice.title}</h2>
+        <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
+          {internationalNotice.body}
+        </p>
+        <p className="mt-3 text-sm font-medium">{internationalNotice.platformClause}</p>
+        <label className="mt-5 flex cursor-pointer items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={acceptInternationalMarketing}
+            onChange={(event) => setAcceptInternationalMarketing(event.target.checked)}
+          />
+          <span>{internationalNotice.agreement}</span>
+        </label>
+        {error ? <p className="mt-3 app-alert-error">{error}</p> : null}
+        <button
+          type="button"
+          className="btn-primary mt-5"
+          disabled={!acceptInternationalMarketing || enrolling}
+          onClick={() => void acceptInternationalNotice()}
+        >
+          {enrolling ? internationalNotice.saving : internationalNotice.accept}
+        </button>
+      </section>
+    );
   }
 
   const isEnrolled = Boolean(affiliate?.isActive && affiliate.referralCode);
@@ -297,7 +387,7 @@ export default function AffiliateView({
               <Link href="/cashback" className="font-medium text-link">
                 {ui.walletLink}
               </Link>
-              <Link href="/affiliate/kyc" className="font-medium text-link">
+              <Link href="/kyc" className="font-medium text-link">
                 {ui.kycLink}
               </Link>
             </p>

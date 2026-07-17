@@ -30,6 +30,9 @@ type ConfigState = {
   privacyText: string;
   returnPolicyUrl: string;
   returnPolicyText: string;
+  showTapGateway: boolean;
+  showHyperPayGateway: boolean;
+  showMyFatoorahGateway: boolean;
   currency: string;
   updatedAt: string | null;
 };
@@ -65,6 +68,7 @@ type Ui = {
     withdrawal: string;
     returns: string;
     policies: string;
+    paymentGateways: string;
   };
   fields: {
     cashbackPercent: string;
@@ -84,12 +88,16 @@ type Ui = {
     privacyText: string;
     returnPolicyUrl: string;
     returnPolicyText: string;
+    showTapGateway: string;
+    showHyperPayGateway: string;
+    showMyFatoorahGateway: string;
   };
   hints: {
     affiliateLevels: string;
     commissionSplit: string;
     appliesToNewOrders: string;
     policiesOptional: string;
+    paymentGateways: string;
   };
   lastUpdated: string;
   neverUpdated: string;
@@ -200,6 +208,10 @@ export default function AdminPlatformSettingsForm({
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
   };
 
+  const setBoolean = (key: keyof ConfigState, value: boolean) => {
+    setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
+  };
+
   const onSave = async () => {
     if (!form) return;
     setSaving(true);
@@ -278,6 +290,32 @@ export default function AdminPlatformSettingsForm({
               ? `${ui.lastUpdated} ${new Date(updatedAt).toLocaleString(locale === "ar" ? "ar-SA" : "en-GB")}`
               : ui.neverUpdated}
           </p>
+
+          <section className="rounded-xl border border-border p-6">
+            <h2 className="text-lg font-medium">{ui.sections.paymentGateways}</h2>
+            <p className="mt-1 text-xs text-(--muted)">{ui.hints.paymentGateways}</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {(
+                [
+                  ["showTapGateway", ui.fields.showTapGateway],
+                  ["showHyperPayGateway", ui.fields.showHyperPayGateway],
+                  ["showMyFatoorahGateway", ui.fields.showMyFatoorahGateway],
+                ] as const
+              ).map(([key, label]) => (
+                <label
+                  key={key}
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={form[key]}
+                    onChange={(event) => setBoolean(key, event.target.checked)}
+                  />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </div>
+          </section>
 
           <section className="rounded-xl border border-[var(--border)] p-6">
             <h2 className="text-lg font-medium">{ui.sections.cashback}</h2>

@@ -4,6 +4,7 @@ import type { CustomerShippingAddressDto, MarketCode } from "@mlm/shared";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import GoToMarketButton from "@/components/market/GoToMarketButton";
 import { useToast } from "@/components/toast/ToastProvider";
 import { formatMoney } from "@/lib/format-currency";
@@ -69,6 +70,11 @@ type QuotePayload = {
   deliveryMismatchMarketCode?: string | null;
   coupons: QuoteCoupons | null;
   cardPaymentsEnabled?: boolean;
+  plannedPaymentGateways?: {
+    tap: boolean;
+    hyperpay: boolean;
+    myfatoorah: boolean;
+  };
   walletAvailableBalance?: string;
   walletAppliedAmount?: string;
   remainingAmount?: string;
@@ -106,6 +112,17 @@ type CheckoutUi = {
   paymentCoveredByWalletHint: string;
   payWithCard: string;
   redirectingToStripe: string;
+  gatewayPickerTitle: string;
+  gatewayPickerSubtitle: string;
+  gatewayStripe: string;
+  gatewayStripeHint: string;
+  gatewayTap: string;
+  gatewayHyperPay: string;
+  gatewayMyFatoorah: string;
+  gatewayComingSoon: string;
+  gatewayComingSoonHint: string;
+  gatewayContinue: string;
+  gatewayCancel: string;
   cancelledNote: string;
   profileIncomplete: string;
   completeProfileLink: string;
@@ -142,10 +159,12 @@ export default function CheckoutView({
   locale,
   ui,
   toastOrderPlaced,
+  internationalNotice,
 }: {
   locale: Locale;
   ui: CheckoutUi;
   toastOrderPlaced: string;
+  internationalNotice: { checkoutTitle: string; checkoutBody: string } | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -154,6 +173,8 @@ export default function CheckoutView({
   const direction = locale === "ar" ? "rtl" : "ltr";
   const cancelled = searchParams.get("cancelled") === "1";
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "ONLINE_CARD">("COD");
+  const [gatewayPickerOpen, setGatewayPickerOpen] = useState(false);
+  const [selectedGateway, setSelectedGateway] = useState<"stripe">("stripe");
   const [quote, setQuote] = useState<QuotePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -264,6 +285,17 @@ export default function CheckoutView({
     }
   }, [cardEnabled, paymentMethod]);
 
+  useEffect(() => {
+    if (!gatewayPickerOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !submitting) setGatewayPickerOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [gatewayPickerOpen, submitting]);
+
   async function applyCoupon() {
     const code = couponInput.trim();
     if (!code) return;
@@ -322,36 +354,60 @@ export default function CheckoutView({
     return body;
   }
 
-  async function placeOrder() {
+  async function startCardPayment() {
     setError(null);
     setSubmitting(true);
+    setGatewayPickerOpen(false);
     try {
-      if (paymentMethod === "ONLINE_CARD" && cardEnabled) {
-        const res = await fetch("/api/v1/customer/checkout/stripe-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(checkoutBody()),
-        });
-        const payload = (await res.json().catch(() => null)) as
-          | { checkoutUrl?: string | null; orderId?: string; paidWithoutStripe?: boolean; error?: string }
-          | null;
-        if (!res.ok) {
-          throw new Error(payload?.error ?? ui.placeOrderError);
-        }
-        if (payload?.paidWithoutStripe && payload.orderId) {
-          toast.success(toastOrderPlaced);
-          router.replace(`/orders/${payload.orderId}`);
-          router.refresh();
-          return;
-        }
-        if (!payload?.checkoutUrl) {
-          throw new Error(payload?.error ?? ui.placeOrderError);
-        }
-        window.location.href = payload.checkoutUrl;
+      const res = await fetch("/api/v1/customer/checkout/stripe-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(checkoutBody()),
+      });
+      const payload = (await res.json().catch(() => null)) as
+        | { checkoutUrl?: string | null; orderId?: string; paidWithoutStripe?: boolean; error?: string }
+        | null;
+      if (!res.ok) {
+        throw new Error(payload?.error ?? ui.placeOrderError);
+      }
+      if (payload?.paidWithoutStripe && payload.orderId) {
+        toast.success(toastOrderPlaced);
+        router.replace(`/orders/${payload.orderId}`);
+        router.refresh();
         return;
       }
+      if (!payload?.checkoutUrl) {
+        throw new Error(payload?.error ?? ui.placeOrderError);
+      }
+      window.location.href = payload.checkoutUrl;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : ui.placeOrderError;
+      setError(msg);
+      toast.error(msg || toastDict.checkoutFailed);
+      setSubmitting(false);
+    }
+  }
 
+  const plannedGateways = quote?.plannedPaymentGateways;
+  const hasVisiblePlannedGateways = Boolean(
+    plannedGateways?.tap || plannedGateways?.hyperpay || plannedGateways?.myfatoorah,
+  );
+
+  async function placeOrder() {
+    setError(null);
+    if (paymentMethod === "ONLINE_CARD" && cardEnabled) {
+      setSelectedGateway("stripe");
+      if (hasVisiblePlannedGateways) {
+        setGatewayPickerOpen(true);
+        return;
+      }
+      await startCardPayment();
+      return;
+    }
+
+    setSubmitting(true);
+    try {
       const res = await fetch("/api/v1/customer/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -694,6 +750,17 @@ export default function CheckoutView({
         )}
       </section>
 
+      {internationalNotice ? (
+        <section className="rounded-xl border border-amber-400/50 bg-amber-400/10 p-4 text-sm">
+          <h2 className="font-semibold text-[var(--foreground)]">
+            {internationalNotice.checkoutTitle}
+          </h2>
+          <p className="mt-1 leading-6 text-[var(--muted)]">
+            {internationalNotice.checkoutBody}
+          </p>
+        </section>
+      ) : null}
+
       <div className="flex flex-wrap gap-3">
         <button type="button" disabled={!canSubmit} onClick={() => void placeOrder()} className="btn-primary btn-press">
           {submitting
@@ -718,6 +785,154 @@ export default function CheckoutView({
           {ui.continueShopping}
         </Link>
       </div>
+
+      {gatewayPickerOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-9999 grid min-h-dvh place-items-center overflow-y-auto bg-slate-950/35 p-4 backdrop-blur-[2px] sm:p-6"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="payment-gateway-picker-title"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget && !submitting) {
+                  setGatewayPickerOpen(false);
+                }
+              }}
+            >
+              <section
+                className="relative my-auto w-full max-w-lg overflow-hidden rounded-3xl border border-white/15 bg-[color-mix(in_srgb,var(--surface)_96%,transparent)] shadow-[0_24px_80px_rgba(0,0,0,0.35)] ring-1 ring-black/5 dark:border-white/10 dark:ring-white/5"
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <div className="h-1.5 bg-linear-to-r from-violet-500 via-indigo-500 to-sky-400" />
+                <div className="p-5 sm:p-7">
+                  <div className="flex items-start gap-4">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-violet-500/20 to-sky-400/20 text-primary ring-1 ring-primary/20">
+                      <svg
+                        className="h-5 w-5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        aria-hidden
+                      >
+                        <rect x="3" y="5" width="18" height="14" rx="3" />
+                        <path d="M3 10h18M7 15h3" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2
+                        id="payment-gateway-picker-title"
+                        className="text-xl font-bold tracking-tight text-foreground sm:text-2xl"
+                      >
+                        {ui.gatewayPickerTitle}
+                      </h2>
+                      <p className="mt-1.5 text-sm leading-6 text-(--muted)">
+                        {ui.gatewayPickerSubtitle}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => setGatewayPickerOpen(false)}
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-(--muted) transition hover:bg-black/5 hover:text-foreground disabled:opacity-40 dark:hover:bg-white/10"
+                      aria-label={ui.gatewayCancel}
+                    >
+                      <span aria-hidden className="text-xl leading-none">×</span>
+                    </button>
+                  </div>
+
+                  <div className="mt-6 space-y-2.5">
+                    <label className="group flex cursor-pointer items-center gap-4 rounded-2xl border border-primary/60 bg-primary/8 p-4 shadow-sm ring-1 ring-primary/15 transition hover:border-primary hover:bg-primary/12">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#635bff] text-sm font-bold text-white shadow-sm">
+                        S
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="font-semibold text-foreground">{ui.gatewayStripe}</span>
+                        <span className="mt-0.5 block text-xs leading-5 text-(--muted)">
+                          {ui.gatewayStripeHint}
+                        </span>
+                      </span>
+                      <input
+                        type="radio"
+                        name="paymentGateway"
+                        checked={selectedGateway === "stripe"}
+                        onChange={() => setSelectedGateway("stripe")}
+                        className="h-4 w-4 accent-primary"
+                      />
+                    </label>
+
+                    {(
+                      [
+                        {
+                          id: "tap",
+                          label: ui.gatewayTap,
+                          mark: "T",
+                          visible: quote?.plannedPaymentGateways?.tap ?? true,
+                        },
+                        {
+                          id: "hyperpay",
+                          label: ui.gatewayHyperPay,
+                          mark: "H",
+                          visible: quote?.plannedPaymentGateways?.hyperpay ?? true,
+                        },
+                        {
+                          id: "myfatoorah",
+                          label: ui.gatewayMyFatoorah,
+                          mark: "M",
+                          visible: quote?.plannedPaymentGateways?.myfatoorah ?? true,
+                        },
+                      ] as const
+                    )
+                      .filter((gateway) => gateway.visible)
+                      .map((gateway) => (
+                        <div
+                          key={gateway.id}
+                          title={ui.gatewayComingSoonHint}
+                          className="flex cursor-not-allowed items-center gap-4 rounded-2xl border border-border/80 bg-black/1.5 p-4 opacity-65 dark:bg-white/2.5"
+                        >
+                          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black/5 text-sm font-bold text-(--muted) dark:bg-white/10">
+                            {gateway.mark}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex flex-wrap items-center gap-2">
+                              <span className="font-semibold text-foreground">{gateway.label}</span>
+                              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                                {ui.gatewayComingSoon}
+                              </span>
+                            </span>
+                            <span className="mt-0.5 block text-xs leading-5 text-(--muted)">
+                              {ui.gatewayComingSoonHint}
+                            </span>
+                          </span>
+                          <span className="h-4 w-4 shrink-0 rounded-full border-2 border-border" />
+                        </div>
+                      ))}
+                  </div>
+
+                  <div className="mt-7 flex flex-col-reverse gap-3 border-t border-border/70 pt-5 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      className="btn-secondary justify-center sm:min-w-24"
+                      disabled={submitting}
+                      onClick={() => setGatewayPickerOpen(false)}
+                    >
+                      {ui.gatewayCancel}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary btn-press justify-center sm:min-w-44"
+                      disabled={submitting || selectedGateway !== "stripe"}
+                      onClick={() => void startCardPayment()}
+                    >
+                      {submitting ? ui.redirectingToStripe : ui.gatewayContinue}
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

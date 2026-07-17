@@ -63,6 +63,9 @@ export async function updateAdminPlatformConfig(params: {
     privacyText: normalizeOptionalText(params.input.privacyText),
     returnPolicyUrl: normalizeOptionalText(params.input.returnPolicyUrl),
     returnPolicyText: normalizeOptionalText(params.input.returnPolicyText),
+    showTapGateway: params.input.showTapGateway,
+    showHyperPayGateway: params.input.showHyperPayGateway,
+    showMyFatoorahGateway: params.input.showMyFatoorahGateway,
     updatedByUserId: params.actorUserId,
   };
 
