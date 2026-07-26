@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useToast } from "@/components/toast/ToastProvider";
 import { LocalizedFieldError, useLiveCopy, useLiveLocale } from "@/components/ui/live-i18n";
+import PasswordInput from "@/components/ui/PasswordInput";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { inputClassName, isValidEmail } from "@/lib/field-validation";
@@ -205,13 +206,14 @@ export default function LoginForm({ initialLocale }: { initialLocale: "en" | "ar
             <label className="text-sm font-medium" htmlFor="password">
               {ui.password}
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               autoComplete="current-password"
               required
               maxLength={128}
-              className={inputClassName(Boolean(fieldErrors.password))}
+              hasError={Boolean(fieldErrors.password)}
+              showLabel={ui.showPassword}
+              hideLabel={ui.hidePassword}
               value={password}
               aria-invalid={Boolean(fieldErrors.password)}
               aria-describedby={fieldErrors.password ? "login-password-error" : undefined}
@@ -226,6 +228,11 @@ export default function LoginForm({ initialLocale }: { initialLocale: "en" | "ar
               id="login-password-error"
               message={fieldErrors.password ? ui[fieldErrors.password] : null}
             />
+            <p className="pt-1 text-sm">
+              <a href="/forgot-password" className="text-link font-medium">
+                {ui.forgotPassword}
+              </a>
+            </p>
           </div>
 
           {error ? <p className="app-alert-error">{error}</p> : null}

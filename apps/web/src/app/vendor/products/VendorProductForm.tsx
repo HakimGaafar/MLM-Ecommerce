@@ -12,6 +12,11 @@ import { useToast } from "@/components/toast/ToastProvider";
 import { getToastDict } from "@/lib/toast-messages";
 import { vendorProductFormUi } from "./vendor-product-form-ui";
 import { vendorProductFulfillmentOptions } from "@/lib/fulfillment-labels";
+import MarketOffersEditor, {
+  createDefaultOfferDrafts,
+  draftsToOffersPayload,
+  type OfferDraft,
+} from "./MarketOffersEditor";
 
 type Category = { id: string; name: string };
 
@@ -60,6 +65,7 @@ export default function VendorProductForm({ productId }: { productId?: string })
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("SAR");
+  const [offerDrafts, setOfferDrafts] = useState<OfferDraft[]>(() => createDefaultOfferDrafts());
   const [categoryId, setCategoryId] = useState("");
   const [fulfillmentType, setFulfillmentType] = useState("DIRECT");
   const [metaTitle, setMetaTitle] = useState("");
@@ -121,12 +127,41 @@ export default function VendorProductForm({ productId }: { productId?: string })
             pendingEditRequestId: string | null;
             latestEditRejectionReason: string | null;
             latestProductRejectionReason: string | null;
+            offers?: Array<{
+              marketId: string;
+              price: string;
+              currency: string;
+              stockLocation: "MERCHANT" | "FOURCES_WAREHOUSE";
+              quantity: number;
+            }>;
           };
         };
         if (cancelled) return;
         setName(data.product.name);
         setPrice(data.product.price);
         setCurrency(data.product.currency);
+        const drafts = createDefaultOfferDrafts();
+        if (data.product.offers?.length) {
+          for (const offer of data.product.offers) {
+            const idx = drafts.findIndex((d) => d.marketId === offer.marketId);
+            if (idx >= 0) {
+              drafts[idx] = {
+                ...drafts[idx],
+                enabled: true,
+                price: offer.price,
+                currency: offer.currency,
+                stockLocation: offer.stockLocation,
+                quantity: String(offer.quantity ?? 0),
+              };
+            }
+          }
+        } else {
+          const home = drafts.find((d) => d.enabled) ?? drafts[0];
+          home.enabled = true;
+          home.price = data.product.price;
+          home.currency = data.product.currency;
+        }
+        setOfferDrafts(drafts);
         setCategoryId(data.product.categoryId);
         setFulfillmentType(data.product.fulfillmentType ?? "DIRECT");
         setMetaTitle(data.product.metaTitle ?? "");
@@ -244,13 +279,23 @@ export default function VendorProductForm({ productId }: { productId?: string })
     if (!images.some((img) => img.isPrimary)) {
       images[0].isPrimary = true;
     }
+    const offers = draftsToOffersPayload(offerDrafts);
+    if (
+      offers.length === 0 ||
+      offers.some((o) => !Number.isFinite(o.price) || o.price <= 0)
+    ) {
+      setError(ui.formOffersRequired);
+      setSaving(false);
+      return;
+    }
     try {
       const body = {
         name,
-        price: Number.parseFloat(price),
-        currency,
+        price: offers[0]!.price,
+        currency: offers[0]!.currency,
         categoryId,
         fulfillmentType,
+        offers,
         images,
         metaTitle: metaTitle.trim(),
         metaDescription: metaDescription.trim(),
@@ -284,7 +329,7 @@ export default function VendorProductForm({ productId }: { productId?: string })
   const displayedItems = imageItems.filter((i) => isValidImageUrl(i.url));
 
   return (
-    <form className="app-card mt-6 max-w-lg space-y-4 p-5" onSubmit={onSubmit} dir={direction}>
+    <form className="app-card mt-6 max-w-2xl space-y-4 p-5" onSubmit={onSubmit} dir={direction}>
       {error ? (
         <p className="app-alert-error">
           {error}
@@ -343,31 +388,27 @@ export default function VendorProductForm({ productId }: { productId?: string })
         <span className="text-xs text-[var(--muted)]">{ui.formFulfillmentHint}</span>
       </label>
 
-      <div className="grid grid-cols-2 gap-3">
-        <label className="block space-y-1 text-sm">
-          <span className="font-medium">{ui.price}</span>
-          <input
-            required
-            type="number"
-            step="0.01"
-            min="0.01"
-            className="app-input"
-            value={price}
-            onChange={(ev) => setPrice(ev.target.value)}
-          />
-        </label>
-        <label className="block space-y-1 text-sm">
-          <span className="font-medium">{ui.currency}</span>
-          <input
-            maxLength={3}
-            readOnly={!productId}
-            disabled={!productId}
-            className={`app-input uppercase ${!productId ? "cursor-not-allowed opacity-70" : ""}`}
-            value={currency}
-            onChange={(ev) => setCurrency(ev.target.value.toUpperCase())}
-          />
-        </label>
-      </div>
+      <MarketOffersEditor
+        drafts={offerDrafts}
+        onChange={setOfferDrafts}
+        labels={{
+          title: ui.formOffersTitle,
+          subtitle: ui.formOffersSubtitle,
+          marketSA: ui.formOfferMarketSA,
+          marketOM: ui.formOfferMarketOM,
+          marketEG: ui.formOfferMarketEG,
+          marketGLOBAL: ui.formOfferMarketGLOBAL,
+          price: ui.price,
+          currency: ui.currency,
+          quantity: ui.formOfferQuantity,
+          stockLocation: ui.formOfferStock,
+          stockMerchant: ui.formOfferStockMerchant,
+          stockMerchantHint: ui.formOfferStockMerchantHint,
+          stockFources: ui.formOfferStockFources,
+          stockFourcesHint: ui.formOfferStockFourcesHint,
+          stockFourcesUnavailable: ui.formOfferStockFourcesUnavailable,
+        }}
+      />
 
       <fieldset className="space-y-3 rounded-lg border border-[var(--border)] p-3">
         <legend className="px-1 text-sm font-medium">{ui.seoSection}</legend>

@@ -13,6 +13,7 @@
     "@mlm/db": "*",
     "@mlm/queue": "*",
     "@mlm/shared": "*",
+    "bcryptjs": "^3.0.3",
     "stripe": "^17.7.0"
   },
   "devDependencies": {

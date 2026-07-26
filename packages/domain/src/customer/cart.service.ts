@@ -68,6 +68,11 @@ export async function getCustomerCart(
           currency: true,
           status: true,
           vendor: { select: { storeName: true } },
+          marketOffers: {
+            where: { marketId },
+            take: 1,
+            select: { price: true, currency: true },
+          },
         },
       },
     },
@@ -80,8 +85,11 @@ export async function getCustomerCart(
   for (const row of rows) {
     const p = row.product;
     if (!p || p.status !== "PUBLISHED") continue;
-    currency = p.currency || "SAR";
-    const unit = Number(p.price);
+    const offer = p.marketOffers[0];
+    const unitPrice = offer?.price ?? p.price;
+    const lineCurrency = offer?.currency ?? p.currency;
+    currency = lineCurrency || "SAR";
+    const unit = Number(unitPrice);
     const line = unit * row.quantity;
     subtotal += line;
     items.push({
@@ -89,8 +97,8 @@ export async function getCustomerCart(
       productId: p.id,
       name: p.name,
       vendorName: p.vendor.storeName,
-      unitPrice: p.price.toString(),
-      currency: p.currency,
+      unitPrice: unitPrice.toString(),
+      currency: lineCurrency,
       quantity: row.quantity,
       lineTotal: round2(line),
     });
@@ -111,7 +119,14 @@ export async function addCartItem(
   defaultCurrency = "SAR",
 ): Promise<CustomerCartDto> {
   const product = await prisma.product.findFirst({
-    where: { id: productId, status: "PUBLISHED", marketId },
+    where: {
+      id: productId,
+      status: "PUBLISHED",
+      OR: [
+        { marketOffers: { some: { marketId } } },
+        { marketId, marketOffers: { none: {} } },
+      ],
+    },
     select: { id: true },
   });
   if (!product) {

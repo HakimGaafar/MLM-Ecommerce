@@ -8,8 +8,22 @@ import {
 } from "@mlm/shared";
 import {
   groupCartLinesForShipping,
+  packageKeyForLine,
   resolveFeeForFulfillmentLine,
+  type CartLineForShipping,
 } from "./shipping-checkout.service";
+
+function packageKeys(lines: CartLineForShipping[]): string[] {
+  const seen = new Set<string>();
+  const keys: string[] = [];
+  for (const line of lines) {
+    const key = packageKeyForLine(line);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    keys.push(key);
+  }
+  return keys;
+}
 
 describe("Phase IV / IV-b shipping checkout", () => {
   it("uses matrix fees per fulfillment type (15 / 0 / 20 SAR)", () => {
@@ -18,18 +32,86 @@ describe("Phase IV / IV-b shipping checkout", () => {
     expect(defaultShippingFeeForFulfillmentType("ON_ORDER")).toBe(SHIPPING_FEE_WAREHOUSE_B_SAR);
   });
 
-  it("groups cart lines by (vendorId, fulfillmentType) — Rule B", () => {
-    const grouped = groupCartLinesForShipping([
-      { vendorId: "v1", fulfillmentType: "DIRECT" },
-      { vendorId: "v1", fulfillmentType: "DIRECT" },
-      { vendorId: "v1", fulfillmentType: "FORSEIZ_STOCK" },
-      { vendorId: "v2", fulfillmentType: "DIRECT" },
-    ]);
-    expect(grouped).toHaveLength(3);
-    expect(grouped).toEqual([
-      { vendorId: "v1", fulfillmentType: "DIRECT" },
-      { vendorId: "v1", fulfillmentType: "FORSEIZ_STOCK" },
-      { vendorId: "v2", fulfillmentType: "DIRECT" },
+  it("Same FOURCES warehouse → one package (even across vendors)", () => {
+    const lines: CartLineForShipping[] = [
+      {
+        vendorId: "v1",
+        fulfillmentType: "FORSEIZ_STOCK",
+        stockLocation: "FOURCES_WAREHOUSE",
+        warehouseId: "warehouse_sa",
+      },
+      {
+        vendorId: "v1",
+        fulfillmentType: "FORSEIZ_STOCK",
+        stockLocation: "FOURCES_WAREHOUSE",
+        warehouseId: "warehouse_sa",
+      },
+      {
+        vendorId: "v2",
+        fulfillmentType: "FORSEIZ_STOCK",
+        stockLocation: "FOURCES_WAREHOUSE",
+        warehouseId: "warehouse_sa",
+      },
+    ];
+    expect(groupCartLinesForShipping(lines)).toHaveLength(1);
+    expect(packageKeys(lines)).toEqual(["fources:warehouse_sa"]);
+  });
+
+  it("Different merchants → separate packages", () => {
+    const lines: CartLineForShipping[] = [
+      { vendorId: "vendorA", fulfillmentType: "DIRECT", stockLocation: "MERCHANT" },
+      { vendorId: "vendorB", fulfillmentType: "DIRECT", stockLocation: "MERCHANT" },
+    ];
+    expect(groupCartLinesForShipping(lines)).toHaveLength(2);
+    expect(packageKeys(lines)).toEqual(["merchant:vendorA", "merchant:vendorB"]);
+  });
+
+  it("Same merchant, two MERCHANT products → one package", () => {
+    const lines: CartLineForShipping[] = [
+      { vendorId: "v1", fulfillmentType: "DIRECT", stockLocation: "MERCHANT" },
+      { vendorId: "v1", fulfillmentType: "DIRECT", stockLocation: "MERCHANT" },
+    ];
+    expect(groupCartLinesForShipping(lines)).toHaveLength(1);
+    expect(packageKeys(lines)).toEqual(["merchant:v1"]);
+  });
+
+  it("FOURCES + MERCHANT in one cart → two packages", () => {
+    const lines: CartLineForShipping[] = [
+      {
+        vendorId: "v1",
+        fulfillmentType: "FORSEIZ_STOCK",
+        stockLocation: "FOURCES_WAREHOUSE",
+        warehouseId: "warehouse_sa",
+      },
+      { vendorId: "v1", fulfillmentType: "DIRECT", stockLocation: "MERCHANT" },
+    ];
+    expect(groupCartLinesForShipping(lines)).toHaveLength(2);
+    expect(packageKeys(lines)).toEqual(["fources:warehouse_sa", "merchant:v1"]);
+  });
+
+  it("groups mixed cart into FOURCES warehouse + per-merchant packages", () => {
+    const lines: CartLineForShipping[] = [
+      { vendorId: "v1", fulfillmentType: "DIRECT", stockLocation: "MERCHANT" },
+      { vendorId: "v1", fulfillmentType: "DIRECT", stockLocation: "MERCHANT" },
+      {
+        vendorId: "v1",
+        fulfillmentType: "FORSEIZ_STOCK",
+        stockLocation: "FOURCES_WAREHOUSE",
+        warehouseId: "warehouse_sa",
+      },
+      {
+        vendorId: "v2",
+        fulfillmentType: "FORSEIZ_STOCK",
+        stockLocation: "FOURCES_WAREHOUSE",
+        warehouseId: "warehouse_sa",
+      },
+      { vendorId: "v2", fulfillmentType: "DIRECT", stockLocation: "MERCHANT" },
+    ];
+    expect(groupCartLinesForShipping(lines)).toHaveLength(3);
+    expect(packageKeys(lines)).toEqual([
+      "merchant:v1",
+      "fources:warehouse_sa",
+      "merchant:v2",
     ]);
   });
 
@@ -37,6 +119,7 @@ describe("Phase IV / IV-b shipping checkout", () => {
     const vendor = {
       id: "v1",
       storeName: "Shop",
+      countryCode: "SA",
       shippingMode: "DIRECT" as const,
       indirectFulfillment: null,
       shippingFee: null,
@@ -54,6 +137,7 @@ describe("Phase IV / IV-b shipping checkout", () => {
     const vendor = {
       id: "v1",
       storeName: "Shop",
+      countryCode: "SA",
       shippingMode: "DIRECT" as const,
       indirectFulfillment: null,
       shippingFee: new Prisma.Decimal("12.00"),

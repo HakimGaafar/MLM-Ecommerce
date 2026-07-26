@@ -5,9 +5,9 @@ import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 
 /** Resolve UI copy from the live app locale (not a stale server prop). */
-export function useLiveCopy<T extends "contactPage" | "login" | "register" | "sellOnboarding">(
-  section: T,
-): (typeof en)[T] {
+export function useLiveCopy<
+  T extends "contactPage" | "login" | "register" | "sellOnboarding" | "forgotPassword" | "resetPassword",
+>(section: T): (typeof en)[T] {
   const locale = useAppLocale();
   return (locale === "ar" ? ar : en)[section];
 }

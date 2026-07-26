@@ -71,6 +71,8 @@ export async function proxy(request: NextRequest) {
       if (!isApiRouteEarly) {
         const isLoginPageEarly = pathname.startsWith("/login");
         const isRegisterPageEarly = pathname.startsWith("/register");
+        const isAuthRecoveryEarly =
+          pathname.startsWith("/forgot-password") || pathname.startsWith("/reset-password");
         const referralFromQueryEarly = request.nextUrl.searchParams.get("ref");
         const normalizedReferralEarly = referralFromQueryEarly?.trim().toUpperCase();
         const hasValidReferralInQueryEarly = Boolean(
@@ -78,7 +80,7 @@ export async function proxy(request: NextRequest) {
         );
         return attachReferralCookie(
           marketResult,
-          isRegisterPageEarly,
+          isRegisterPageEarly || isAuthRecoveryEarly,
           hasValidReferralInQueryEarly ? normalizedReferralEarly : undefined,
         );
       }
@@ -116,6 +118,8 @@ export async function proxy(request: NextRequest) {
   );
   const isLoginPage = pathname.startsWith("/login");
   const isRegisterPage = pathname.startsWith("/register");
+  const isAuthRecoveryPage =
+    pathname.startsWith("/forgot-password") || pathname.startsWith("/reset-password");
   const referralFromQuery = request.nextUrl.searchParams.get("ref");
   const normalizedReferral = referralFromQuery?.trim().toUpperCase();
   const hasValidReferralInQuery = Boolean(
@@ -126,7 +130,7 @@ export async function proxy(request: NextRequest) {
   const session = token ? await verifyAccessToken(token).catch(() => null) : null;
   const activeMarketId = resolveMarketIdFromRequestCookies(request);
 
-  if ((isLoginPage || isRegisterPage) && session) {
+  if ((isLoginPage || isRegisterPage || isAuthRecoveryPage) && session) {
     return attachReferralCookie(
       NextResponse.redirect(new URL("/dashboard", request.url)),
       isRegisterPage,
@@ -244,5 +248,7 @@ export const config = {
     "/checkout/:path*",
     "/login",
     "/register",
+    "/forgot-password",
+    "/reset-password",
   ],
 };

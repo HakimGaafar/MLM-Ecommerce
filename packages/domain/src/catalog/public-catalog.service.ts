@@ -35,6 +35,7 @@ type ProductRow = {
   vendor: { storeName: string };
   category: { slug: string; nameEn: string; nameAr: string };
   images: { id: string; url: string; isPrimary: boolean }[];
+  marketOffers: { price: Prisma.Decimal; currency: string }[];
 };
 
 function sortOrder(sort: PublicProductSort | undefined) {
@@ -53,11 +54,12 @@ function sortOrder(sort: PublicProductSort | undefined) {
 
 function toListDto(row: ProductRow, locale: "en" | "ar"): PublicProductListItemDto {
   const primary = row.images.find((i) => i.isPrimary) ?? row.images[0];
+  const offer = row.marketOffers?.[0];
   return {
     id: row.id,
     name: row.name,
-    price: row.price.toString(),
-    currency: row.currency,
+    price: (offer?.price ?? row.price).toString(),
+    currency: offer?.currency ?? row.currency,
     vendorId: row.vendorId,
     vendorName: row.vendor.storeName,
     categoryId: row.categoryId,
@@ -67,22 +69,39 @@ function toListDto(row: ProductRow, locale: "en" | "ar"): PublicProductListItemD
   };
 }
 
-const productSelect = {
-  id: true,
-  name: true,
-  price: true,
-  currency: true,
-  vendorId: true,
-  categoryId: true,
-  metaTitle: true,
-  metaDescription: true,
-  vendor: { select: { storeName: true } },
-  category: { select: { slug: true, nameEn: true, nameAr: true } },
-  images: {
-    orderBy: [{ isPrimary: "desc" as const }, { sortOrder: "asc" as const }],
-    select: { id: true, url: true, isPrimary: true },
-  },
-};
+function productSelectForMarket(marketId?: string) {
+  return {
+    id: true,
+    name: true,
+    price: true,
+    currency: true,
+    vendorId: true,
+    categoryId: true,
+    metaTitle: true,
+    metaDescription: true,
+    vendor: { select: { storeName: true } },
+    category: { select: { slug: true, nameEn: true, nameAr: true } },
+    images: {
+      orderBy: [{ isPrimary: "desc" as const }, { sortOrder: "asc" as const }],
+      select: { id: true, url: true, isPrimary: true },
+    },
+    marketOffers: {
+      where: marketId ? { marketId } : undefined,
+      take: 1,
+      select: { price: true, currency: true },
+    },
+  };
+}
+
+function publishedInMarketWhere(marketId: string) {
+  return {
+    status: "PUBLISHED" as const,
+    OR: [
+      { marketOffers: { some: { marketId } } },
+      { marketId, marketOffers: { none: {} } },
+    ],
+  };
+}
 
 /** Preserve order of `orderedIds`; skips missing or unpublished IDs. */
 export async function findPublishedProductsByIds(
@@ -94,10 +113,9 @@ export async function findPublishedProductsByIds(
   const rows = await prisma.product.findMany({
     where: {
       id: { in: [...new Set(orderedIds)] },
-      status: "PUBLISHED",
-      ...(marketId ? { marketId } : {}),
+      ...(marketId ? publishedInMarketWhere(marketId) : { status: "PUBLISHED" }),
     },
-    select: productSelect,
+    select: productSelectForMarket(marketId),
   });
   const byId = new Map(rows.map((r) => [r.id, r]));
   return orderedIds
@@ -128,17 +146,32 @@ export async function searchPublicProducts(
   }
 
   const where = {
-    marketId: params.marketId,
-    status: "PUBLISHED" as const,
+    ...publishedInMarketWhere(params.marketId),
     ...(categoryId ? { categoryId } : {}),
     ...(params.vendorId ? { vendorId: params.vendorId } : {}),
     ...(params.q ? { name: { contains: params.q, mode: "insensitive" as const } } : {}),
     ...(params.minPrice !== undefined || params.maxPrice !== undefined
       ? {
-          price: {
-            ...(params.minPrice !== undefined ? { gte: params.minPrice } : {}),
-            ...(params.maxPrice !== undefined ? { lte: params.maxPrice } : {}),
-          },
+          OR: [
+            {
+              marketOffers: {
+                some: {
+                  marketId: params.marketId,
+                  price: {
+                    ...(params.minPrice !== undefined ? { gte: params.minPrice } : {}),
+                    ...(params.maxPrice !== undefined ? { lte: params.maxPrice } : {}),
+                  },
+                },
+              },
+            },
+            {
+              marketOffers: { none: {} },
+              price: {
+                ...(params.minPrice !== undefined ? { gte: params.minPrice } : {}),
+                ...(params.maxPrice !== undefined ? { lte: params.maxPrice } : {}),
+              },
+            },
+          ],
         }
       : {}),
   };
@@ -149,7 +182,7 @@ export async function searchPublicProducts(
       orderBy: sortOrder(params.sort),
       skip,
       take,
-      select: productSelect,
+      select: productSelectForMarket(params.marketId),
     }),
     prisma.product.count({ where }),
   ]);
@@ -185,11 +218,10 @@ export async function getPublicProductById(
   const row = await prisma.product.findFirst({
     where: {
       id: productId,
-      status: "PUBLISHED",
-      ...(marketId ? { marketId } : {}),
+      ...(marketId ? publishedInMarketWhere(marketId) : { status: "PUBLISHED" }),
     },
     select: {
-      ...productSelect,
+      ...productSelectForMarket(marketId),
       updatedAt: true,
     },
   });

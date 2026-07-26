@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
-import { DEFAULT_MARKET_ID, MARKET_IDS, type MarketCode } from "@mlm/shared";
+import { DEFAULT_MARKET_ID, MARKET_IDS, primaryMarketIdFromCountry, type MarketCode } from "@mlm/shared";
+import { FOURCES_WAREHOUSE_IDS } from "@mlm/shared";
 
 if (process.env.NODE_ENV === "production" && process.env.ALLOW_PRODUCTION_SEED !== "true") {
   throw new Error(
@@ -58,6 +59,7 @@ async function ensureVendor(
   return prisma.vendor.create({
     data: {
       marketId,
+      primaryMarketId: primaryMarketIdFromCountry(countryCode),
       ownerUserId,
       storeName,
       slug: seedSlug(storeName, ownerUserId),
@@ -755,6 +757,49 @@ async function seedMarkets() {
   console.log("Seed markets: SA, OM, EG, GLOBAL");
 }
 
+async function seedFourcesWarehouses() {
+  const warehouses = [
+    {
+      id: FOURCES_WAREHOUSE_IDS.SA,
+      marketId: MARKET_IDS.SA,
+      countryCode: "SA",
+      name: "FOURCES Warehouse — Saudi Arabia",
+    },
+    {
+      id: FOURCES_WAREHOUSE_IDS.OM,
+      marketId: MARKET_IDS.OM,
+      countryCode: "OM",
+      name: "FOURCES Warehouse — Oman",
+    },
+    {
+      id: FOURCES_WAREHOUSE_IDS.EG,
+      marketId: MARKET_IDS.EG,
+      countryCode: "EG",
+      name: "FOURCES Warehouse — Egypt",
+    },
+  ] as const;
+
+  for (const wh of warehouses) {
+    await prisma.fourcesWarehouse.upsert({
+      where: { id: wh.id },
+      update: {
+        marketId: wh.marketId,
+        countryCode: wh.countryCode,
+        name: wh.name,
+        isActive: true,
+      },
+      create: {
+        id: wh.id,
+        marketId: wh.marketId,
+        countryCode: wh.countryCode,
+        name: wh.name,
+        isActive: true,
+      },
+    });
+  }
+  console.log("Seed FOURCES warehouses: SA, OM, EG");
+}
+
 async function ensureMarketCategory(
   marketId: string,
   id: string,
@@ -900,6 +945,7 @@ async function seedPilotMarketCatalog() {
 async function main() {
   await seedRoles();
   await seedMarkets();
+  await seedFourcesWarehouses();
   await seedPlatformConfig();
   await ensureAdminUser();
   await seedCatalogAndOrders();

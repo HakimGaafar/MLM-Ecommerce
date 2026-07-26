@@ -4,6 +4,7 @@ import {
   DEFAULT_MARKET_ID,
   INTERNATIONAL_SALES_AGREEMENT_VERSION,
   isReservedStoreSlug,
+  primaryMarketIdFromCountry,
   slugifyStoreName,
 } from "@mlm/shared";
 import bcrypt from "bcryptjs";
@@ -101,6 +102,7 @@ async function createVendorForOwner(
   return tx.vendor.create({
     data: {
       marketId,
+      primaryMarketId: primaryMarketIdFromCountry(data.countryCode),
       ownerUserId,
       ...data,
     },

@@ -25,6 +25,7 @@ export {
   PaymentMethod,
   PaymentStatus,
   InvoiceDocumentType,
+  PasswordResetAuditAction,
   ProductEditRequestStatus,
   ProductReviewTarget,
   ProductFulfillmentType,

@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast/ToastProvider";
 import { LocalizedFieldError, useLiveCopy, useLiveLocale } from "@/components/ui/live-i18n";
+import PasswordInput from "@/components/ui/PasswordInput";
 import {
   inputClassName,
   isStrongPassword,
@@ -254,13 +255,15 @@ export default function RegisterForm({
             <label className="text-sm font-medium" htmlFor="password">
               {ui.password}
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               autoComplete="new-password"
               required
               maxLength={128}
               value={password}
+              hasError={Boolean(fieldErrors.password)}
+              showLabel={ui.showPassword}
+              hideLabel={ui.hidePassword}
               aria-invalid={Boolean(fieldErrors.password)}
               aria-describedby={
                 fieldErrors.password ? "register-password-error" : "register-password-hint"
@@ -271,7 +274,6 @@ export default function RegisterForm({
                 if (fieldErrors.password) showFieldError("password", next);
               }}
               onBlur={() => showFieldError("password")}
-              className={inputClassName(Boolean(fieldErrors.password))}
             />
             <LocalizedFieldError
               id="register-password-error"

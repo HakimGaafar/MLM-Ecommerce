@@ -1,5 +1,5 @@
 import type { VendorStoreUpdateInput } from "@mlm/shared";
-import { seoFieldsToNullables } from "@mlm/shared";
+import { primaryMarketIdFromCountry, seoFieldsToNullables } from "@mlm/shared";
 import { prisma } from "@mlm/db";
 
 export type VendorStoreDto = {
@@ -7,6 +7,8 @@ export type VendorStoreDto = {
   storeName: string;
   slug: string;
   countryCode: string;
+  primaryMarketId: string;
+  primaryMarketCode: string;
   addressLine1: string;
   addressLine2: string | null;
   state: string | null;
@@ -24,6 +26,8 @@ function toVendorStoreDto(row: {
   storeName: string;
   slug: string;
   countryCode: string;
+  primaryMarketId: string;
+  primaryMarket: { code: string };
   addressLine1: string;
   addressLine2: string | null;
   state: string | null;
@@ -39,6 +43,8 @@ function toVendorStoreDto(row: {
     storeName: row.storeName,
     slug: row.slug,
     countryCode: row.countryCode,
+    primaryMarketId: row.primaryMarketId,
+    primaryMarketCode: row.primaryMarket.code,
     addressLine1: row.addressLine1,
     addressLine2: row.addressLine2,
     state: row.state,
@@ -57,6 +63,8 @@ const vendorSelect = {
   storeName: true,
   slug: true,
   countryCode: true,
+  primaryMarketId: true,
+  primaryMarket: { select: { code: true } },
   addressLine1: true,
   addressLine2: true,
   state: true,
@@ -77,12 +85,22 @@ export async function getVendorStore(vendorId: string): Promise<VendorStoreDto |
   return toVendorStoreDto(row);
 }
 
-export async function updateVendorStore(vendorId: string, input: VendorStoreUpdateInput): Promise<VendorStoreDto | null> {
+export async function updateVendorStore(
+  vendorId: string,
+  input: VendorStoreUpdateInput,
+): Promise<VendorStoreDto | null> {
+  const countryCode = input.countryCode?.trim().toUpperCase();
   const row = await prisma.vendor.update({
     where: { id: vendorId },
     data: {
       storeName: input.storeName,
       ...(input.about !== undefined ? { about: input.about?.trim() || null } : {}),
+      ...(countryCode
+        ? {
+            countryCode,
+            primaryMarketId: primaryMarketIdFromCountry(countryCode),
+          }
+        : {}),
       ...seoFieldsToNullables({
         metaTitle: input.metaTitle,
         metaDescription: input.metaDescription,

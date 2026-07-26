@@ -13,6 +13,13 @@ import {
 } from "@mlm/shared";
 import { prisma } from "@mlm/db";
 import { assertActiveCategoryId } from "../catalog/product-categories.service";
+import {
+  fulfillmentTypeFromOffers,
+  normalizeProductMarketOffers,
+  pickHomeOffer,
+  replaceProductMarketOffers,
+  type ProductMarketOfferDto,
+} from "./product-market-offer.service";
 import { assertVendorShippingApproved } from "./vendor-shipping.service";
 
 export class VendorProductError extends Error {
@@ -50,6 +57,7 @@ export type VendorProductDto = {
   metaTitle: string | null;
   metaDescription: string | null;
   images: VendorProductImageDto[];
+  offers: ProductMarketOfferDto[];
   createdAt: string;
   updatedAt: string;
   pendingEditRequestId: string | null;
@@ -71,11 +79,32 @@ type ProductRow = {
   metaDescription: string | null;
   category: { nameEn: string; nameAr: string };
   images: { id: string; url: string; sortOrder: number; isPrimary: boolean }[];
+  marketOffers: {
+    marketId: string;
+    price: { toString(): string };
+    currency: string;
+    stockLocation: string;
+    warehouseId: string | null;
+    quantity: number;
+    market: { code: string };
+  }[];
   editRequests: { id: string; status: string; rejectionReason: string | null; createdAt: Date }[];
   reviews: { rejectionReason: string | null }[];
   createdAt: Date;
   updatedAt: Date;
 };
+
+function toOffersDto(row: ProductRow): ProductMarketOfferDto[] {
+  return (row.marketOffers ?? []).map((offer) => ({
+    marketId: offer.marketId,
+    marketCode: offer.market.code,
+    price: offer.price.toString(),
+    currency: offer.currency,
+    stockLocation: offer.stockLocation as ProductMarketOfferDto["stockLocation"],
+    warehouseId: offer.warehouseId,
+    quantity: offer.quantity,
+  }));
+}
 
 function toDto(row: ProductRow, locale: "en" | "ar" = "en"): VendorProductDto {
   return {
@@ -96,6 +125,7 @@ function toDto(row: ProductRow, locale: "en" | "ar" = "en"): VendorProductDto {
       sortOrder: img.sortOrder,
       isPrimary: img.isPrimary,
     })),
+    offers: toOffersDto(row),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     pendingEditRequestId: row.editRequests.find((r) => r.status === "PENDING")?.id ?? null,
@@ -110,6 +140,10 @@ function toDto(row: ProductRow, locale: "en" | "ar" = "en"): VendorProductDto {
 const productInclude = {
   category: { select: { nameEn: true, nameAr: true } },
   images: { orderBy: [{ isPrimary: "desc" as const }, { sortOrder: "asc" as const }] },
+  marketOffers: {
+    include: { market: { select: { code: true } } },
+    orderBy: { createdAt: "asc" as const },
+  },
   editRequests: {
     orderBy: { createdAt: "desc" as const },
     take: 5,
@@ -202,11 +236,36 @@ export async function createVendorProduct(
   const row = await prisma.$transaction(async (tx) => {
     const vendor = await tx.vendor.findUniqueOrThrow({
       where: { id: vendorId },
-      select: { shippingMode: true, indirectFulfillment: true, marketId: true, market: { select: { defaultCurrency: true } } },
+      select: {
+        shippingMode: true,
+        indirectFulfillment: true,
+        marketId: true,
+        market: { select: { defaultCurrency: true } },
+      },
     });
+
+    const offers =
+      input.offers?.length
+        ? normalizeProductMarketOffers(input.offers)
+        : [
+            {
+              marketId: vendor.marketId,
+              price: input.price!,
+              currency: input.currency ?? vendor.market.defaultCurrency,
+              stockLocation: "MERCHANT" as const,
+              warehouseId: null,
+              quantity: 0,
+            },
+          ];
+    const home = pickHomeOffer(offers, vendor.marketId);
     const fulfillmentType =
       input.fulfillmentType ??
-      defaultFulfillmentFromVendorProfile(vendor.shippingMode, vendor.indirectFulfillment ?? undefined);
+      (input.offers?.length
+        ? fulfillmentTypeFromOffers(offers)
+        : defaultFulfillmentFromVendorProfile(
+            vendor.shippingMode,
+            vendor.indirectFulfillment ?? undefined,
+          ));
 
     const product = await tx.product.create({
       data: {
@@ -214,8 +273,8 @@ export async function createVendorProduct(
         vendorId,
         categoryId: input.categoryId,
         name: input.name,
-        price: input.price,
-        currency: input.currency ?? vendor.market.defaultCurrency,
+        price: home.price,
+        currency: home.currency,
         fulfillmentType,
         status: "DRAFT",
         isActive: false,
@@ -226,6 +285,7 @@ export async function createVendorProduct(
       },
       include: productInclude,
     });
+    await replaceProductMarketOffers(tx, product.id, offers);
     const primaryIndex = resolvePrimaryImageIndex(input.images);
     await tx.productImage.createMany({
       data: input.images.map((img, index) => ({
@@ -288,8 +348,11 @@ export async function updateVendorProduct(
         input.fulfillmentType !== undefined ||
         input.metaTitle !== undefined ||
         input.metaDescription !== undefined ||
-        input.images !== undefined;
+        input.images !== undefined ||
+        input.offers !== undefined;
       if (hasChangeFields) {
+        const proposedOffers =
+          input.offers?.length ? normalizeProductMarketOffers(input.offers) : undefined;
         await tx.productEditRequest.create({
           data: {
             productId,
@@ -298,10 +361,13 @@ export async function updateVendorProduct(
             proposedPrice: input.price ?? null,
             proposedCurrency: input.currency ?? null,
             proposedCategoryId: input.categoryId ?? null,
-            proposedFulfillment: input.fulfillmentType ?? null,
+            proposedFulfillment:
+              input.fulfillmentType ??
+              (proposedOffers ? fulfillmentTypeFromOffers(proposedOffers) : null),
             proposedMetaTitle: input.metaTitle ?? null,
             proposedMetaDesc: input.metaDescription ?? null,
             ...(input.images !== undefined ? { proposedImagesJson: input.images } : {}),
+            ...(proposedOffers !== undefined ? { proposedOffersJson: proposedOffers } : {}),
           },
         });
       }
@@ -328,6 +394,19 @@ export async function updateVendorProduct(
         }),
       },
     });
+    if (input.offers?.length) {
+      const offers = normalizeProductMarketOffers(input.offers);
+      const home = pickHomeOffer(offers, existing.marketId);
+      await replaceProductMarketOffers(tx, productId, offers);
+      await tx.product.update({
+        where: { id: productId },
+        data: {
+          price: home.price,
+          currency: home.currency,
+          fulfillmentType: fulfillmentTypeFromOffers(offers),
+        },
+      });
+    }
     if (input.images !== undefined) {
       await tx.productImage.deleteMany({ where: { productId } });
       if (input.images.length > 0) {

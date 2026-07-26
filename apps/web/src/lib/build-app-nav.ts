@@ -97,6 +97,7 @@ export type ShellNavDict = {
     settings: string;
     markets: string;
     contactInquiries: string;
+    passwordResets: string;
   };
   adminOrderOps: {
     nav: { stuckOrders: string };
@@ -223,7 +224,10 @@ export function buildAdminSidebarSections(
         item("/admin/vendors", dict.adminNav.vendors),
         item("/admin/affiliates", dict.adminNav.affiliates),
         ...(allRoles.includes("SUPER_ADMIN")
-          ? [item("/admin/contact-inquiries", dict.adminNav.contactInquiries)]
+          ? [
+              item("/admin/contact-inquiries", dict.adminNav.contactInquiries),
+              item("/admin/password-resets", dict.adminNav.passwordResets),
+            ]
           : []),
       ],
     },

@@ -99,6 +99,10 @@ type PreparedCartLine = CartLineForCoupon & {
   fulfillmentType: ProductFulfillmentTypeCode;
   quantity: number;
   unitPrice: Prisma.Decimal;
+  stockLocation?: "MERCHANT" | "FOURCES_WAREHOUSE";
+  warehouseId?: string | null;
+  warehouseCountry?: string | null;
+  merchantCountry?: string | null;
 };
 
 function mapCouponCheckoutError(error: CouponCheckoutError): CheckoutError {
@@ -168,7 +172,18 @@ async function loadPreparedCartLines(
           status: true,
           vendorId: true,
           fulfillmentType: true,
-          vendor: { select: { storeName: true } },
+          vendor: { select: { storeName: true, countryCode: true } },
+          marketOffers: {
+            where: { marketId },
+            take: 1,
+            select: {
+              price: true,
+              currency: true,
+              stockLocation: true,
+              warehouseId: true,
+              warehouse: { select: { countryCode: true } },
+            },
+          },
         },
       },
     },
@@ -178,7 +193,8 @@ async function loadPreparedCartLines(
   for (const row of rows) {
     const p = row.product;
     if (!p || p.status !== "PUBLISHED") continue;
-    const unitPrice = new Prisma.Decimal(p.price.toString());
+    const offer = p.marketOffers[0];
+    const unitPrice = new Prisma.Decimal((offer?.price ?? p.price).toString());
     prepared.push({
       cartItemId: row.id,
       productId: p.id,
@@ -189,7 +205,11 @@ async function loadPreparedCartLines(
       quantity: row.quantity,
       unitPrice,
       lineTotal: unitPrice.mul(row.quantity),
-      currency: p.currency || "SAR",
+      currency: offer?.currency || p.currency || "SAR",
+      stockLocation: offer?.stockLocation,
+      warehouseId: offer?.warehouseId,
+      warehouseCountry: offer?.warehouse?.countryCode ?? null,
+      merchantCountry: p.vendor.countryCode,
     });
   }
   return prepared;
@@ -360,7 +380,15 @@ export async function getCheckoutQuoteForUser(
       couponsDto = { codes: coupons.codes, discountTotal };
     }
     const shippingLines = await resolveShippingForCheckout(
-      prepared.map((line) => ({ vendorId: line.vendorId, fulfillmentType: line.fulfillmentType })),
+      prepared.map((line) => ({
+        vendorId: line.vendorId,
+        fulfillmentType: line.fulfillmentType,
+        stockLocation: line.stockLocation,
+        warehouseId: line.warehouseId,
+        warehouseCountry: line.warehouseCountry,
+        merchantCountry: line.merchantCountry,
+        customerCountry: addressPick.shippingCountryCode,
+      })),
       prisma,
     );
     shippingBreakdown = shippingBreakdownToDto(shippingLines);
@@ -500,7 +528,15 @@ export async function createOrderFromCart(
     const coupons = await resolveOptionalCouponCodes(couponCodes, prepared, tx);
     const discountTotal = coupons?.discountTotal ?? new Prisma.Decimal(0);
     const shippingLines = await resolveShippingForCheckout(
-      prepared.map((line) => ({ vendorId: line.vendorId, fulfillmentType: line.fulfillmentType })),
+      prepared.map((line) => ({
+        vendorId: line.vendorId,
+        fulfillmentType: line.fulfillmentType,
+        stockLocation: line.stockLocation,
+        warehouseId: line.warehouseId,
+        warehouseCountry: line.warehouseCountry,
+        merchantCountry: line.merchantCountry,
+        customerCountry: shipping.shippingCountryCode,
+      })),
       tx,
     );
     const shippingFee = sumVendorShippingFees(shippingLines);

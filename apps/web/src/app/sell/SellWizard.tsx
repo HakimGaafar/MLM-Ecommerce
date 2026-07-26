@@ -6,6 +6,7 @@ import { useToast } from "@/components/toast/ToastProvider";
 import { LocalizedFieldError, useLiveCopy, useLiveLocale } from "@/components/ui/live-i18n";
 import { inputClassName, isStrongPassword, isValidEmail } from "@/lib/field-validation";
 import { getToastDict } from "@/lib/toast-messages";
+import { primaryMarketFromCountry } from "@mlm/shared";
 
 type Locale = "en" | "ar";
 type Step = 1 | 2 | 3 | "done";
@@ -361,9 +362,25 @@ export default function SellWizard({
           <label className="block text-sm font-medium">{ui.country}</label>
           <select className={inputClass} value={countryCode} onChange={(e) => setCountryCode(e.target.value)}>
             <option value="SA">{ui.countrySA}</option>
-            <option value="AE">{ui.countryAE}</option>
             <option value="OM">{ui.countryOM}</option>
+            <option value="EG">{ui.countryEG}</option>
+            <option value="US">{ui.countryOther}</option>
           </select>
+          <div className="rounded-xl border border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[color-mix(in_srgb,var(--primary)_8%,var(--surface))] p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--primary)]">
+              {ui.primaryMarketTitle}
+            </p>
+            <p className="mt-1 text-sm font-medium">
+              {primaryMarketFromCountry(countryCode) === "SA"
+                ? ui.primaryMarketSA
+                : primaryMarketFromCountry(countryCode) === "OM"
+                  ? ui.primaryMarketOM
+                  : primaryMarketFromCountry(countryCode) === "EG"
+                    ? ui.primaryMarketEG
+                    : ui.primaryMarketGLOBAL}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{ui.primaryMarketHint}</p>
+          </div>
           <label className="block text-sm font-medium">{ui.addressLine1}</label>
           <input className={inputClass} required value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} />
           <label className="block text-sm font-medium">{ui.addressLine2}</label>

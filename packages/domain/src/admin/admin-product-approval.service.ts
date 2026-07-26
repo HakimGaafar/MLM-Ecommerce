@@ -1,6 +1,12 @@
 import type { PaginatedResult, ProductStatus } from "@mlm/shared";
-import { buildPaginatedResult, normalizePagination } from "@mlm/shared";
+import { buildPaginatedResult, normalizePagination, ProductMarketOffersSchema } from "@mlm/shared";
 import { Prisma, prisma } from "@mlm/db";
+import {
+  fulfillmentTypeFromOffers,
+  normalizeProductMarketOffers,
+  pickHomeOffer,
+  replaceProductMarketOffers,
+} from "../vendor/product-market-offer.service";
 
 export type ProductApprovalRowDto = {
   id: string;
@@ -246,6 +252,22 @@ export async function reviewPendingProduct(
               sortOrder: img.sortOrder ?? index,
               isPrimary: index === primaryIndex,
             })),
+          });
+        }
+      }
+      if (editRequest.proposedOffersJson != null) {
+        const parsed = ProductMarketOffersSchema.safeParse(editRequest.proposedOffersJson);
+        if (parsed.success) {
+          const offers = normalizeProductMarketOffers(parsed.data);
+          const home = pickHomeOffer(offers, editRequest.product.marketId);
+          await replaceProductMarketOffers(tx, editRequest.productId, offers);
+          await tx.product.update({
+            where: { id: editRequest.productId },
+            data: {
+              price: home.price,
+              currency: home.currency,
+              fulfillmentType: fulfillmentTypeFromOffers(offers),
+            },
           });
         }
       }

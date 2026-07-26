@@ -65,6 +65,13 @@ enum ProductEditRequestStatus {
   REJECTED
 }
 
+enum PasswordResetAuditAction {
+  RESET_REQUESTED
+  RESET_COMPLETED
+  CHANGE_NOTIFICATION_SENT
+  CHANGE_NOTIFICATION_FAILED
+}
+
 enum VendorMemberStatus {
   PENDING
   ACTIVE
@@ -172,6 +179,20 @@ enum ProductFulfillmentType {
   ON_ORDER
 }
 
+/// Phase 0 — shipping package type inferred at checkout from stock location + geography.
+enum ShippingPackageType {
+  FOURCES_DOMESTIC
+  FOURCES_INTERNATIONAL
+  MERCHANT_DOMESTIC
+  MERCHANT_INTERNATIONAL
+}
+
+/// Phase 0 — where product stock sits for a sell-market offer.
+enum ProductStockLocation {
+  MERCHANT
+  FOURCES_WAREHOUSE
+}
+
 enum VendorShippingProfileStatus {
   PENDING_APPROVAL
   APPROVED
@@ -249,6 +270,8 @@ model User {
   kycDocumentsOwned                KycDocument[]                 @relation("KycDocumentOwner")
   kycDocumentsReviewed             KycDocument[]                 @relation("KycDocumentReviewedBy")
   kycDocumentsUpdateRequested      KycDocument[]                 @relation("KycDocumentUpdateRequestedBy")
+  passwordResetTokens              PasswordResetToken[]
+  passwordResetAudits              PasswordResetAuditLog[]
 
   @@map("users")
 }
@@ -438,6 +461,7 @@ model Vendor {
   storeName      String             @map("store_name")
   slug           String             @db.VarChar(64)
   countryCode    String             @default("SA") @map("country_code") @db.Char(2)
+  primaryMarketId String            @map("primary_market_id")
   addressLine1   String             @map("address_line_1") @db.VarChar(200)
   addressLine2   String?            @map("address_line_2") @db.VarChar(200)
   state          String?            @db.VarChar(120)
@@ -477,6 +501,7 @@ model Vendor {
   updatedAt      DateTime           @updatedAt @map("updated_at")
   owner          User               @relation("VendorOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
   market         Market             @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  primaryMarket  Market             @relation("VendorPrimaryMarket", fields: [primaryMarketId], references: [id], onDelete: Restrict)
   products       Product[]
   orderItems     OrderItem[]
   permissions    VendorPermission[]
@@ -496,6 +521,7 @@ model Vendor {
   @@unique([marketId, slug])
   @@unique([ownerUserId, marketId])
   @@index([ownerUserId])
+  @@index([primaryMarketId])
   @@index([shippingProfileStatus])
   @@map("vendors")
 }
@@ -743,6 +769,7 @@ model Product {
   reviews    ProductReview[]
   editRequests ProductEditRequest[]
   questions  ProductQuestion[]
+  marketOffers ProductMarketOffer[]
 
   @@index([marketId])
   @@index([vendorId])
@@ -751,6 +778,44 @@ model Product {
   @@index([status, categoryId])
   @@index([marketId, status, categoryId])
   @@map("products")
+}
+
+/// Phase 0 — per sell-market price, stock location, and quantity for a product.
+model ProductMarketOffer {
+  id            String               @id @default(cuid())
+  productId     String               @map("product_id")
+  marketId      String               @map("market_id")
+  price         Decimal              @db.Decimal(18, 2)
+  currency      String               @db.Char(3)
+  stockLocation ProductStockLocation @map("stock_location")
+  warehouseId   String?              @map("warehouse_id")
+  quantity      Int                  @default(0)
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+  product       Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  market        Market               @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  warehouse     FourcesWarehouse?    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+
+  @@unique([productId, marketId])
+  @@index([marketId])
+  @@index([warehouseId])
+  @@map("product_market_offers")
+}
+
+/// Phase 0 — FOURCES warehouse per domestic market (SA / OM / EG). No GLOBAL warehouse.
+model FourcesWarehouse {
+  id          String               @id
+  marketId    String               @unique @map("market_id")
+  countryCode String               @map("country_code") @db.Char(2)
+  name        String               @db.VarChar(120)
+  isActive    Boolean              @default(true) @map("is_active")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+  market      Market               @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  offers      ProductMarketOffer[]
+
+  @@index([countryCode])
+  @@map("fources_warehouses")
 }
 
 model ProductImage {
@@ -796,6 +861,7 @@ model ProductEditRequest {
   proposedMetaTitle   String?                  @map("proposed_meta_title") @db.VarChar(70)
   proposedMetaDesc    String?                  @map("proposed_meta_description") @db.VarChar(160)
   proposedImagesJson  Json?                    @map("proposed_images_json")
+  proposedOffersJson  Json?                    @map("proposed_offers_json")
   rejectionReason     String?                  @map("rejection_reason") @db.Text
   reviewedByUserId    String?                  @map("reviewed_by_user_id")
   reviewedAt          DateTime?                @map("reviewed_at")
@@ -810,6 +876,36 @@ model ProductEditRequest {
   @@index([vendorId, status])
   @@index([status, createdAt])
   @@map("product_edit_requests")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model PasswordResetAuditLog {
+  id        String                   @id @default(cuid())
+  action    PasswordResetAuditAction
+  email     String                   @db.VarChar(320)
+  userId    String?                  @map("user_id")
+  ipAddress String?                  @map("ip_address") @db.VarChar(64)
+  meta      Json?
+  createdAt DateTime                 @default(now()) @map("created_at")
+  user      User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([email, createdAt])
+  @@index([action, createdAt])
+  @@map("password_reset_audit_logs")
 }
 
 model ProductQuestion {
@@ -1064,7 +1160,9 @@ model Market {
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
   vendors         Vendor[]
+  primaryVendors  Vendor[]          @relation("VendorPrimaryMarket")
   products        Product[]
+  productOffers   ProductMarketOffer[]
   orders          Order[]
   categories      ProductCategory[]
   carts           Cart[]
@@ -1072,6 +1170,7 @@ model Market {
   wallets         Wallet[]
   banners         MarketBanner[]
   contactInquiries ContactInquiry[]
+  warehouses      FourcesWarehouse[]
 
   @@map("markets")
 }

@@ -1,13 +1,26 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/toast/ToastProvider";
+import { primaryMarketFromCountry } from "@mlm/shared";
 import { getToastDict } from "@/lib/toast-messages";
 
 type Locale = "en" | "ar";
 
 type Ui = {
   storeName: string;
+  countrySection: string;
+  country: string;
+  countryHint: string;
+  primaryMarket: string;
+  primaryMarketSA: string;
+  primaryMarketOM: string;
+  primaryMarketEG: string;
+  primaryMarketGLOBAL: string;
+  countrySA: string;
+  countryOM: string;
+  countryEG: string;
+  countryOther: string;
   seoSection: string;
   metaTitle: string;
   metaTitleHint: string;
@@ -25,11 +38,20 @@ export default function VendorStoreForm({ locale, ui }: { locale: Locale; ui: Ui
   const toastDict = getToastDict(locale);
   const direction = locale === "ar" ? "rtl" : "ltr";
   const [storeName, setStoreName] = useState("");
+  const [countryCode, setCountryCode] = useState("SA");
   const [metaTitle, setMetaTitle] = useState("");
   const [metaDescription, setMetaDescription] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const primaryLabel = useMemo(() => {
+    const code = primaryMarketFromCountry(countryCode);
+    if (code === "SA") return ui.primaryMarketSA;
+    if (code === "OM") return ui.primaryMarketOM;
+    if (code === "EG") return ui.primaryMarketEG;
+    return ui.primaryMarketGLOBAL;
+  }, [countryCode, ui]);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,12 +62,14 @@ export default function VendorStoreForm({ locale, ui }: { locale: Locale; ui: Ui
         const data = (await res.json()) as {
           store: {
             storeName: string;
+            countryCode: string;
             metaTitle: string | null;
             metaDescription: string | null;
           };
         };
         if (!cancelled) {
           setStoreName(data.store.storeName);
+          setCountryCode(data.store.countryCode || "SA");
           setMetaTitle(data.store.metaTitle ?? "");
           setMetaDescription(data.store.metaDescription ?? "");
         }
@@ -71,6 +95,7 @@ export default function VendorStoreForm({ locale, ui }: { locale: Locale; ui: Ui
         credentials: "include",
         body: JSON.stringify({
           storeName,
+          countryCode,
           metaTitle: metaTitle.trim(),
           metaDescription: metaDescription.trim(),
         }),
@@ -94,7 +119,7 @@ export default function VendorStoreForm({ locale, ui }: { locale: Locale; ui: Ui
   }
 
   return (
-    <form className="mt-6 max-w-md space-y-4" onSubmit={onSubmit} dir={direction}>
+    <form className="mt-6 max-w-lg space-y-5" onSubmit={onSubmit} dir={direction}>
       {error ? <p className="app-alert-error">{error}</p> : null}
       <label className="block space-y-1 text-sm">
         <span className="font-medium">{ui.storeName}</span>
@@ -107,6 +132,30 @@ export default function VendorStoreForm({ locale, ui }: { locale: Locale; ui: Ui
           onChange={(ev) => setStoreName(ev.target.value)}
         />
       </label>
+
+      <section className="space-y-3 rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--primary)_5%,var(--surface))] p-4">
+        <h2 className="text-sm font-semibold">{ui.countrySection}</h2>
+        <label className="block space-y-1 text-sm">
+          <span className="font-medium">{ui.country}</span>
+          <select
+            className="app-input"
+            value={["SA", "OM", "EG", "US"].includes(countryCode) ? countryCode : "US"}
+            onChange={(ev) => setCountryCode(ev.target.value)}
+          >
+            <option value="SA">{ui.countrySA}</option>
+            <option value="OM">{ui.countryOM}</option>
+            <option value="EG">{ui.countryEG}</option>
+            <option value="US">{ui.countryOther}</option>
+          </select>
+          <span className="text-xs text-[var(--muted)]">{ui.countryHint}</span>
+        </label>
+        <div className="rounded-xl border border-[color-mix(in_srgb,var(--primary)_25%,var(--border))] bg-[var(--surface)] px-3 py-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--primary)]">
+            {ui.primaryMarket}
+          </p>
+          <p className="mt-0.5 text-sm font-medium">{primaryLabel}</p>
+        </div>
+      </section>
 
       <fieldset className="space-y-3 rounded-lg border border-[var(--border)] p-3">
         <legend className="px-1 text-sm font-medium">{ui.seoSection}</legend>

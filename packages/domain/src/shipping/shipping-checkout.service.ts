@@ -4,12 +4,20 @@ import {
   defaultFulfillmentFromVendorProfile,
   defaultShippingFeeForFulfillmentType,
   fulfillmentTypeToVendorShipping,
+  inferShippingPackageType,
   type ProductFulfillmentTypeCode,
+  type ProductStockLocationCode,
+  type ShippingPackageTypeCode,
 } from "@mlm/shared";
 
 export type CartLineForShipping = {
   vendorId: string;
   fulfillmentType: ProductFulfillmentTypeCode;
+  stockLocation?: ProductStockLocationCode;
+  warehouseId?: string | null;
+  warehouseCountry?: string | null;
+  merchantCountry?: string | null;
+  customerCountry?: string | null;
 };
 
 export type ResolvedVendorShippingLine = {
@@ -19,11 +27,14 @@ export type ResolvedVendorShippingLine = {
   shippingMode: VendorShippingMode;
   indirectFulfillment: VendorIndirectFulfillment | null;
   fee: Prisma.Decimal;
+  packageType?: ShippingPackageTypeCode;
+  packageKey?: string;
 };
 
 type VendorShippingRow = {
   id: string;
   storeName: string;
+  countryCode: string;
   shippingMode: VendorShippingMode;
   indirectFulfillment: VendorIndirectFulfillment | null;
   shippingFee: Prisma.Decimal | null;
@@ -31,11 +42,34 @@ type VendorShippingRow = {
   defaultShippingFee: Prisma.Decimal | null;
 };
 
+export function packageKeyForLine(line: CartLineForShipping): string {
+  const stock = line.stockLocation ?? "MERCHANT";
+  if (stock === "FOURCES_WAREHOUSE") {
+    return `fources:${line.warehouseId ?? line.warehouseCountry ?? "unknown"}`;
+  }
+  return `merchant:${line.vendorId}`;
+}
+
+function packageTypeForLine(line: CartLineForShipping): ShippingPackageTypeCode {
+  const stock = line.stockLocation ?? "MERCHANT";
+  return inferShippingPackageType({
+    stockLocation: stock,
+    warehouseCountry: line.warehouseCountry,
+    customerCountry: line.customerCountry,
+    merchantCountry: line.merchantCountry,
+  });
+}
+
+function fulfillmentFromPackage(stock: ProductStockLocationCode): ProductFulfillmentTypeCode {
+  return stock === "FOURCES_WAREHOUSE" ? "FORSEIZ_STOCK" : "DIRECT";
+}
+
+/** Group cart lines into shipping packages (FOURCES warehouse or merchant). */
 export function groupCartLinesForShipping(lines: CartLineForShipping[]): CartLineForShipping[] {
   const seen = new Set<string>();
   const grouped: CartLineForShipping[] = [];
   for (const line of lines) {
-    const key = `${line.vendorId}:${line.fulfillmentType}`;
+    const key = packageKeyForLine(line);
     if (seen.has(key)) continue;
     seen.add(key);
     grouped.push(line);
@@ -81,6 +115,7 @@ export async function resolveShippingForCheckout(
     select: {
       id: true,
       storeName: true,
+      countryCode: true,
       shippingMode: true,
       indirectFulfillment: true,
       shippingFee: true,
@@ -94,15 +129,25 @@ export async function resolveShippingForCheckout(
 
   for (const line of grouped) {
     const vendor = byId.get(line.vendorId);
-    const snapshot = fulfillmentTypeToVendorShipping(line.fulfillmentType);
+    const stock = line.stockLocation ?? "MERCHANT";
+    const fulfillmentType = line.fulfillmentType ?? fulfillmentFromPackage(stock);
+    const snapshot = fulfillmentTypeToVendorShipping(fulfillmentType);
+    const pkgType = packageTypeForLine({
+      ...line,
+      merchantCountry: line.merchantCountry ?? vendor?.countryCode,
+    });
+    const pkgKey = packageKeyForLine(line);
+
     if (!vendor) {
       resolved.push({
         vendorId: line.vendorId,
         vendorName: "Vendor",
-        fulfillmentType: line.fulfillmentType,
+        fulfillmentType,
         shippingMode: snapshot.shippingMode,
         indirectFulfillment: snapshot.indirectFulfillment,
-        fee: new Prisma.Decimal(defaultShippingFeeForFulfillmentType(line.fulfillmentType)),
+        fee: new Prisma.Decimal(defaultShippingFeeForFulfillmentType(fulfillmentType)),
+        packageType: pkgType,
+        packageKey: pkgKey,
       });
       continue;
     }
@@ -110,19 +155,27 @@ export async function resolveShippingForCheckout(
     resolved.push({
       vendorId: vendor.id,
       vendorName: vendor.storeName,
-      fulfillmentType: line.fulfillmentType,
+      fulfillmentType,
       shippingMode: snapshot.shippingMode,
       indirectFulfillment: snapshot.indirectFulfillment,
-      fee: resolveFeeForFulfillmentLine(vendor, line.fulfillmentType),
+      fee: resolveFeeForFulfillmentLine(vendor, fulfillmentType),
+      packageType: pkgType,
+      packageKey: pkgKey,
     });
   }
 
   return resolved;
 }
 
-export function sumVendorShippingFees(lines: ResolvedVendorShippingLine[]): Prisma.Decimal {
-  return lines.reduce((sum, line) => sum.add(line.fee), new Prisma.Decimal(0));
+export function sumShippingFees(lines: ResolvedVendorShippingLine[]): Prisma.Decimal {
+  return lines.reduce(
+    (sum, line) => sum.add(line.fee),
+    new Prisma.Decimal(0),
+  );
 }
+
+/** @deprecated Prefer sumShippingFees — kept for checkout callers. */
+export const sumVendorShippingFees = sumShippingFees;
 
 export type CheckoutShippingBreakdownDto = {
   vendorId: string;
@@ -131,9 +184,13 @@ export type CheckoutShippingBreakdownDto = {
   shippingMode: VendorShippingMode;
   indirectFulfillment: VendorIndirectFulfillment | null;
   fee: string;
+  packageType?: ShippingPackageTypeCode;
+  packageKey?: string;
 };
 
-export function shippingBreakdownToDto(lines: ResolvedVendorShippingLine[]): CheckoutShippingBreakdownDto[] {
+export function shippingBreakdownToDto(
+  lines: ResolvedVendorShippingLine[],
+): CheckoutShippingBreakdownDto[] {
   return lines.map((line) => ({
     vendorId: line.vendorId,
     vendorName: line.vendorName,
@@ -141,5 +198,7 @@ export function shippingBreakdownToDto(lines: ResolvedVendorShippingLine[]): Che
     shippingMode: line.shippingMode,
     indirectFulfillment: line.indirectFulfillment,
     fee: line.fee.toFixed(2),
+    packageType: line.packageType,
+    packageKey: line.packageKey,
   }));
 }
