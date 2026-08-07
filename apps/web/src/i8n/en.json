@@ -320,7 +320,10 @@
     "socialInstagram": "https://www.instagram.com",
     "socialX": "https://x.com",
     "socialLinkedIn": "https://www.linkedin.com",
-    "copyright": "© {year} {name}. All rights reserved."
+    "copyright": "© {year} {name}. All rights reserved.",
+    "verificationBadgeOm": "Maroof Oman verified business",
+    "verificationBadgeSa": "Saudi Business Center",
+    "verificationBadgeEg": "Egypt business verification"
   },
   "contactPage": {
     "eyebrow": "Contact Fources",

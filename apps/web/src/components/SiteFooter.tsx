@@ -1,9 +1,41 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { MarketCode } from "@mlm/shared";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { getAppLocale } from "@/lib/ui-locale";
 import { BRAND_LINKS, BRAND_LOGO_PATH, getBrandName } from "@/lib/brand";
+import { getActiveMarket } from "@/lib/market-server";
+
+/** Market-specific official verification badges (not shown on GLOBAL). */
+const MARKET_VERIFICATION: Partial<
+  Record<
+    MarketCode,
+    {
+      href: string;
+      imageSrc: string;
+      imageWidth: number;
+      imageHeight: number;
+      labelKey: "verificationBadgeOm" | "verificationBadgeSa" | "verificationBadgeEg";
+    }
+  >
+> = {
+  OM: {
+    href: "https://maroof.om/businesses/qr/685",
+    imageSrc: "/brand/verification/maroof-oman.png",
+    imageWidth: 120,
+    imageHeight: 48,
+    labelKey: "verificationBadgeOm",
+  },
+  SA: {
+    href: "https://business.sa/ar/",
+    imageSrc: "/brand/verification/saudi-business-center.png",
+    imageWidth: 120,
+    imageHeight: 48,
+    labelKey: "verificationBadgeSa",
+  },
+  // EG: add when you have an official badge + listing URL
+};
 
 export function SocialIcon({
   name,
@@ -74,6 +106,8 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
   const direction = locale === "ar" ? "rtl" : "ltr";
   const year = new Date().getFullYear();
   const appName = getBrandName(locale);
+  const market = await getActiveMarket();
+  const verification = MARKET_VERIFICATION[market.code];
 
   const socialUrl = (envKey: string, fallback: string) => {
     const fromEnv = process.env[envKey]?.trim();
@@ -176,8 +210,27 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
 
       </div>
 
-      <div className="border-t border-[var(--border)] px-4 py-2 text-center text-[0.65rem] text-[var(--muted)] sm:px-6">
-        {f.copyright.replace("{year}", String(year)).replace("{name}", appName)}
+      <div className="border-t border-[var(--border)] px-4 py-2 text-[0.65rem] text-[var(--muted)] sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-3 gap-y-2">
+          <span>{f.copyright.replace("{year}", String(year)).replace("{name}", appName)}</span>
+          {verification ? (
+            <a
+              href={verification.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={f[verification.labelKey]}
+              className="inline-flex items-center rounded bg-white px-1.5 py-0.5 shadow-sm ring-1 ring-[var(--border)] transition hover:ring-[var(--primary)]"
+            >
+              <Image
+                src={verification.imageSrc}
+                alt={f[verification.labelKey]}
+                width={verification.imageWidth}
+                height={verification.imageHeight}
+                className="h-8 w-auto object-contain"
+              />
+            </a>
+          ) : null}
+        </div>
       </div>
     </footer>
   );

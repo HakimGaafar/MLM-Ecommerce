@@ -320,7 +320,10 @@
     "socialInstagram": "https://www.instagram.com",
     "socialX": "https://x.com",
     "socialLinkedIn": "https://www.linkedin.com",
-    "copyright": "© {year} {name}. جميع الحقوق محفوظة."
+    "copyright": "© {year} {name}. جميع الحقوق محفوظة.",
+    "verificationBadgeOm": "معروف عُمان — منشأة موثقة",
+    "verificationBadgeSa": "المركز السعودي للأعمال",
+    "verificationBadgeEg": "توثيق الأعمال في مصر"
   },
   "contactPage": {
     "eyebrow": "تواصل مع فورسيز",
