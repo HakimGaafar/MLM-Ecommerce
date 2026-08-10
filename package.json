@@ -10,6 +10,9 @@
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "devDependencies": {
     "typescript": "^5.9.3"
   },
@@ -17,7 +20,9 @@
     "dev:web": "dotenv -e .env -- npm run dev --workspace @mlm/web",
     "dev:worker": "dotenv -e .env -- npm run dev --workspace @mlm/worker",
     "start:worker": "dotenv -e .env -- npm run start --workspace @mlm/worker",
-    "build": "dotenv -e .env -- npm run build --workspaces --if-present",
+    "build": "node scripts/run-with-optional-env.mjs npm run db:generate && node scripts/run-with-optional-env.mjs npm run build --workspace @mlm/web",
+    "build:all": "node scripts/run-with-optional-env.mjs npm run db:generate && node scripts/run-with-optional-env.mjs npm run build --workspaces --if-present",
+    "start": "npm run start --workspace @mlm/web",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run db:generate && tsc -p packages/shared/tsconfig.json --noEmit && tsc -p packages/db/tsconfig.json --noEmit && tsc -p packages/domain/tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit",
     "test": "npm run test --workspace @mlm/domain",

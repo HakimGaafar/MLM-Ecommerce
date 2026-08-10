@@ -1,4 +1,4 @@
-# Production web image (Railway / Docker)
+# Production web image (Railway / Docker / Hostinger-compatible standalone)
 FROM node:20-bookworm-slim AS base
 WORKDIR /app
 RUN apt-get update \
@@ -23,11 +23,9 @@ RUN npm run build --workspace @mlm/web
 
 FROM base AS runner
 ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=build /app/package.json ./
-COPY --from=build /app/apps/web ./apps/web
-COPY --from=build /app/packages ./packages
-COPY --from=build /app/apps/web/.next ./apps/web/.next
+COPY --from=build /app/apps/web/.next/standalone ./
 EXPOSE 3000
-CMD ["npm", "run", "start", "--workspace", "@mlm/web"]
+CMD ["node", "apps/web/server.js"]
