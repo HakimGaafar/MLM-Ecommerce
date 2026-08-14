@@ -18,6 +18,15 @@ RUN npm ci
 
 FROM deps AS build
 COPY . .
+ARG NEXT_PUBLIC_APP_NAME=Fources
+ARG APP_BASE_URL=http://localhost:3000
+ENV NODE_ENV=production \
+    NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME \
+    APP_BASE_URL=$APP_BASE_URL \
+    DATABASE_URL=postgresql://postgres:postgres@postgres:5432/mlm_ecommerce?schema=public \
+    REDIS_URL=redis://redis:6379 \
+    JWT_SECRET=docker-build-placeholder-secret-min-32-chars \
+    JWT_REFRESH_SECRET=docker-build-refresh-secret-min-32-chars
 RUN npm run db:generate
 RUN npm run build --workspace @mlm/web
 
@@ -27,5 +36,6 @@ ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 WORKDIR /app
 COPY --from=build /app/apps/web/.next/standalone ./
+WORKDIR /app/apps/web
 EXPOSE 3000
-CMD ["node", "apps/web/server.js"]
+CMD ["node", "server.js"]
