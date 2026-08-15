@@ -4,8 +4,27 @@ CREATE TYPE "ProductReviewTarget" AS ENUM ('NEW_PRODUCT', 'EDIT_REQUEST');
 -- CreateEnum
 CREATE TYPE "ProductEditRequestStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 
--- AlterTable
-ALTER TABLE "order_vendor_shipping" ALTER COLUMN "fulfillment_type" DROP DEFAULT;
+-- ProductFulfillmentType is created in 20260707140000 on incremental DBs.
+-- Fresh deploys run this file first, so create the enum here when missing.
+DO $$ BEGIN
+  CREATE TYPE "ProductFulfillmentType" AS ENUM ('DIRECT', 'FORSEIZ_STOCK', 'ON_ORDER');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+-- order_vendor_shipping is created in 20260707120000; fulfillment_type is added in 20260707140000.
+DO $$ BEGIN
+  IF to_regclass('public.order_vendor_shipping') IS NOT NULL
+     AND EXISTS (
+       SELECT 1
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'order_vendor_shipping'
+         AND column_name = 'fulfillment_type'
+     ) THEN
+    ALTER TABLE "order_vendor_shipping" ALTER COLUMN "fulfillment_type" DROP DEFAULT;
+  END IF;
+END $$;
 
 -- AlterTable
 ALTER TABLE "product_reviews" ADD COLUMN     "edit_request_id" TEXT,

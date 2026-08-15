@@ -1,6 +1,10 @@
 -- Phase IV-b: product-level fulfillment type; checkout groups by (vendor, fulfillment type)
 
-CREATE TYPE "ProductFulfillmentType" AS ENUM ('DIRECT', 'FORSEIZ_STOCK', 'ON_ORDER');
+DO $$ BEGIN
+  CREATE TYPE "ProductFulfillmentType" AS ENUM ('DIRECT', 'FORSEIZ_STOCK', 'ON_ORDER');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 ALTER TABLE "products"
   ADD COLUMN "fulfillment_type" "ProductFulfillmentType" NOT NULL DEFAULT 'DIRECT';
@@ -29,3 +33,7 @@ DROP INDEX IF EXISTS "order_vendor_shipping_order_id_vendor_id_key";
 
 CREATE UNIQUE INDEX "order_vendor_shipping_order_id_vendor_id_fulfillment_type_key"
   ON "order_vendor_shipping"("order_id", "vendor_id", "fulfillment_type");
+
+-- Matches schema.prisma (no DB default). Skipped earlier on fresh DBs because this table
+-- did not exist yet when 20260707100756 ran.
+ALTER TABLE "order_vendor_shipping" ALTER COLUMN "fulfillment_type" DROP DEFAULT;
