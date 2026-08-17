@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireVendorSession } from "@/lib/require-vendor-session";
 import { requireVendorPermission } from "@/lib/require-vendor-permission";
 import { resolveRequestMarket } from "@/lib/request-market";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function GET(
   request: NextRequest,
@@ -124,7 +125,7 @@ export async function PATCH(
             : e.code === "ORDER_FINALIZED"
               ? 409
               : 400;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     if (e instanceof VendorOrderError) {
       const status =
@@ -141,7 +142,7 @@ export async function PATCH(
                 : e.code === "INVALID_TRANSITION"
                   ? 400
                   : 400;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     throw e;
   }

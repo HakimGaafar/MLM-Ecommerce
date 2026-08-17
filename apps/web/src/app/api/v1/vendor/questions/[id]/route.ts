@@ -3,6 +3,7 @@ import { VendorProductQuestionError, answerVendorProductQuestion } from "@mlm/do
 import { NextRequest, NextResponse } from "next/server";
 import { requireVendorSession } from "@/lib/require-vendor-session";
 import { requireVendorPermission } from "@/lib/require-vendor-permission";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function PATCH(
   request: NextRequest,
@@ -33,7 +34,7 @@ export async function PATCH(
     if (e instanceof VendorProductQuestionError) {
       const status =
         e.code === "NOT_FOUND" ? 404 : e.code === "FORBIDDEN" ? 403 : e.code === "ALREADY_ANSWERED" ? 409 : 400;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     throw e;
   }

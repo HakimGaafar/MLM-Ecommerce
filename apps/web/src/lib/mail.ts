@@ -127,3 +127,28 @@ If you did not change your password, contact support immediately.`;
 
   return sendMail({ to: input.to, subject, html, text });
 }
+
+export async function sendOtpVerificationEmail(input: {
+  to: string;
+  name: string;
+  code: string;
+}): Promise<{ ok: boolean; mode: "resend" | "console"; error?: string }> {
+  const safeName = escapeHtml(input.name || "there");
+  const safeCode = escapeHtml(input.code);
+  const subject = `Your ${APP_NAME} verification code`;
+  const text = `Hi ${input.name || "there"},
+
+Your ${APP_NAME} verification code is: ${input.code}
+
+This code expires in 10 minutes. If you did not request it, you can ignore this email.`;
+
+  const html = wrapEmail(
+    `<p>Hi ${safeName},</p>
+     <p>Your ${escapeHtml(APP_NAME)} verification code is:</p>
+     <p style="font-size:28px;font-weight:bold;letter-spacing:0.2em;">${safeCode}</p>
+     <p>This code expires in 10 minutes.</p>
+     <p>If you did not request it, you can ignore this email.</p>`,
+  );
+
+  return sendMail({ to: input.to, subject, html, text });
+}

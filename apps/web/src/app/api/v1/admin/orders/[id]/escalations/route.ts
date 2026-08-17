@@ -2,6 +2,7 @@ import { createOrderEscalation, listOrderEscalations, OrderEscalationError } fro
 import { OrderEscalationCreateSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/require-admin-session";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function GET(
   request: NextRequest,
@@ -44,7 +45,7 @@ export async function POST(
   } catch (e) {
     if (e instanceof OrderEscalationError) {
       const status = e.code === "NOT_FOUND" ? 404 : e.code === "FORBIDDEN" ? 403 : 400;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     throw e;
   }

@@ -7,6 +7,7 @@ import { VendorCouponCreateSchema, VendorCouponListQuerySchema } from "@mlm/shar
 import { NextRequest, NextResponse } from "next/server";
 import { requireVendorSession } from "@/lib/require-vendor-session";
 import { requireVendorPermission } from "@/lib/require-vendor-permission";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function GET(request: NextRequest) {
   const auth = await requireVendorSession(request);
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ coupon }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     if (e instanceof VendorCouponError && e.code === "DUPLICATE_CODE") {
-      return NextResponse.json({ error: e.message, code: e.code }, { status: 409 });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status: 409 });
     }
     throw e;
   }

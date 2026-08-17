@@ -8,6 +8,7 @@ import {
 import { OrderReturnAdminStatusSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/require-admin-session";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 function serializeDetail(row: NonNullable<Awaited<ReturnType<typeof getAdminReturnDetail>>>) {
   return {
@@ -84,10 +85,10 @@ export async function PATCH(
   } catch (e) {
     if (e instanceof AdminReturnError) {
       const status = e.code === "NOT_FOUND" ? 404 : 400;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     if (e instanceof WalletError) {
-      return NextResponse.json({ error: e.message, code: e.code }, { status: 400 });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status: 400 });
     }
     throw e;
   }

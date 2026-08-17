@@ -1,6 +1,7 @@
 import { AdminKycError, listAdminKycDocuments } from "@mlm/domain";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/require-admin-session";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdminSession(request);
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof AdminKycError) {
-      return NextResponse.json({ error: error.message, code: error.code }, { status: 400 });
+      return NextResponse.json(publicErrorPayload(error, { context: "api", code: error.code }), { status: 400 });
     }
     throw error;
   }

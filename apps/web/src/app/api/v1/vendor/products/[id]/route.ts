@@ -3,6 +3,7 @@ import { VendorProductUpdateSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { requireVendorSession } from "@/lib/require-vendor-session";
 import { requireVendorPermission } from "@/lib/require-vendor-permission";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function GET(
   request: NextRequest,
@@ -45,10 +46,10 @@ export async function PATCH(
     return NextResponse.json({ product }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     if (e instanceof VendorProductError && e.code === "INVALID_CATEGORY") {
-      return NextResponse.json({ error: e.message }, { status: 400 });
+      return NextResponse.json({ error: publicErrorMessage(e, PUBLIC_API_ERRORS.generic, "api") }, { status: 400 });
     }
     if (e instanceof VendorProductError && e.code === "PENDING_EDIT_REQUEST_EXISTS") {
-      return NextResponse.json({ error: e.message, code: e.code }, { status: 409 });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status: 409 });
     }
     if (e instanceof Error && e.message === "INVALID_STATUS_TRANSITION") {
       return NextResponse.json({ error: "Invalid status transition" }, { status: 400 });
@@ -76,7 +77,7 @@ export async function DELETE(
     if (e instanceof VendorProductError) {
       const status =
         e.code === "NOT_FOUND" ? 404 : e.code === "HAS_ORDER_HISTORY" ? 409 : 400;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     throw e;
   }

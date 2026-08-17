@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "@/lib/parse-json-body";
 import { enforceUserRateLimit } from "@/lib/rate-limit-response";
 import { requireAdminSession } from "@/lib/require-admin-session";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function POST(request: NextRequest) {
   const auth = await requireAdminSession(request);
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ count }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof AdminKycError) {
-      return NextResponse.json({ error: error.message, code: error.code }, { status: 400 });
+      return NextResponse.json(publicErrorPayload(error, { context: "api", code: error.code }), { status: 400 });
     }
     throw error;
   }

@@ -129,3 +129,4 @@ export * from "./invoices/order-invoice.service";
 export * from "./referral/referral-bind.service";
 export * from "./contact/contact-inquiry.service";
 export * from "./auth/password-reset.service";
+export * from "./auth/otp-verification.service";

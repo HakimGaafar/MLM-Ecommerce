@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Pagination from "@/components/Pagination";
+import OtpVerificationPanel from "@/components/auth/OtpVerificationPanel";
 import { useToast } from "@/components/toast/ToastProvider";
 import { formatMoney } from "@/lib/format-currency";
 import { LIST_PAGE_SIZE } from "@/lib/list-page";
@@ -86,7 +87,33 @@ type Ui = {
   directionDebit: string;
 };
 
-export default function CashbackView({ locale, ui }: { locale: Locale; ui: Ui }) {
+type OtpUi = {
+  shared: {
+    sendCode: string;
+    sending: string;
+    codeLabel: string;
+    codePlaceholder: string;
+    verify: string;
+    verifying: string;
+    resent: string;
+    sendError: string;
+    verifyError: string;
+    invalidCode: string;
+    loading: string;
+  };
+  cashbackTitle: string;
+  cashbackBody: string;
+};
+
+export default function CashbackView({
+  locale,
+  ui,
+  otpUi,
+}: {
+  locale: Locale;
+  ui: Ui;
+  otpUi: OtpUi;
+}) {
   const toast = useToast();
   const direction = locale === "ar" ? "rtl" : "ltr";
   const pageSize = LIST_PAGE_SIZE;
@@ -99,6 +126,7 @@ export default function CashbackView({ locale, ui }: { locale: Locale; ui: Ui })
   const [activeTab, setActiveTab] = useState<HistoryTab>("all");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
+  const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
 
   const loadSummary = useCallback(async () => {
     const res = await fetch("/api/v1/customer/wallet", { credentials: "include", cache: "no-store" });
@@ -131,6 +159,30 @@ export default function CashbackView({ locale, ui }: { locale: Locale; ui: Ui })
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      try {
+        const res = await fetch("/api/v1/auth/email-verification", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error(ui.loadError);
+        const data = (await res.json()) as { emailVerified: boolean };
+        if (!cancelled) setEmailVerified(data.emailVerified);
+      } catch {
+        if (!cancelled) {
+          setEmailVerified(false);
+          setError(ui.loadError);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ui.loadError]);
+
+  useEffect(() => {
+    if (emailVerified !== true) return;
+    let cancelled = false;
+    (async () => {
       setLoading(true);
       setError(null);
       try {
@@ -146,7 +198,7 @@ export default function CashbackView({ locale, ui }: { locale: Locale; ui: Ui })
     return () => {
       cancelled = true;
     };
-  }, [loadSummary, ui.loadError]);
+  }, [emailVerified, loadSummary, ui.loadError]);
 
   useEffect(() => {
     if (!summary) return;
@@ -234,6 +286,21 @@ export default function CashbackView({ locale, ui }: { locale: Locale; ui: Ui })
     { id: "CASHBACK", label: ui.tabCashback },
     { id: "AFFILIATE_COMMISSION", label: ui.tabAffiliate },
   ];
+
+  if (emailVerified === null) {
+    return <p className="mt-8 text-sm text-[var(--muted)]">{otpUi.shared.loading}</p>;
+  }
+
+  if (emailVerified === false) {
+    return (
+      <OtpVerificationPanel
+        ui={otpUi.shared}
+        title={otpUi.cashbackTitle}
+        body={otpUi.cashbackBody}
+        onVerified={() => setEmailVerified(true)}
+      />
+    );
+  }
 
   if (loading && !summary) {
     return <p className="mt-8 text-sm text-[var(--muted)]">{ui.loading}</p>;

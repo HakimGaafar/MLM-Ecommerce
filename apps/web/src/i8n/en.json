@@ -74,11 +74,9 @@
     "registrationSuccess": "Registration successful. Redirecting to login...",
     "registrationSuccessVendor": "Account created. After sign-in you will finish opening your store.",
     "accountTypeCustomerLabel": "Customer",
-    "accountTypeCustomerHint": "Shop products, wallet access, and affiliate profile.",
+    "accountTypeCustomerHint": "Shop products and manage your wallet.",
     "accountTypeVendorLabel": "Vendor",
     "accountTypeVendorHint": "Seller account — after sign-in, complete store setup before using the vendor dashboard.",
-    "accountTypeBothLabel": "Customer + Vendor",
-    "accountTypeBothHint": "Start with both customer and vendor capabilities.",
     "required": "This field is required.",
     "invalidName": "Enter a valid name using letters, numbers, spaces, or . ' -",
     "invalidEmail": "Enter a valid email address.",
@@ -86,6 +84,25 @@
     "invalidReferral": "Referral code must be 4–24 letters or numbers.",
     "emailInUse": "This email is already in use.",
     "rateLimited": "Too many attempts. Please wait before trying again."
+  },
+  "otpVerification": {
+    "shared": {
+      "sendCode": "Send verification code",
+      "sending": "Sending code…",
+      "codeLabel": "Verification code",
+      "codePlaceholder": "6-digit code",
+      "verify": "Verify email",
+      "verifying": "Verifying…",
+      "resent": "Code sent. Check your inbox.",
+      "sendError": "Could not send verification code.",
+      "verifyError": "Verification failed.",
+      "invalidCode": "Enter the 6-digit code from your email.",
+      "loading": "Checking verification status…"
+    },
+    "cashbackTitle": "Activate your wallet",
+    "cashbackBody": "Before you can use your cashback wallet, verify your email with a one-time code.",
+    "checkoutTitle": "Verify before your first order",
+    "checkoutBody": "Confirm your email with a one-time code before placing your first order."
   },
   "customerDashboard": {
     "title": "Customer Dashboard",
@@ -382,7 +399,8 @@
       "accept": "Accept and continue",
       "saving": "Saving agreement…",
       "error": "Could not save your agreement. Please try again.",
-      "ownerOnly": "The store owner must accept this agreement before team members can use the GLOBAL vendor portal."
+      "ownerOnly": "The store owner must accept this agreement before team members can use the GLOBAL vendor portal.",
+      "dismiss": "Dismiss for now"
     },
     "affiliate": {
       "title": "International Marketing Notice",

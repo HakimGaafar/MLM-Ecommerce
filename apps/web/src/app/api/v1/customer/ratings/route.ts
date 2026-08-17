@@ -2,6 +2,7 @@ import { OrderItemRatingUpsertSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { OrderItemRatingError, upsertOrderItemRating } from "@mlm/domain";
 import { requireCustomerSession } from "@/lib/require-customer-session";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function POST(request: NextRequest) {
   const auth = await requireCustomerSession(request);
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     if (e instanceof OrderItemRatingError) {
       const status = e.code === "NOT_FOUND" ? 404 : e.code === "FORBIDDEN" ? 403 : 409;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     throw e;
   }

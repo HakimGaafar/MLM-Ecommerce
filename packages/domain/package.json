@@ -5,19 +5,11 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest"
-  },
   "dependencies": {
     "@mlm/db": "*",
     "@mlm/queue": "*",
     "@mlm/shared": "*",
     "bcryptjs": "^3.0.3",
     "stripe": "^17.7.0"
-  },
-  "devDependencies": {
-    "dotenv": "^16.6.1",
-    "vitest": "^4.1.8"
   }
 }

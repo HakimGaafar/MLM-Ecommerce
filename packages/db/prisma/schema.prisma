@@ -237,11 +237,16 @@ enum OrderReturnStatus {
   CANCELLED_BY_CUSTOMER
 }
 
+enum OtpChallengePurpose {
+  ACCOUNT_VERIFICATION
+}
+
 model User {
   id               String              @id @default(cuid())
   name             String
   email            String              @unique
   passwordHash     String              @map("password_hash")
+  emailVerifiedAt  DateTime?           @map("email_verified_at")
   status           UserStatus          @default(ACTIVE)
   createdAt        DateTime            @default(now()) @map("created_at")
   updatedAt        DateTime            @updatedAt @map("updated_at")
@@ -272,6 +277,7 @@ model User {
   kycDocumentsUpdateRequested      KycDocument[]                 @relation("KycDocumentUpdateRequestedBy")
   passwordResetTokens              PasswordResetToken[]
   passwordResetAudits              PasswordResetAuditLog[]
+  otpChallenges                    OtpChallenge[]
 
   @@map("users")
 }
@@ -890,6 +896,22 @@ model PasswordResetToken {
   @@index([userId, usedAt])
   @@index([expiresAt])
   @@map("password_reset_tokens")
+}
+
+model OtpChallenge {
+  id           String              @id @default(cuid())
+  userId       String              @map("user_id")
+  purpose      OtpChallengePurpose
+  codeHash     String              @map("code_hash") @db.VarChar(64)
+  expiresAt    DateTime            @map("expires_at")
+  usedAt       DateTime?           @map("used_at")
+  attemptCount Int                 @default(0) @map("attempt_count")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, usedAt])
+  @@index([expiresAt])
+  @@map("otp_challenges")
 }
 
 model PasswordResetAuditLog {

@@ -20,6 +20,7 @@ export default async function CustomerCheckoutPage() {
         <CheckoutView
           locale={locale}
           ui={ui}
+          otpUi={dict.otpVerification}
           toastOrderPlaced={dict.toast.orderPlaced}
           internationalNotice={
             market.code === "GLOBAL" ? dict.internationalNotices.customer : null

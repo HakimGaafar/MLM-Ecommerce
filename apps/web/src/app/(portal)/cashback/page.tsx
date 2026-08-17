@@ -40,7 +40,7 @@ export default async function CashbackPage() {
         </Link>
       </div>
 
-      <CashbackView locale={locale} ui={ui} />
+      <CashbackView locale={locale} ui={ui} otpUi={dict.otpVerification} />
     </main>
   );
 }

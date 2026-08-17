@@ -38,6 +38,7 @@ import {
 } from "./coupon-checkout.service";
 import { assertShippingCountryMatchesMarket, pickShippingAddressForMarket } from "./delivery-market";
 import type { MarketCode } from "@mlm/shared";
+import { isUserEmailVerified } from "../auth/otp-verification.service";
 
 export class CheckoutError extends Error {
   constructor(
@@ -52,7 +53,8 @@ export class CheckoutError extends Error {
       | "COUPON_VENDOR_MISMATCH"
       | "COUPON_CURRENCY_MISMATCH"
       | "INSUFFICIENT_WALLET_BALANCE"
-      | "DELIVERY_MARKET_MISMATCH",
+      | "DELIVERY_MARKET_MISMATCH"
+      | "EMAIL_VERIFICATION_REQUIRED",
     message?: string,
   ) {
     super(message ?? code);
@@ -344,6 +346,7 @@ export async function getCheckoutQuoteForUser(
   walletAvailableBalance: string;
   walletAppliedAmount: string;
   remainingAmount: string;
+  emailVerified: boolean;
 }> {
   const market = await prisma.market.findUnique({
     where: { id: marketId },
@@ -351,6 +354,7 @@ export async function getCheckoutQuoteForUser(
   });
   const defaultCurrency = market?.defaultCurrency ?? "SAR";
   const activeMarketCode = (market?.code ?? "SA") as MarketCode;
+  const emailVerified = await isUserEmailVerified(buyerUserId);
 
   const cart = await getCustomerCart(buyerUserId, marketId, defaultCurrency);
   const profile = await getCustomerProfile(buyerUserId);
@@ -446,6 +450,7 @@ export async function getCheckoutQuoteForUser(
     walletAvailableBalance: walletAvailable.toFixed(2),
     walletAppliedAmount: walletApplied.toFixed(2),
     remainingAmount: remainingAmount.toFixed(2),
+    emailVerified,
   };
 }
 
@@ -674,6 +679,13 @@ export async function placeOrderFromCart(
   defaultCurrency: string,
   input: PlaceOrderInput = {},
 ) {
+  if (!(await isUserEmailVerified(buyerUserId))) {
+    throw new CheckoutError(
+      "EMAIL_VERIFICATION_REQUIRED",
+      "Verify your email with the one-time code before placing your first order.",
+    );
+  }
+
   const paymentMethod = input.paymentMethod ?? "COD";
   if (paymentMethod === "ONLINE_CARD") {
     if (!isOnlineCardCheckoutEnabled()) {

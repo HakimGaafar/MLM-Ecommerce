@@ -3,6 +3,7 @@ import { SellerOnboardSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { consumeRateLimit, getClientIp, isStrongPassword } from "@/lib/security";
 import { resolveRequestMarket } from "@/lib/request-market";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
@@ -29,12 +30,6 @@ export async function POST(request: NextRequest) {
 
   try {
     const market = await resolveRequestMarket();
-    if (market.code === "GLOBAL" && parsed.data.internationalSalesConsent !== true) {
-      return NextResponse.json(
-        { error: "International sales agreement is required for the global marketplace." },
-        { status: 400 },
-      );
-    }
     const result = await onboardNewSeller(parsed.data, market.id);
     return NextResponse.json(result, { status: 201 });
   } catch (e) {
@@ -45,7 +40,7 @@ export async function POST(request: NextRequest) {
           : e.code === "SLUG_RESERVED"
             ? 400
             : 400;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     throw e;
   }

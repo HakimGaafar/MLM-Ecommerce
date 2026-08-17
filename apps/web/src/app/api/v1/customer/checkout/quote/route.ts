@@ -1,13 +1,15 @@
 import { CheckoutError, getCheckoutQuoteForUser } from "@mlm/domain";
 import { CheckoutCouponCodeSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  exposeErrorCodesToClient,
+  internalServerErrorResponse,
+  publicErrorMessage,
+  PUBLIC_API_ERRORS,
+} from "@/lib/api-error-response";
 import { enforceUserRateLimit } from "@/lib/rate-limit-response";
 import { requireCustomerSession } from "@/lib/require-customer-session";
 import { resolveRequestMarket } from "@/lib/request-market";
-
-function quoteErrorMessage(error: CheckoutError): string {
-  return error.message || "Checkout quote failed";
-}
 
 export async function GET(request: NextRequest) {
   const auth = await requireCustomerSession(request);
@@ -64,10 +66,17 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     if (error instanceof CheckoutError) {
       return NextResponse.json(
-        { error: quoteErrorMessage(error), code: error.code },
+        {
+          error: publicErrorMessage(error, PUBLIC_API_ERRORS.checkoutFailed, "customer/checkout/quote"),
+          ...(exposeErrorCodesToClient() ? { code: error.code } : {}),
+        },
         { status: 400 },
       );
     }
-    throw error;
+    return internalServerErrorResponse(
+      "customer/checkout/quote",
+      error,
+      PUBLIC_API_ERRORS.checkoutFailed,
+    );
   }
 }

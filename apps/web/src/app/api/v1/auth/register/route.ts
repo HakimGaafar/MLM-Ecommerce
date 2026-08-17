@@ -1,12 +1,17 @@
 import { prisma, type Prisma } from "@mlm/db";
 import {
-  assertChildCanReceiveReferral,
+  bindReferralAtRegistration,
   ReferralBindError,
   resolveWalletCurrency,
 } from "@mlm/domain";
 import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  internalServerErrorResponse,
+  publicErrorMessage,
+  PUBLIC_API_ERRORS,
+} from "@/lib/api-error-response";
 import { resolveRequestMarket } from "@/lib/request-market";
 import {
   consumeRateLimit,
@@ -41,11 +46,6 @@ const registerSchema = z.object({
 });
 
 const REFERRAL_COOKIE = "mlm_referral_code";
-
-function newReferralCode(email: string) {
-  const base = email.split("@")[0] ?? "user";
-  return `${base}`.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase();
-}
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
@@ -99,23 +99,15 @@ export async function POST(request: NextRequest) {
       const vendorRole = hasVendorRole
         ? await tx.role.findUnique({ where: { code: "VENDOR" } })
         : null;
-      const affiliateRole = hasCustomerRole
-        ? await tx.role.findUnique({ where: { code: "AFFILIATE" } })
-        : null;
 
       if ((hasCustomerRole && !customerRole) || (hasVendorRole && !vendorRole)) {
-        throw new Error("Roles are missing. Run database seed first.");
-      }
-
-      if (hasCustomerRole && !affiliateRole) {
-        throw new Error("Affiliate role is missing. Run database seed first.");
+        throw new Error("ROLES_MISSING");
       }
 
       await tx.userRole.createMany({
         data: [
           ...(customerRole ? [{ userId: createdUser.id, roleId: customerRole.id }] : []),
           ...(vendorRole ? [{ userId: createdUser.id, roleId: vendorRole.id }] : []),
-          ...(affiliateRole ? [{ userId: createdUser.id, roleId: affiliateRole.id }] : []),
         ],
         skipDuplicates: true,
       });
@@ -128,42 +120,18 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      if (hasCustomerRole) {
-        const code = `${newReferralCode(email)}${createdUser.id.slice(-4)}`;
-        await tx.affiliateProfile.create({
-          data: {
-            userId: createdUser.id,
-            referralCode: code,
-          },
+      if (requestedReferralCode) {
+        await bindReferralAtRegistration(tx, {
+          childUserId: createdUser.id,
+          childEmail: email,
+          referralCode: requestedReferralCode,
         });
-
-        if (requestedReferralCode) {
-          const parent = await tx.affiliateProfile.findUnique({
-            where: { referralCode: requestedReferralCode },
-          });
-          if (!parent) {
-            throw new Error("INVALID_REFERRAL_CODE");
-          }
-
-          if (parent.userId === createdUser.id) {
-            throw new Error("SELF_REFERRAL_BLOCKED");
-          }
-
-          await assertChildCanReceiveReferral(createdUser.id);
-
-          await tx.referralRelation.create({
-            data: {
-              childUserId: createdUser.id,
-              parentUserId: parent.userId,
-            },
-          });
-        }
       }
 
       return {
         ...createdUser,
         accountType: resolvedAccountType,
-        roles: [customerRole?.code, vendorRole?.code, affiliateRole?.code].filter(Boolean),
+        roles: [customerRole?.code, vendorRole?.code].filter(Boolean),
       };
     });
 
@@ -186,22 +154,25 @@ export async function POST(request: NextRequest) {
     });
     return response;
   } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === "INVALID_REFERRAL_CODE") {
+    if (error instanceof ReferralBindError) {
+      if (error.code === "INVALID_REFERRAL_CODE") {
         return NextResponse.json({ error: "Referral code is invalid." }, { status: 400 });
       }
-      if (error.message === "SELF_REFERRAL_BLOCKED") {
+      if (error.code === "SELF_REFERRAL_BLOCKED") {
         return NextResponse.json({ error: "You cannot refer yourself." }, { status: 400 });
       }
+      return NextResponse.json(
+        { error: publicErrorMessage(error, PUBLIC_API_ERRORS.registrationFailed, "auth/register") },
+        { status: 409 },
+      );
     }
-    if (error instanceof ReferralBindError) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
+    if (error instanceof Error && error.message === "ROLES_MISSING") {
+      return internalServerErrorResponse(
+        "auth/register",
+        error,
+        PUBLIC_API_ERRORS.registrationFailed,
+      );
     }
-    if (error instanceof Error) {
-      if (error.message.includes("Run database seed first")) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-    }
-    throw error;
+    return internalServerErrorResponse("auth/register", error, PUBLIC_API_ERRORS.registrationFailed);
   }
 }

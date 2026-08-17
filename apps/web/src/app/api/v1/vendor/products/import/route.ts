@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveRequestLocale } from "@/lib/ui-locale";
 import { requireVendorSession } from "@/lib/require-vendor-session";
 import { requireVendorPermission } from "@/lib/require-vendor-permission";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function POST(request: NextRequest) {
   const auth = await requireVendorSession(request);
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
     if (e instanceof VendorProductImportError) {
       const status =
         e.code === "TOO_MANY_ROWS" ? 413 : e.code === "EMPTY" || e.code === "NO_ROWS" ? 400 : 400;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     throw e;
   }

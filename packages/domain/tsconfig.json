@@ -15,5 +15,5 @@
       "@mlm/shared": ["../shared/src/index.ts"]
     }
   },
-  "include": ["src/**/*.ts", "vitest.config.ts", "vitest.setup.ts"]
+  "include": ["src/**/*.ts"]
 }

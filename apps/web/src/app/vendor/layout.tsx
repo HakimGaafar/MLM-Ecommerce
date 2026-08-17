@@ -10,7 +10,7 @@ import { getActiveMarket } from "@/lib/market-server";
 import { requirePageAuth } from "@/lib/require-page-auth";
 import { firstAllowedVendorHrefForUser, getVendorPermissionsForUser } from "@/lib/vendor-access";
 import VendorLayoutGuard from "./VendorLayoutGuard";
-import VendorInternationalConsentGate from "./VendorInternationalConsentGate";
+import VendorInternationalConsentBanner from "./VendorInternationalConsentBanner";
 
 export default async function VendorLayout({
   children,
@@ -34,10 +34,11 @@ export default async function VendorLayout({
     !(await hasAcceptedInternationalSalesAgreement(access.vendorId));
 
   return (
-    <VendorInternationalConsentGate
-      notice={requiresInternationalConsent ? internationalNotice : null}
-      canAccept={access.isOwner}
-    >
+    <>
+      <VendorInternationalConsentBanner
+        notice={requiresInternationalConsent ? internationalNotice : null}
+        canAccept={access.isOwner}
+      />
       <VendorLayoutGuard
         permissions={permissions}
         fallbackHref={fallbackHref}
@@ -47,6 +48,6 @@ export default async function VendorLayout({
       >
         {children}
       </VendorLayoutGuard>
-    </VendorInternationalConsentGate>
+    </>
   );
 }

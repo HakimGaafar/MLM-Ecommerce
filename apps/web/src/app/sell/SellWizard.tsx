@@ -148,7 +148,6 @@ export default function SellWizard({
 
   async function submitStoreOnly(e: FormEvent) {
     e.preventDefault();
-    if (internationalNotice && !acceptInternationalSales) return;
     setError(null);
     setLoading(true);
     try {
@@ -407,7 +406,6 @@ export default function SellWizard({
               <label className="mt-4 flex cursor-pointer items-start gap-2">
                 <input
                   type="checkbox"
-                  required
                   checked={acceptInternationalSales}
                   onChange={(e) => setAcceptInternationalSales(e.target.checked)}
                   className="mt-1"
@@ -424,10 +422,7 @@ export default function SellWizard({
             ) : null}
             <button
               type="submit"
-              disabled={
-                slugStatus === "bad" ||
-                Boolean(internationalNotice && !acceptInternationalSales)
-              }
+              disabled={slugStatus === "bad"}
               className="btn-primary rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
             >
               {ui.next}

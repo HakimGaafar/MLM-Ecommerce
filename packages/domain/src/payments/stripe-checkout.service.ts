@@ -7,6 +7,7 @@ import {
   isOnlineCardCheckoutEnabled,
   resolveCheckoutShipping,
 } from "../customer/checkout.service";
+import { isUserEmailVerified } from "../auth/otp-verification.service";
 import { assertShippingCountryMatchesMarket } from "../customer/delivery-market";
 import { Prisma, isPrismaUniqueViolation, prisma } from "@mlm/db";
 import { getStripeClient, stripeAmountForCurrency } from "./stripe-client";
@@ -60,6 +61,13 @@ export async function createStripeCheckoutSession(
 ): Promise<StripeCheckoutSessionResult> {
   if (!isOnlineCardCheckoutEnabled()) {
     throw new StripeCheckoutError("NOT_CONFIGURED", "Stripe is not configured on this server.");
+  }
+
+  if (!(await isUserEmailVerified(buyerUserId))) {
+    throw new CheckoutError(
+      "EMAIL_VERIFICATION_REQUIRED",
+      "Verify your email with the one-time code before placing your first order.",
+    );
   }
 
   const stripe = getStripeClient();

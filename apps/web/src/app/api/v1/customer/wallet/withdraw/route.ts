@@ -5,6 +5,7 @@ import { parseJsonBody } from "@/lib/parse-json-body";
 import { enforceUserRateLimit } from "@/lib/rate-limit-response";
 import { requireCustomerSession } from "@/lib/require-customer-session";
 import { resolveRequestMarket } from "@/lib/request-market";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function POST(request: NextRequest) {
   const auth = await requireCustomerSession(request);
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
             : error.code === "INVALID_AMOUNT" || error.code === "BELOW_MINIMUM"
               ? 400
               : 400;
-      return NextResponse.json({ error: error.message, code: error.code }, { status });
+      return NextResponse.json(publicErrorPayload(error, { context: "api", code: error.code }), { status });
     }
     throw error;
   }

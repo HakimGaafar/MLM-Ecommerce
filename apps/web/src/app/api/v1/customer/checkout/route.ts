@@ -1,31 +1,18 @@
 import { CheckoutError, placeOrderFromCart } from "@mlm/domain";
 import { CheckoutPostSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  exposeErrorCodesToClient,
+  publicErrorMessage,
+  PUBLIC_API_ERRORS,
+  internalServerErrorResponse,
+} from "@/lib/api-error-response";
 import { enforceUserRateLimit } from "@/lib/rate-limit-response";
 import { requireCustomerSession } from "@/lib/require-customer-session";
 import { resolveRequestMarket } from "@/lib/request-market";
 
 function checkoutErrorMessage(error: CheckoutError): string {
-  switch (error.code) {
-    case "EMPTY_CART":
-      return "Cart is empty";
-    case "MIXED_CURRENCY":
-      return "Mixed currencies are not supported in one order";
-    case "INCOMPLETE_SHIPPING_PROFILE":
-      return error.message;
-    case "UNSUPPORTED_PAYMENT_METHOD":
-      return error.message;
-    case "INVALID_SHIPPING_ADDRESS":
-      return error.message;
-    case "INVALID_COUPON":
-    case "COUPON_USAGE_EXCEEDED":
-    case "COUPON_VENDOR_MISMATCH":
-    case "COUPON_CURRENCY_MISMATCH":
-    case "INSUFFICIENT_WALLET_BALANCE":
-      return error.message;
-    default:
-      return "Checkout failed";
-  }
+  return publicErrorMessage(error, PUBLIC_API_ERRORS.checkoutFailed, "customer/checkout");
 }
 
 export async function POST(request: NextRequest) {
@@ -66,11 +53,15 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     if (error instanceof CheckoutError) {
+      const status = error.code === "EMAIL_VERIFICATION_REQUIRED" ? 403 : 400;
       return NextResponse.json(
-        { error: checkoutErrorMessage(error), code: error.code },
-        { status: 400 },
+        {
+          error: checkoutErrorMessage(error),
+          ...(exposeErrorCodesToClient() ? { code: error.code } : {}),
+        },
+        { status },
       );
     }
-    throw error;
+    return internalServerErrorResponse("customer/checkout", error, PUBLIC_API_ERRORS.checkoutFailed);
   }
 }

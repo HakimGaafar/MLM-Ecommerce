@@ -3,6 +3,7 @@ import { SellerStoreFieldsSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { getAccessTokenFromRequest, verifyAccessToken } from "@/lib/auth";
 import { resolveRequestMarket } from "@/lib/request-market";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function POST(request: NextRequest) {
   const token = getAccessTokenFromRequest(request);
@@ -19,18 +20,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const market = await resolveRequestMarket();
-    if (market.code === "GLOBAL" && parsed.data.internationalSalesConsent !== true) {
-      return NextResponse.json(
-        { error: "International sales agreement is required for the global marketplace." },
-        { status: 400 },
-      );
-    }
     const result = await createStoreForExistingUser(session.sub, parsed.data, market.id);
     return NextResponse.json(result, { status: 201 });
   } catch (e) {
     if (e instanceof SellerOnboardError) {
       const status = e.code === "ALREADY_VENDOR" || e.code === "SLUG_TAKEN" ? 409 : 400;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     throw e;
   }

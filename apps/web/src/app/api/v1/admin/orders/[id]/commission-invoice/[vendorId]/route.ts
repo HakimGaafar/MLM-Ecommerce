@@ -2,6 +2,7 @@ import { OrderInvoiceError } from "@mlm/domain";
 import { NextRequest, NextResponse } from "next/server";
 import { ensureCommissionInvoicePdf, invoiceErrorStatus } from "@/lib/invoices/ensure-invoice-pdf";
 import { requireAdminSession } from "@/lib/require-admin-session";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function GET(
   request: NextRequest,
@@ -24,7 +25,7 @@ export async function GET(
     });
   } catch (e) {
     if (e instanceof OrderInvoiceError) {
-      return NextResponse.json({ error: e.message, code: e.code }, { status: invoiceErrorStatus(e.code) });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status: invoiceErrorStatus(e.code) });
     }
     throw e;
   }

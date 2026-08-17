@@ -5,6 +5,11 @@ import { enforceUserRateLimit } from "@/lib/rate-limit-response";
 import { resolveCheckoutBaseUrl } from "@/lib/resolve-checkout-base-url";
 import { requireCustomerSession } from "@/lib/require-customer-session";
 import { resolveRequestMarket } from "@/lib/request-market";
+import {
+  internalServerErrorResponse,
+  publicErrorPayload,
+  PUBLIC_API_ERRORS,
+} from "@/lib/api-error-response";
 
 function stripeErrorResponse(error: StripeCheckoutError) {
   const status =
@@ -15,7 +20,10 @@ function stripeErrorResponse(error: StripeCheckoutError) {
         : error.code === "ALREADY_PAID"
           ? 409
           : 400;
-  return NextResponse.json({ error: error.message, code: error.code }, { status });
+  return NextResponse.json(
+    publicErrorPayload(error, { context: "customer/checkout/stripe-session", code: error.code }),
+    { status },
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -70,8 +78,19 @@ export async function POST(request: NextRequest) {
       return stripeErrorResponse(error);
     }
     if (error instanceof CheckoutError) {
-      return NextResponse.json({ error: error.message, code: error.code }, { status: 400 });
+      const status = error.code === "EMAIL_VERIFICATION_REQUIRED" ? 403 : 400;
+      return NextResponse.json(
+        publicErrorPayload(error, {
+          context: "customer/checkout/stripe-session",
+          code: error.code,
+        }),
+        { status },
+      );
     }
-    throw error;
+    return internalServerErrorResponse(
+      "customer/checkout/stripe-session",
+      error,
+      PUBLIC_API_ERRORS.checkoutFailed,
+    );
   }
 }

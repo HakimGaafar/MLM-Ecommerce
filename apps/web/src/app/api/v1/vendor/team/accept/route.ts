@@ -3,6 +3,7 @@ import { VendorTeamAcceptSchema } from "@mlm/shared";
 import { prisma } from "@mlm/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getAccessTokenFromRequest, verifyAccessToken } from "@/lib/auth";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function POST(request: NextRequest) {
   const token = getAccessTokenFromRequest(request);
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
             : e.code === "ALREADY_ACCEPTED"
               ? 409
               : 403;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     throw e;
   }

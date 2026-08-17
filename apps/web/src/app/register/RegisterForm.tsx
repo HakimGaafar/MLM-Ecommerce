@@ -14,7 +14,7 @@ import {
 } from "@/lib/field-validation";
 import { getToastDict } from "@/lib/toast-messages";
 
-type AccountType = "CUSTOMER" | "VENDOR" | "BOTH";
+type AccountType = "CUSTOMER" | "VENDOR";
 type FieldKey = "name" | "email" | "password" | "referralCode";
 type ErrorKey =
   | "required"
@@ -82,11 +82,6 @@ export default function RegisterForm({
       value: "VENDOR",
       label: ui.accountTypeVendorLabel,
       hint: ui.accountTypeVendorHint,
-    },
-    {
-      value: "BOTH",
-      label: ui.accountTypeBothLabel,
-      hint: ui.accountTypeBothHint,
     },
   ];
 
@@ -171,7 +166,7 @@ export default function RegisterForm({
         throw new Error(mapRegisterApiError(response.status, payloadError, ui));
       }
 
-      const needsStoreSetup = accountType === "VENDOR" || accountType === "BOTH";
+      const needsStoreSetup = accountType === "VENDOR";
       const successMsg = needsStoreSetup ? ui.registrationSuccessVendor : ui.registrationSuccess;
       setSuccess(successMsg);
       toast.success(toastDict.registered);

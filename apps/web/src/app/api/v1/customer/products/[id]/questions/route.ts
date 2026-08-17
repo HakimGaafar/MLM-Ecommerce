@@ -2,6 +2,7 @@ import { ProductQuestionCreateSchema } from "@mlm/shared";
 import { ProductQuestionError, createProductQuestion } from "@mlm/domain";
 import { NextRequest, NextResponse } from "next/server";
 import { requireCustomerSession } from "@/lib/require-customer-session";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function POST(
   request: NextRequest,
@@ -28,7 +29,7 @@ export async function POST(
   } catch (e) {
     if (e instanceof ProductQuestionError) {
       const status = e.code === "NOT_FOUND" ? 404 : 409;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     throw e;
   }

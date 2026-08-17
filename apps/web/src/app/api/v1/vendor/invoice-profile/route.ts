@@ -6,6 +6,7 @@ import {
 import { VendorInvoiceProfileSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { requireVendorSession } from "@/lib/require-vendor-session";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function GET(request: NextRequest) {
   const auth = await requireVendorSession(request);
@@ -34,7 +35,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ profile }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     if (e instanceof OrderInvoiceError) {
-      return NextResponse.json({ error: e.message, code: e.code }, { status: 400 });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status: 400 });
     }
     throw e;
   }

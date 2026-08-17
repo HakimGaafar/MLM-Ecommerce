@@ -2,6 +2,7 @@ import { reviewAdminShippingRequest, VendorShippingError } from "@mlm/domain";
 import { AdminShippingRequestReviewSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/require-admin-session";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function PATCH(
   request: NextRequest,
@@ -23,7 +24,7 @@ export async function PATCH(
     return NextResponse.json({ request: row }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     if (e instanceof VendorShippingError) {
-      return NextResponse.json({ error: e.message, code: e.code }, { status: 404 });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status: 404 });
     }
     throw e;
   }

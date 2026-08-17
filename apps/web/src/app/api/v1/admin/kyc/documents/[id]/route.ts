@@ -5,6 +5,7 @@ import { parseJsonBody } from "@/lib/parse-json-body";
 import { enforceUserRateLimit } from "@/lib/rate-limit-response";
 import { requireAdminSession } from "@/lib/require-admin-session";
 import { readKycDocument } from "@/lib/kyc-storage/store";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -31,7 +32,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   } catch (error) {
     if (error instanceof AdminKycError) {
       const status = error.code === "NOT_FOUND" ? 404 : error.code === "NOT_PENDING" ? 409 : 400;
-      return NextResponse.json({ error: error.message, code: error.code }, { status });
+      return NextResponse.json(publicErrorPayload(error, { context: "api", code: error.code }), { status });
     }
     throw error;
   }
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   } catch (error) {
     if (error instanceof AdminKycError) {
       const status = error.code === "DRAFT_NOT_SUBMITTED" ? 403 : 404;
-      return NextResponse.json({ error: error.message, code: error.code }, { status });
+      return NextResponse.json(publicErrorPayload(error, { context: "api", code: error.code }), { status });
     }
     throw error;
   }

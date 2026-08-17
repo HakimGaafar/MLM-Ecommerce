@@ -3,6 +3,7 @@ import { PaginationQuerySchema, VendorTeamInviteSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { requireVendorSession } from "@/lib/require-vendor-session";
 import { requireVendorPermission } from "@/lib/require-vendor-permission";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function GET(request: NextRequest) {
   const auth = await requireVendorSession(request);
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     if (e instanceof VendorTeamError) {
       const status = e.code === "DUPLICATE" || e.code === "INVALID" ? 409 : e.code === "NOT_FOUND" ? 404 : 403;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     throw e;
   }

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureCommissionInvoicePdf, invoiceErrorStatus } from "@/lib/invoices/ensure-invoice-pdf";
 import { requireVendorSession } from "@/lib/require-vendor-session";
 import { requireVendorPermission } from "@/lib/require-vendor-permission";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function GET(
   request: NextRequest,
@@ -30,7 +31,7 @@ export async function GET(
     });
   } catch (e) {
     if (e instanceof OrderInvoiceError) {
-      return NextResponse.json({ error: e.message, code: e.code }, { status: invoiceErrorStatus(e.code) });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status: invoiceErrorStatus(e.code) });
     }
     throw e;
   }

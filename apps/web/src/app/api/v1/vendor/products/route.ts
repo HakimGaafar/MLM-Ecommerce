@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveRequestLocale } from "@/lib/ui-locale";
 import { requireVendorSession } from "@/lib/require-vendor-session";
 import { requireVendorPermission } from "@/lib/require-vendor-permission";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function GET(request: NextRequest) {
   const auth = await requireVendorSession(request);
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ product }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     if (e instanceof VendorProductError && e.code === "INVALID_CATEGORY") {
-      return NextResponse.json({ error: e.message }, { status: 400 });
+      return NextResponse.json({ error: publicErrorMessage(e, PUBLIC_API_ERRORS.generic, "api") }, { status: 400 });
     }
     throw e;
   }

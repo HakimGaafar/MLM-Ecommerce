@@ -2,6 +2,7 @@ import { prisma } from "@mlm/db";
 import { INTERNATIONAL_MARKETING_AGREEMENT_VERSION } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { PUBLIC_API_ERRORS, internalServerErrorResponse } from "@/lib/api-error-response";
 import { getSessionTokenFromRequest, verifySessionToken } from "@/lib/auth";
 import { isSameOriginRequest, normalizeReferralCode } from "@/lib/security";
 
@@ -101,14 +102,42 @@ export async function POST(request: NextRequest) {
     where: { userId: session.sub },
     include: { parent: true },
   });
+
+  const affiliateRole = await prisma.role.findUnique({
+    where: { code: "AFFILIATE" },
+    select: { id: true },
+  });
+  if (!affiliateRole) {
+    return internalServerErrorResponse(
+      "referral/me",
+      new Error("AFFILIATE role missing"),
+      PUBLIC_API_ERRORS.affiliateUnavailable,
+    );
+  }
+
   if (existingProfile) {
     if (parsed.data.internationalMarketingConsent) {
       existingProfile = await prisma.affiliateProfile.update({
         where: { userId: session.sub },
-        data: consentData,
+        data: {
+          ...consentData,
+          isActive: true,
+        },
+        include: { parent: true },
+      });
+    } else {
+      existingProfile = await prisma.affiliateProfile.update({
+        where: { userId: session.sub },
+        data: { isActive: true },
         include: { parent: true },
       });
     }
+
+    await prisma.userRole.createMany({
+      data: [{ userId: session.sub, roleId: affiliateRole.id }],
+      skipDuplicates: true,
+    });
+
     const referralUses = await prisma.referralRelation.count({ where: { parentUserId: session.sub } });
     return NextResponse.json({
       referralCode: existingProfile.referralCode,
@@ -130,17 +159,6 @@ export async function POST(request: NextRequest) {
   });
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-
-  const affiliateRole = await prisma.role.findUnique({
-    where: { code: "AFFILIATE" },
-    select: { id: true },
-  });
-  if (!affiliateRole) {
-    return NextResponse.json(
-      { error: "Affiliate role is missing. Run database seed first." },
-      { status: 500 },
-    );
   }
 
   try {

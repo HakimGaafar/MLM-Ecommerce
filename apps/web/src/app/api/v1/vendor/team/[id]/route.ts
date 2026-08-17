@@ -2,6 +2,7 @@ import { revokeVendorTeamMember, VendorTeamError } from "@mlm/domain";
 import { NextRequest, NextResponse } from "next/server";
 import { requireVendorSession } from "@/lib/require-vendor-session";
 import { requireVendorPermission } from "@/lib/require-vendor-permission";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function DELETE(
   request: NextRequest,
@@ -21,7 +22,7 @@ export async function DELETE(
   } catch (e) {
     if (e instanceof VendorTeamError) {
       const status = e.code === "NOT_FOUND" ? 404 : 403;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     throw e;
   }

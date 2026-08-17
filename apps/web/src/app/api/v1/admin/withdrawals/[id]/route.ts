@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseJsonBody } from "@/lib/parse-json-body";
 import { enforceUserRateLimit } from "@/lib/rate-limit-response";
 import { requireAdminSession } from "@/lib/require-admin-session";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function PATCH(
   request: NextRequest,
@@ -45,7 +46,7 @@ export async function PATCH(
   } catch (error) {
     if (error instanceof AdminWithdrawalError) {
       const status = error.code === "NOT_FOUND" ? 404 : 409;
-      return NextResponse.json({ error: error.message, code: error.code }, { status });
+      return NextResponse.json(publicErrorPayload(error, { context: "api", code: error.code }), { status });
     }
     throw error;
   }

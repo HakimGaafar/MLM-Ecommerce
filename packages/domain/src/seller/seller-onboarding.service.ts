@@ -125,11 +125,6 @@ async function ensureVendorRole(tx: Prisma.TransactionClient, userId: string) {
   });
 }
 
-function newReferralCode(email: string, userId: string) {
-  const base = (email.split("@")[0] ?? "user").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase();
-  return `${base}${userId.slice(-4)}`;
-}
-
 export async function onboardNewSeller(
   input: SellerOnboardInput,
   marketId: string,
@@ -154,8 +149,7 @@ export async function onboardNewSeller(
 
     const customerRole = await tx.role.findUnique({ where: { code: "CUSTOMER" } });
     const vendorRole = await tx.role.findUnique({ where: { code: "VENDOR" } });
-    const affiliateRole = await tx.role.findUnique({ where: { code: "AFFILIATE" } });
-    if (!customerRole || !vendorRole || !affiliateRole) {
+    if (!customerRole || !vendorRole) {
       throw new SellerOnboardError("ROLES_MISSING", "Roles missing. Run database seed.");
     }
 
@@ -163,18 +157,12 @@ export async function onboardNewSeller(
       data: [
         { userId: user.id, roleId: customerRole.id },
         { userId: user.id, roleId: vendorRole.id },
-        { userId: user.id, roleId: affiliateRole.id },
       ],
       skipDuplicates: true,
     });
 
     const walletCurrency = await resolveWalletCurrency(marketId);
     await tx.wallet.create({ data: { userId: user.id, marketId, currency: walletCurrency } });
-
-    const code = newReferralCode(email, user.id);
-    await tx.affiliateProfile.create({
-      data: { userId: user.id, referralCode: code },
-    });
 
     const vendor = await createVendorForOwner(tx, user.id, input, marketId);
 

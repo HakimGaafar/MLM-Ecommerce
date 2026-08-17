@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import GoToMarketButton from "@/components/market/GoToMarketButton";
+import OtpVerificationPanel from "@/components/auth/OtpVerificationPanel";
 import { useToast } from "@/components/toast/ToastProvider";
 import { formatMoney } from "@/lib/format-currency";
 import { getToastDict } from "@/lib/toast-messages";
@@ -78,6 +79,7 @@ type QuotePayload = {
   walletAvailableBalance?: string;
   walletAppliedAmount?: string;
   remainingAmount?: string;
+  emailVerified?: boolean;
 };
 
 type OrderDetail = {
@@ -158,11 +160,29 @@ type CheckoutUi = {
 export default function CheckoutView({
   locale,
   ui,
+  otpUi,
   toastOrderPlaced,
   internationalNotice,
 }: {
   locale: Locale;
   ui: CheckoutUi;
+  otpUi: {
+    shared: {
+      sendCode: string;
+      sending: string;
+      codeLabel: string;
+      codePlaceholder: string;
+      verify: string;
+      verifying: string;
+      resent: string;
+      sendError: string;
+      verifyError: string;
+      invalidCode: string;
+      loading: string;
+    };
+    checkoutTitle: string;
+    checkoutBody: string;
+  };
   toastOrderPlaced: string;
   internationalNotice: { checkoutTitle: string; checkoutBody: string } | null;
 }) {
@@ -186,6 +206,7 @@ export default function CheckoutView({
   const [appliedCouponCodes, setAppliedCouponCodes] = useState<string[]>([]);
   const appliedCouponCodesRef = useRef<string[]>([]);
   const [useWalletBalance, setUseWalletBalance] = useState(false);
+  const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
 
   function syncAppliedCouponCodes(codes: string[]) {
     appliedCouponCodesRef.current = codes;
@@ -226,6 +247,7 @@ export default function CheckoutView({
         }
         const q = payload as QuotePayload;
         setQuote(q);
+        setEmailVerified(q.emailVerified !== false);
         if (q.coupons) {
           syncAppliedCouponCodes(q.coupons.codes.map((c) => c.code));
           setCouponInput("");
@@ -471,7 +493,8 @@ export default function CheckoutView({
   const hasSavedAddresses = Boolean(quote?.shippingAddresses?.length);
   const addressOk = !hasSavedAddresses || Boolean(selectedShippingAddressId);
   const deliveryOk = !quote?.deliveryMismatchMarketCode;
-  const canSubmit = profileOk && addressOk && deliveryOk && !submitting && !applyingCoupon;
+  const verificationOk = emailVerified !== false;
+  const canSubmit = profileOk && addressOk && deliveryOk && verificationOk && !submitting && !applyingCoupon;
 
   return (
     <div className="mt-6 space-y-6 animate-page-enter" dir={direction}>
@@ -759,6 +782,18 @@ export default function CheckoutView({
             {internationalNotice.checkoutBody}
           </p>
         </section>
+      ) : null}
+
+      {emailVerified === false ? (
+        <OtpVerificationPanel
+          ui={otpUi.shared}
+          title={otpUi.checkoutTitle}
+          body={otpUi.checkoutBody}
+          onVerified={() => {
+            setEmailVerified(true);
+            void loadQuote();
+          }}
+        />
       ) : null}
 
       <div className="flex flex-wrap gap-3">

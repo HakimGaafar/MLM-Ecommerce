@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parsePaginationSearchParams } from "@/lib/api-pagination";
 import { requireCustomerSession } from "@/lib/require-customer-session";
 import { resolveRequestMarket } from "@/lib/request-market";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function GET(request: NextRequest) {
   const auth = await requireCustomerSession(request);
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
                   e.code === "RETURN_UNITS_NOT_RETURNABLE"
                 ? 400
                 : 400;
-      return NextResponse.json({ error: e.message, code: e.code }, { status });
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
     }
     throw e;
   }

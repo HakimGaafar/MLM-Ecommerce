@@ -5,6 +5,7 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 import { parsePaginationSearchParams } from "@/lib/api-pagination";
 import { requireCustomerSession } from "@/lib/require-customer-session";
+import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function GET(request: NextRequest) {
   const auth = await requireCustomerSession(request);
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof AffiliateDashboardError && error.code === "NOT_ENROLLED") {
-      return NextResponse.json({ error: error.message, code: error.code }, { status: 404 });
+      return NextResponse.json(publicErrorPayload(error, { context: "api", code: error.code }), { status: 404 });
     }
     throw error;
   }
