@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import { DEFAULT_MARKET_ID, MARKET_IDS, primaryMarketIdFromCountry, type MarketCode } from "@mlm/shared";
-import { FOURCES_WAREHOUSE_IDS } from "@mlm/shared";
+import { bootstrapRequiredReferenceData } from "../src/bootstrap";
 
 if (process.env.NODE_ENV === "production" && process.env.ALLOW_PRODUCTION_SEED !== "true") {
   throw new Error(
@@ -25,18 +25,6 @@ const VENDOR_KYC_DOCUMENT_TYPES = [
 ] as const;
 
 const SEED_DEMO_VENDOR_IBAN = "SA0380000000608010167519";
-
-async function seedRoles() {
-  const roles = ["ADMIN", "SUPER_ADMIN", "VENDOR", "CUSTOMER", "AFFILIATE"];
-
-  for (const code of roles) {
-    await prisma.role.upsert({
-      where: { code },
-      update: {},
-      create: { code },
-    });
-  }
-}
 
 function seedSlug(storeName: string, ownerUserId: string) {
   const base = storeName
@@ -353,7 +341,7 @@ async function seedCatalogAndOrders() {
 
 async function attachRoleByCode(userId: string, roleCode: string) {
   const role = await prisma.role.findUnique({ where: { code: roleCode } });
-  if (!role) throw new Error(`${roleCode} role missing — run seedRoles first.`);
+  if (!role) throw new Error(`${roleCode} role missing — run db:bootstrap first.`);
   await prisma.userRole.upsert({
     where: { userId_roleId: { userId, roleId: role.id } },
     create: { userId, roleId: role.id },
@@ -361,51 +349,10 @@ async function attachRoleByCode(userId: string, roleCode: string) {
   });
 }
 
-function seedMinWithdrawalAmountSar(): number {
-  const raw = process.env.MIN_WITHDRAWAL_AMOUNT_SAR;
-  if (raw === undefined || raw.trim() === "") return 250;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed <= 0) return 250;
-  return Math.round(parsed * 100) / 100;
-}
-
-async function seedPlatformConfig() {
-  const minWithdrawal = seedMinWithdrawalAmountSar();
-  const base = {
-    cashbackRate: 0.05,
-    affiliatePoolRate: 0.1,
-    affiliateLevel1Rate: 0.05,
-    affiliateLevel2Rate: 0.02,
-    affiliateLevel3Rate: 0.02,
-    affiliateLevel4Rate: 0.01,
-    vendorRate: 0.7,
-    platformRate: 0.3,
-    vatRate: 0.15,
-    minWithdrawalAmount: minWithdrawal,
-    returnWindowDays: 15,
-  };
-
-  const configs = [
-    { id: "config_market_sa", marketId: "market_sa" },
-    { id: "config_market_om", marketId: "market_om" },
-    { id: "config_market_eg", marketId: "market_eg" },
-    { id: "config_market_global", marketId: "market_global" },
-  ] as const;
-
-  for (const row of configs) {
-    await prisma.platformConfig.upsert({
-      where: { marketId: row.marketId },
-      create: { id: row.id, marketId: row.marketId, ...base },
-      update: { minWithdrawalAmount: minWithdrawal },
-    });
-  }
-  console.log(`Platform config seed: ${configs.length} markets, min withdrawal ${minWithdrawal}.`);
-}
-
 async function ensureAdminUser() {
   const adminRole = await prisma.role.findUnique({ where: { code: "ADMIN" } });
   if (!adminRole) {
-    throw new Error("ADMIN role missing — run seedRoles first.");
+    throw new Error("ADMIN role missing — run db:bootstrap first.");
   }
 
   const existing = await prisma.user.findUnique({
@@ -448,7 +395,7 @@ async function ensureDemoVendorUserForCatalog() {
 
   const vendorRole = await prisma.role.findUnique({ where: { code: "VENDOR" } });
   if (!vendorRole) {
-    throw new Error("VENDOR role missing — run seedRoles first.");
+    throw new Error("VENDOR role missing — run db:bootstrap first.");
   }
 
   const passwordHash = await bcrypt.hash(DEMO_VENDOR_PASSWORD, 10);
@@ -685,121 +632,6 @@ async function seedVendorContactPhones() {
   }
 }
 
-const SEED_MARKETS = [
-  {
-    id: "market_sa",
-    code: "SA",
-    subdomain: "sa",
-    nameEn: "Saudi Arabia",
-    nameAr: "السعودية",
-    defaultCurrency: "SAR",
-    geoCountryCodes: ["SA"],
-    sortOrder: 1,
-  },
-  {
-    id: "market_om",
-    code: "OM",
-    subdomain: "om",
-    nameEn: "Oman",
-    nameAr: "عُمان",
-    defaultCurrency: "OMR",
-    geoCountryCodes: ["OM"],
-    sortOrder: 2,
-  },
-  {
-    id: "market_eg",
-    code: "EG",
-    subdomain: "eg",
-    nameEn: "Egypt",
-    nameAr: "مصر",
-    defaultCurrency: "EGP",
-    geoCountryCodes: ["EG"],
-    sortOrder: 3,
-  },
-  {
-    id: "market_global",
-    code: "GLOBAL",
-    subdomain: "global",
-    nameEn: "Global",
-    nameAr: "عالمي",
-    defaultCurrency: "USD",
-    geoCountryCodes: [] as string[],
-    sortOrder: 4,
-  },
-] as const;
-
-async function seedMarkets() {
-  for (const def of SEED_MARKETS) {
-    await prisma.market.upsert({
-      where: { code: def.code },
-      update: {
-        subdomain: def.subdomain,
-        nameEn: def.nameEn,
-        nameAr: def.nameAr,
-        defaultCurrency: def.defaultCurrency,
-        geoCountryCodes: [...def.geoCountryCodes],
-        isActive: true,
-        sortOrder: def.sortOrder,
-      },
-      create: {
-        id: def.id,
-        code: def.code,
-        subdomain: def.subdomain,
-        nameEn: def.nameEn,
-        nameAr: def.nameAr,
-        defaultCurrency: def.defaultCurrency,
-        geoCountryCodes: [...def.geoCountryCodes],
-        isActive: true,
-        sortOrder: def.sortOrder,
-      },
-    });
-  }
-  console.log("Seed markets: SA, OM, EG, GLOBAL");
-}
-
-async function seedFourcesWarehouses() {
-  const warehouses = [
-    {
-      id: FOURCES_WAREHOUSE_IDS.SA,
-      marketId: MARKET_IDS.SA,
-      countryCode: "SA",
-      name: "FOURCES Warehouse — Saudi Arabia",
-    },
-    {
-      id: FOURCES_WAREHOUSE_IDS.OM,
-      marketId: MARKET_IDS.OM,
-      countryCode: "OM",
-      name: "FOURCES Warehouse — Oman",
-    },
-    {
-      id: FOURCES_WAREHOUSE_IDS.EG,
-      marketId: MARKET_IDS.EG,
-      countryCode: "EG",
-      name: "FOURCES Warehouse — Egypt",
-    },
-  ] as const;
-
-  for (const wh of warehouses) {
-    await prisma.fourcesWarehouse.upsert({
-      where: { id: wh.id },
-      update: {
-        marketId: wh.marketId,
-        countryCode: wh.countryCode,
-        name: wh.name,
-        isActive: true,
-      },
-      create: {
-        id: wh.id,
-        marketId: wh.marketId,
-        countryCode: wh.countryCode,
-        name: wh.name,
-        isActive: true,
-      },
-    });
-  }
-  console.log("Seed FOURCES warehouses: SA, OM, EG");
-}
-
 async function ensureMarketCategory(
   marketId: string,
   id: string,
@@ -943,10 +775,7 @@ async function seedPilotMarketCatalog() {
 }
 
 async function main() {
-  await seedRoles();
-  await seedMarkets();
-  await seedFourcesWarehouses();
-  await seedPlatformConfig();
+  await bootstrapRequiredReferenceData(prisma);
   await ensureAdminUser();
   await seedCatalogAndOrders();
   await seedBrowseCatalog();

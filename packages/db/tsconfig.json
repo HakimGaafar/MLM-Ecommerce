@@ -14,5 +14,5 @@
       "@prisma/client": ["../../node_modules/.prisma/client"]
     }
   },
-  "include": ["src/**/*.ts", "prisma/seed.ts"]
+  "include": ["src/**/*.ts", "prisma/seed.ts", "prisma/bootstrap.ts"]
 }

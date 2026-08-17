@@ -48,3 +48,9 @@ export {
 export type { Order, OrderItem } from "@prisma/client";
 
 export { isPrismaUniqueViolation, raceSafeUpsert } from "./race-safe-upsert";
+export {
+  REQUIRED_ROLE_CODES,
+  bootstrapRequiredReferenceData,
+  ensureRequiredReferenceData,
+  isRequiredReferenceDataPresent,
+} from "./bootstrap";

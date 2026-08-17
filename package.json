@@ -30,6 +30,8 @@
     "db:migrate:deploy": "npm run prisma:migrate:deploy --workspace @mlm/db",
     "db:migrate:status": "npm run prisma:migrate:status --workspace @mlm/db",
     "db:reset": "npm run prisma:reset --workspace @mlm/db",
-    "db:seed": "npm run prisma:seed --workspace @mlm/db"
+    "db:seed": "npm run prisma:seed --workspace @mlm/db",
+    "db:bootstrap": "npm run prisma:bootstrap --workspace @mlm/db",
+    "db:deploy": "npm run db:migrate:deploy && npm run db:bootstrap"
   }
 }
