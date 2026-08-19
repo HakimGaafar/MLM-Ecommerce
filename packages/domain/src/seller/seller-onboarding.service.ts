@@ -4,6 +4,7 @@ import {
   DEFAULT_MARKET_ID,
   INTERNATIONAL_SALES_AGREEMENT_VERSION,
   isReservedStoreSlug,
+  normalizeMerchantUsername,
   primaryMarketIdFromCountry,
   slugifyStoreName,
 } from "@mlm/shared";
@@ -14,6 +15,7 @@ export class SellerOnboardError extends Error {
   constructor(
     public readonly code:
       | "EMAIL_IN_USE"
+      | "USERNAME_IN_USE"
       | "SLUG_TAKEN"
       | "SLUG_RESERVED"
       | "ALREADY_VENDOR"
@@ -131,20 +133,65 @@ export async function onboardNewSeller(
 ): Promise<{
   userId: string;
   email: string;
+  username: string;
   vendorId: string;
   slug: string;
 }> {
   const email = input.email.trim().toLowerCase();
-  const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-  if (existing) {
-    throw new SellerOnboardError("EMAIL_IN_USE", "Email already in use.");
+  const username = normalizeMerchantUsername(input.username);
+
+  const usernameTaken = await prisma.user.findFirst({
+    where: { username },
+    select: { id: true },
+  });
+  if (usernameTaken) {
+    throw new SellerOnboardError("USERNAME_IN_USE", "Merchant username already in use.");
+  }
+
+  const existingByEmail = await prisma.user.findUnique({
+    where: { email },
+    include: { userRoles: { include: { role: true } } },
+  });
+
+  if (existingByEmail) {
+    const hasVendor = existingByEmail.userRoles.some((row) => row.role.code === "VENDOR");
+    if (hasVendor) {
+      throw new SellerOnboardError("ALREADY_VENDOR", "This email already has a merchant account.");
+    }
+    if (existingByEmail.username) {
+      throw new SellerOnboardError("EMAIL_IN_USE", "Email already in use.");
+    }
+
+    const passwordHash = await bcrypt.hash(input.password, 10);
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id: existingByEmail.id },
+        data: {
+          name: input.name.trim(),
+          username,
+          passwordHash,
+        },
+      });
+
+      await ensureVendorRole(tx, user.id);
+      const vendor = await createVendorForOwner(tx, user.id, input, marketId);
+      return { user, vendor };
+    });
+
+    return {
+      userId: result.user.id,
+      email: result.user.email,
+      username: result.user.username!,
+      vendorId: result.vendor.id,
+      slug: result.vendor.slug,
+    };
   }
 
   const passwordHash = await bcrypt.hash(input.password, 10);
 
   const result = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
-      data: { name: input.name.trim(), email, passwordHash },
+      data: { name: input.name.trim(), email, username, passwordHash },
     });
 
     const customerRole = await tx.role.findUnique({ where: { code: "CUSTOMER" } });
@@ -162,7 +209,13 @@ export async function onboardNewSeller(
     });
 
     const walletCurrency = await resolveWalletCurrency(marketId);
-    await tx.wallet.create({ data: { userId: user.id, marketId, currency: walletCurrency } });
+    const existingWallet = await tx.wallet.findFirst({
+      where: { userId: user.id, marketId },
+      select: { id: true },
+    });
+    if (!existingWallet) {
+      await tx.wallet.create({ data: { userId: user.id, marketId, currency: walletCurrency } });
+    }
 
     const vendor = await createVendorForOwner(tx, user.id, input, marketId);
 
@@ -172,6 +225,7 @@ export async function onboardNewSeller(
   return {
     userId: result.user.id,
     email: result.user.email,
+    username: result.user.username!,
     vendorId: result.vendor.id,
     slug: result.vendor.slug,
   };

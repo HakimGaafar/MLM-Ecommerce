@@ -29,12 +29,7 @@ export default async function StoresListPage({
       <PageHeader title={ui.listTitle} subtitle={ui.listSubtitle} />
 
       {items.length === 0 ? (
-        <p className="app-empty px-6 py-12 text-center text-sm">
-          {ui.empty}{" "}
-          <Link href="/sell" className="text-link font-medium">
-            {locale === "ar" ? ar.siteFooter.becomeSeller : en.siteFooter.becomeSeller}
-          </Link>
-        </p>
+        <p className="app-empty px-6 py-12 text-center text-sm">{ui.empty}</p>
       ) : (
         <>
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-stagger">

@@ -246,15 +246,12 @@ export default function HomePageContent({
           <p className="max-w-lg text-sm leading-relaxed text-[var(--muted)] sm:text-base">{ui.ctaSubtitle}</p>
           <div className="flex flex-wrap justify-center gap-3">
             {!isLoggedIn ? (
-              <Link href="/register" className="btn-primary btn-press px-5 py-2.5">
+              <Link href="/account/customer?mode=register" className="btn-primary btn-press px-5 py-2.5">
                 {ui.ctaRegister}
               </Link>
             ) : null}
             <Link href="/products" className="btn-secondary btn-press px-5 py-2.5">
               {ui.ctaBrowse}
-            </Link>
-            <Link href="/sell" className="btn-secondary btn-press px-5 py-2.5">
-              {ui.sellWithUs}
             </Link>
           </div>
         </div>

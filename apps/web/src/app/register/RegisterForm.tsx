@@ -14,7 +14,6 @@ import {
 } from "@/lib/field-validation";
 import { getToastDict } from "@/lib/toast-messages";
 
-type AccountType = "CUSTOMER" | "VENDOR";
 type FieldKey = "name" | "email" | "password" | "referralCode";
 type ErrorKey =
   | "required"
@@ -52,9 +51,11 @@ function mapRegisterApiError(
 export default function RegisterForm({
   initialLocale,
   initialReferralCode,
+  embedded = false,
 }: {
   initialLocale: "en" | "ar";
   initialReferralCode?: string;
+  embedded?: boolean;
 }) {
   const locale = useLiveLocale();
   const ui = useLiveCopy("register");
@@ -65,25 +66,11 @@ export default function RegisterForm({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [accountType, setAccountType] = useState<AccountType>("CUSTOMER");
   const [referralCode, setReferralCode] = useState(normalizeReferralCode(initialReferralCode));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, ErrorKey>>>({});
-
-  const accountTypeOptions: Array<{ value: AccountType; label: string; hint: string }> = [
-    {
-      value: "CUSTOMER",
-      label: ui.accountTypeCustomerLabel,
-      hint: ui.accountTypeCustomerHint,
-    },
-    {
-      value: "VENDOR",
-      label: ui.accountTypeVendorLabel,
-      hint: ui.accountTypeVendorHint,
-    },
-  ];
 
   function fieldValue(field: FieldKey) {
     if (field === "name") return name;
@@ -153,7 +140,7 @@ export default function RegisterForm({
           name,
           email,
           password,
-          accountType,
+          accountType: "CUSTOMER",
           referralCode: referralCode.trim() || undefined,
         }),
       });
@@ -166,11 +153,9 @@ export default function RegisterForm({
         throw new Error(mapRegisterApiError(response.status, payloadError, ui));
       }
 
-      const needsStoreSetup = accountType === "VENDOR";
-      const successMsg = needsStoreSetup ? ui.registrationSuccessVendor : ui.registrationSuccess;
-      setSuccess(successMsg);
+      setSuccess(ui.registrationSuccess);
       toast.success(toastDict.registered);
-      setTimeout(() => router.push("/login"), 700);
+      setTimeout(() => router.push("/account/customer"), 700);
     } catch (submitError) {
       const msg = submitError instanceof Error ? submitError.message : ui.registrationFailed;
       setError(msg);
@@ -180,16 +165,13 @@ export default function RegisterForm({
     }
   }
 
-  return (
-    <main
-      className="mx-auto flex w-full max-w-md flex-1 items-center px-6 py-16 animate-page-enter"
-      lang={locale}
-      dir={locale === "ar" ? "rtl" : "ltr"}
-    >
-      <section className="app-card w-full p-6">
+  const formBody = (
+    <section className="app-card w-full p-6">
+      {!embedded ? (
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">{ui.title}</h1>
+      ) : null}
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>
+      <form className={embedded ? "space-y-4" : "mt-6 space-y-4"} onSubmit={onSubmit} noValidate>
           <div className="space-y-1">
             <label className="text-sm font-medium" htmlFor="name">
               {ui.fullName}
@@ -281,30 +263,6 @@ export default function RegisterForm({
             ) : null}
           </div>
 
-          <div className="space-y-2">
-            <span className="text-sm font-medium">{ui.accountType}</span>
-            <div className="space-y-2">
-              {accountTypeOptions.map((option) => (
-                <label
-                  key={option.value}
-                  className="flex cursor-pointer gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-sm"
-                >
-                  <input
-                    type="radio"
-                    name="accountType"
-                    value={option.value}
-                    checked={accountType === option.value}
-                    onChange={() => setAccountType(option.value)}
-                  />
-                  <span>
-                    <strong>{option.label}</strong>
-                    <span className="block text-[var(--muted)]">{option.hint}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-
           <div className="space-y-1">
             <label className="text-sm font-medium" htmlFor="referralCode">
               {ui.referralCode}
@@ -342,11 +300,22 @@ export default function RegisterForm({
 
         <p className="mt-4 text-sm text-[var(--muted)]">
           {ui.alreadyHaveAccount}{" "}
-          <a href="/login" className="font-medium underline">
+          <a href="/account/customer" className="font-medium underline">
             {ui.signIn}
           </a>
         </p>
       </section>
+  );
+
+  if (embedded) return formBody;
+
+  return (
+    <main
+      className="mx-auto flex w-full max-w-md flex-1 items-center px-6 py-16 animate-page-enter"
+      lang={locale}
+      dir={locale === "ar" ? "rtl" : "ltr"}
+    >
+      {formBody}
     </main>
   );
 }

@@ -245,6 +245,7 @@ model User {
   id               String              @id @default(cuid())
   name             String
   email            String              @unique
+  username         String?             @unique @db.VarChar(30)
   passwordHash     String              @map("password_hash")
   emailVerifiedAt  DateTime?           @map("email_verified_at")
   status           UserStatus          @default(ACTIVE)

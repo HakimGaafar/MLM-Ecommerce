@@ -36,7 +36,7 @@ const registerSchema = z.object({
     .min(10)
     .max(128)
     .refine(isStrongPassword, "Password must include upper, lower, number, and symbol"),
-  accountType: z.enum(["CUSTOMER", "VENDOR", "BOTH"]).optional(),
+  accountType: z.enum(["CUSTOMER", "VENDOR", "BOTH"]).optional().default("CUSTOMER"),
   asVendor: z.boolean().optional(),
   referralCode: z
     .string()

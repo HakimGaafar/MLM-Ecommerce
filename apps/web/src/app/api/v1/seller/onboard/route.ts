@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     if (e instanceof SellerOnboardError) {
       const status =
-        e.code === "EMAIL_IN_USE" || e.code === "SLUG_TAKEN"
+        e.code === "EMAIL_IN_USE" || e.code === "SLUG_TAKEN" || e.code === "USERNAME_IN_USE"
           ? 409
           : e.code === "SLUG_RESERVED"
             ? 400

@@ -63,6 +63,7 @@ export * from "./vendor-route-access";
 export * from "./legal-agreements";
 export * from "./validation/vendor-permissions";
 export * from "./validation/seller-onboarding";
+export * from "./validation/merchant-username";
 export * from "./validation/vendor-invoice-profile";
 export * from "./validation/vendor-shipping";
 export * from "./validation/admin-vendor-shipping";

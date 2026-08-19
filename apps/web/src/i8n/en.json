@@ -54,29 +54,23 @@
     "rateLimited": "Too many attempts. Please wait before trying again."
   },
   "register": {
-    "title": "Create account",
-    "subtitle": "Choose your account type based on the Week 1 architecture.",
+    "title": "Register as customer",
+    "subtitle": "Create a customer account to shop, track orders, and manage your wallet.",
     "fullName": "Full name",
     "email": "Email",
     "password": "Password",
     "passwordHint": "Use at least 10 characters with upper, lower, number, and symbol.",
-    "accountType": "Account type",
     "referralCode": "Referral code (optional)",
     "referralPlaceholder": "e.g. CODE1234",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
-    "submit": "Create account",
+    "submit": "Create customer account",
     "submitting": "Creating account...",
     "alreadyHaveAccount": "Already have an account?",
     "signIn": "Sign in",
     "registrationFailed": "Registration failed.",
     "registrationFailedInput": "Registration failed. Please check your input.",
-    "registrationSuccess": "Registration successful. Redirecting to login...",
-    "registrationSuccessVendor": "Account created. After sign-in you will finish opening your store.",
-    "accountTypeCustomerLabel": "Customer",
-    "accountTypeCustomerHint": "Shop products and manage your wallet.",
-    "accountTypeVendorLabel": "Vendor",
-    "accountTypeVendorHint": "Seller account — after sign-in, complete store setup before using the vendor dashboard.",
+    "registrationSuccess": "Account created. Redirecting to sign in...",
     "required": "This field is required.",
     "invalidName": "Enter a valid name using letters, numbers, spaces, or . ' -",
     "invalidEmail": "Enter a valid email address.",
@@ -136,13 +130,13 @@
     "globalTreeHint": "Your referral network is global — one code works in Saudi, Oman, Egypt, and Global. When someone in your downline orders in another marketplace, you still earn; that commission goes to your wallet in that order's market.",
     "commissionsMarketHint": "Commission history below is for the active marketplace only. Switch marketplace from the header to view earnings in Saudi, Oman, Egypt, or Global.",
     "backToDashboard": "Back to dashboard",
-    "loading": "Loading affiliate dashboard…",
-    "loadError": "Could not load affiliate data.",
-    "enrollTitle": "Become an affiliate",
+    "loading": "Loading marketer dashboard…",
+    "loadError": "Could not load marketer data.",
+    "enrollTitle": "Become a marketer",
     "enrollBody": "Get your own referral code and earn commissions when referred customers complete paid orders.",
-    "enrollCta": "Activate affiliate profile",
+    "enrollCta": "Activate marketer profile",
     "enrolling": "Activating…",
-    "enrollError": "Could not activate affiliate profile.",
+    "enrollError": "Could not activate marketer profile.",
     "profileLink": "Edit referral code in profile settings",
     "codeLabel": "Your referral code",
     "linkLabel": "Share link",
@@ -264,7 +258,7 @@
     "orders": "Orders",
     "returns": "Returns",
     "cashback": "Wallet",
-    "affiliate": "Affiliate",
+    "affiliate": "Marketer",
     "kyc": "Verification",
     "profile": "Profile",
     "menu": "Account",
@@ -323,7 +317,10 @@
     "storeList": "Store list",
     "contact": "Contact",
     "companyTitle": "Company",
-    "becomeSeller": "Become a Seller",
+    "accountsTitle": "Accounts",
+    "customerAccount": "Customer Account",
+    "merchantAccount": "Merchant Account",
+    "marketerAccount": "Marketer Account",
     "about": "About us (soon)",
     "privacy": "Privacy policy (soon)",
     "terms": "Terms of service (soon)",
@@ -341,6 +338,84 @@
     "verificationBadgeOm": "Maroof Oman verified business",
     "verificationBadgeSa": "Saudi Business Center",
     "verificationBadgeEg": "Egypt business verification"
+  },
+  "accountPortal": {
+    "announcementsTitle": "News & updates",
+    "announcementsSubtitle": "Latest announcements for this account area.",
+    "announcements": {
+      "customer": [
+        {
+          "date": "Aug 2026",
+          "title": "Welcome to Fources",
+          "body": "Shop from trusted vendors, track orders, and earn cashback from your customer account."
+        },
+        {
+          "date": "Aug 2026",
+          "title": "Email verification",
+          "body": "Verify your email before your first checkout or when activating cashback."
+        }
+      ],
+      "merchant": [
+        {
+          "date": "Aug 2026",
+          "title": "Merchant portal launch",
+          "body": "Manage products, orders, and payouts from your dedicated merchant account."
+        },
+        {
+          "date": "Aug 2026",
+          "title": "Use your merchant username",
+          "body": "Sign in with the username you chose during registration — not your customer email."
+        }
+      ],
+      "marketer": [
+        {
+          "date": "Aug 2026",
+          "title": "Marketer program",
+          "body": "Share your referral link and earn commissions when customers shop."
+        },
+        {
+          "date": "Aug 2026",
+          "title": "Same login as customer",
+          "body": "Use your customer email and password, then open the marketer area from your account."
+        }
+      ]
+    },
+    "customer": {
+      "pageTitle": "Customer Account",
+      "pageSubtitle": "Sign in or register to shop, track orders, and manage your profile.",
+      "tabLogin": "Login",
+      "tabRegister": "Register",
+      "loading": "Loading…"
+    },
+    "merchant": {
+      "pageTitle": "Merchant Account",
+      "pageSubtitle": "Sign in with your merchant username or register a new store.",
+      "loginTitle": "Merchant login",
+      "loginSubtitle": "Use the username you created for your store.",
+      "usernameLabel": "Merchant username",
+      "usernameHint": "3–30 characters. Letters, numbers, and underscores. Must start with a letter.",
+      "required": "Username is required",
+      "invalidUsername": "Enter a valid merchant username",
+      "invalidCredentials": "Invalid username or password.",
+      "loginSubmit": "Sign in to merchant portal",
+      "registerTitle": "New merchant?",
+      "registerSubtitle": "Create your store and choose a unique merchant username.",
+      "registerCta": "Become a seller"
+    },
+    "marketer": {
+      "pageTitle": "Marketer Account",
+      "pageSubtitle": "Sign in with your customer credentials to access the marketer program.",
+      "loginTitle": "Marketer login",
+      "loginSubtitle": "Use the same email and password as your customer account.",
+      "loginSubmit": "Sign in to marketer area",
+      "registerTitle": "Not a customer yet?",
+      "registerSubtitle": "Create a customer account first, then enroll as a marketer.",
+      "registerCta": "Register as customer",
+      "customerAccountRequired": "A customer account is required for the marketer program.",
+      "invalidCredentials": "Invalid email or password.",
+      "enrolledHint": "Already enrolled?",
+      "enrolledLink": "Open marketer dashboard"
+    }
   },
   "contactPage": {
     "eyebrow": "Contact Fources",
@@ -431,6 +506,9 @@
     "stepPlan": "Choose plan",
     "fullName": "Full name",
     "email": "Email",
+    "merchantUsername": "Merchant username",
+    "merchantUsernameHint": "3–30 characters. Letters, numbers, and underscores. Must start with a letter.",
+    "invalidUsername": "Enter a valid merchant username",
     "password": "Password",
     "confirmPassword": "Confirm password",
     "storeName": "Store name",
@@ -1130,11 +1208,11 @@
     "save": "Save profile",
     "saving": "Saving...",
     "phonePlaceholder": "+966500000000",
-    "affiliateSectionTitle": "Affiliate",
-    "affiliateSectionHint": "Create your affiliate profile to get your own referral code and share link.",
-    "affiliateRankLabel": "Affiliate rank",
+    "affiliateSectionTitle": "Marketer",
+    "affiliateSectionHint": "Create your marketer profile to get your own referral code and share link.",
+    "affiliateRankLabel": "Marketer rank",
     "affiliateCodeLabel": "Your referral code",
-    "affiliateEnroll": "Become affiliate",
+    "affiliateEnroll": "Become a marketer",
     "affiliateEnrolling": "Activating...",
     "affiliateCopied": "Copied",
     "affiliateCopyCode": "Copy code",

@@ -129,7 +129,12 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
     { href: "/products", label: f.shop },
     { href: "/stores", label: f.storeList },
     { href: "/contact", label: f.contact },
-    { href: "/sell", label: f.becomeSeller, accent: true },
+  ];
+
+  const accountLinks = [
+    { href: "/account/customer", label: f.customerAccount },
+    { href: "/account/merchant", label: f.merchantAccount },
+    { href: "/account/marketer", label: f.marketerAccount },
   ];
 
 
@@ -173,11 +178,28 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
                 ) : null}
                 <Link
                   href={item.href}
-                  className={
-                    item.accent
-                      ? "font-medium text-[var(--primary)] hover:underline"
-                      : "text-[color-mix(in_srgb,var(--foreground)_75%,var(--muted))] transition hover:text-[var(--primary)]"
-                  }
+                  className="text-[color-mix(in_srgb,var(--foreground)_75%,var(--muted))] transition hover:text-[var(--primary)]"
+                >
+                  {item.label}
+                </Link>
+              </span>
+            ))}
+          </nav>
+
+          <nav
+            className="flex flex-wrap items-center gap-x-1 gap-y-2 text-sm lg:flex-nowrap"
+            aria-label={f.accountsTitle}
+          >
+            {accountLinks.map((item, i) => (
+              <span key={item.href} className="inline-flex items-center">
+                {i > 0 ? (
+                  <span className="mx-1.5 hidden text-[var(--muted)] opacity-50 sm:inline" aria-hidden>
+                    ·
+                  </span>
+                ) : null}
+                <Link
+                  href={item.href}
+                  className="font-medium text-[var(--primary)] transition hover:underline"
                 >
                   {item.label}
                 </Link>

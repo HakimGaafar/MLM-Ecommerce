@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MerchantUsernameSchema } from "./merchant-username";
 
 export const STORE_SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -25,6 +26,7 @@ export const SellerStoreFieldsSchema = z.object({
 export const SellerOnboardSchema = SellerStoreFieldsSchema.extend({
   name: z.string().trim().min(2).max(80),
   email: z.string().trim().toLowerCase().email(),
+  username: MerchantUsernameSchema,
   password: z.string().min(10).max(128),
   confirmPassword: z.string().min(10).max(128),
   acceptPlan: z.literal(true),

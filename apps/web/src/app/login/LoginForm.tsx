@@ -80,7 +80,15 @@ function mapLoginApiError(
   return ui.loginFailed;
 }
 
-export default function LoginForm({ initialLocale }: { initialLocale: "en" | "ar" }) {
+export default function LoginForm({
+  initialLocale,
+  embedded = false,
+  returnTo,
+}: {
+  initialLocale: "en" | "ar";
+  embedded?: boolean;
+  returnTo?: string;
+}) {
   const locale = useLiveLocale();
   const ui = useLiveCopy("login");
   const [email, setEmail] = useState("");
@@ -151,7 +159,10 @@ export default function LoginForm({ initialLocale }: { initialLocale: "en" | "ar
       const mePayload = (await meResponse.json().catch(() => null)) as MeResponse | null;
       const roles = mePayload?.roles ?? [];
       const needsStoreSetup = roles.includes("VENDOR") && mePayload?.hasVendorStore === false;
-      window.location.assign(await resolvePostLoginRedirect(roles, needsStoreSetup));
+      const destination = returnTo
+        ? returnTo
+        : await resolvePostLoginRedirect(roles, needsStoreSetup);
+      window.location.assign(destination);
     } catch (submitError) {
       const msg = submitError instanceof Error ? submitError.message : ui.loginFailed;
       setError(msg);
@@ -163,17 +174,16 @@ export default function LoginForm({ initialLocale }: { initialLocale: "en" | "ar
 
   void initialLocale;
 
-  return (
-    <main
-      className="mx-auto flex w-full max-w-md flex-1 items-center px-6 py-16 animate-page-enter"
-      lang={locale}
-      dir={locale === "ar" ? "rtl" : "ltr"}
-    >
-      <section className="app-card w-full p-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">{ui.title}</h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">{ui.subtitle}</p>
+  const body = (
+    <section className={embedded ? "app-card w-full p-6" : "app-card w-full p-6"}>
+      {!embedded ? (
+        <>
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">{ui.title}</h1>
+          <p className="mt-2 text-sm text-[var(--muted)]">{ui.subtitle}</p>
+        </>
+      ) : null}
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>
+      <form className={embedded ? "space-y-4" : "mt-6 space-y-4"} onSubmit={onSubmit} noValidate>
           <div className="space-y-1">
             <label className="text-sm font-medium" htmlFor="email">
               {ui.email}
@@ -243,11 +253,22 @@ export default function LoginForm({ initialLocale }: { initialLocale: "en" | "ar
         </form>
         <p className="mt-4 text-sm text-[var(--muted)]">
           {ui.needAccount}{" "}
-          <a href="/register" className="text-link font-medium">
+          <a href={embedded ? "/account/customer?mode=register" : "/register"} className="text-link font-medium">
             {ui.createOne}
           </a>
         </p>
       </section>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <main
+      className="mx-auto flex w-full max-w-md flex-1 items-center px-6 py-16 animate-page-enter"
+      lang={locale}
+      dir={locale === "ar" ? "rtl" : "ltr"}
+    >
+      {body}
     </main>
   );
 }

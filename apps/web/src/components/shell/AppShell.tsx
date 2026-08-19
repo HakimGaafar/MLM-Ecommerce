@@ -19,8 +19,11 @@ export default function AppShell({
   appName,
   isLoggedIn,
   headerLinks,
-  sidebarLinks,
-  sidebarSections,
+  customerSidebarSections,
+  vendorSidebarSections,
+  adminSidebarSections,
+  vendorSidebarTitle,
+  adminSidebarTitle,
   sidebarTitle,
   menuLabel,
   menuItems,
@@ -33,6 +36,7 @@ export default function AppShell({
   languageSwitcher,
   guestLanguageMode,
   guestLoginLabel,
+  guestLoginHref,
   marketSwitcher,
 }: {
   children: ReactNode;
@@ -40,8 +44,11 @@ export default function AppShell({
   appName: string;
   isLoggedIn: boolean;
   headerLinks: ShellNavItem[];
-  sidebarLinks: ShellNavItem[];
-  sidebarSections?: ShellNavSection[];
+  customerSidebarSections: ShellNavSection[];
+  vendorSidebarSections: ShellNavSection[];
+  adminSidebarSections: ShellNavSection[];
+  vendorSidebarTitle: string;
+  adminSidebarTitle: string;
   sidebarTitle: string;
   menuLabel: string;
   menuItems: ShellNavItem[];
@@ -57,6 +64,7 @@ export default function AppShell({
   };
   guestLanguageMode?: boolean;
   guestLoginLabel?: string;
+  guestLoginHref?: string;
   marketSwitcher?: {
     activeMarketCode: MarketCode;
     options: MarketOption[];
@@ -64,6 +72,24 @@ export default function AppShell({
   };
 }) {
   const pathname = usePathname() ?? "/";
+  const sidebarRole = pathname.startsWith("/vendor")
+    ? "VENDOR"
+    : pathname.startsWith("/admin")
+      ? "ADMIN"
+      : "CUSTOMER";
+  const sidebarSections =
+    sidebarRole === "VENDOR"
+      ? vendorSidebarSections
+      : sidebarRole === "ADMIN"
+        ? adminSidebarSections
+        : customerSidebarSections;
+  const sidebarLinks = sidebarSections.flatMap((section) => section.items);
+  const resolvedSidebarTitle =
+    sidebarRole === "ADMIN"
+      ? adminSidebarTitle
+      : sidebarRole === "VENDOR"
+        ? vendorSidebarTitle
+        : sidebarTitle;
   const showSidebar = shouldShowAppSidebar(pathname, isLoggedIn) && sidebarLinks.length > 0;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -84,6 +110,7 @@ export default function AppShell({
         languageSwitcher={languageSwitcher}
         guestLanguageMode={guestLanguageMode}
         guestLoginLabel={guestLoginLabel}
+        guestLoginHref={guestLoginHref}
         marketSwitcher={marketSwitcher}
         showMenuButton={showSidebar}
         onMenuToggle={() => setMobileNavOpen((v) => !v)}
@@ -93,7 +120,7 @@ export default function AppShell({
         {showSidebar ? (
           <AppSidebar
             locale={locale}
-            title={sidebarTitle}
+            title={resolvedSidebarTitle}
             items={sidebarLinks}
             sections={sidebarSections}
             mobileOpen={mobileNavOpen}

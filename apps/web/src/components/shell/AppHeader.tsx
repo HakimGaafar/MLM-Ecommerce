@@ -40,6 +40,7 @@ export default function AppHeader({
   roleLabels,
   languageSwitcher,
   guestLoginLabel,
+  guestLoginHref = "/account/customer",
   marketSwitcher,
   onMenuToggle,
   showMenuButton,
@@ -58,6 +59,7 @@ export default function AppHeader({
   languageSwitcher?: { enabled: boolean; labels: NavLanguageLabels };
   guestLanguageMode?: boolean;
   guestLoginLabel?: string;
+  guestLoginHref?: string;
   marketSwitcher?: {
     activeMarketCode: MarketCode;
     options: MarketOption[];
@@ -80,7 +82,10 @@ export default function AppHeader({
 
   const showLanguage = languageSwitcher?.enabled === true;
   const hideGuestLogin =
-    Boolean(guestLoginLabel) && (pathname === "/login" || pathname === "/register");
+    Boolean(guestLoginLabel) &&
+    (pathname === "/login" ||
+      pathname === "/register" ||
+      pathname.startsWith("/account/customer"));
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -95,7 +100,7 @@ export default function AppHeader({
     setIsMenuOpen(false);
     await fetch("/api/v1/auth/logout", { method: "POST", credentials: "include" });
     toast.success(toastDict.loggedOut);
-    router.replace("/login");
+    router.replace("/account/customer");
     router.refresh();
   }
 
@@ -310,7 +315,7 @@ export default function AppHeader({
 
                 {guestLoginLabel && !hideGuestLogin ? (
                   <Link
-                    href="/login"
+                    href={guestLoginHref}
                     className="block border-t border-[var(--border)] px-3 py-2 text-sm font-medium"
                     onClick={() => setIsMenuOpen(false)}
                   >

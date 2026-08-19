@@ -1,12 +1,12 @@
-import RegisterForm from "./RegisterForm";
-import { getAppLocale } from "@/lib/ui-locale";
+import { redirect } from "next/navigation";
 
 export default async function RegisterPage({
   searchParams,
 }: {
   searchParams: Promise<{ ref?: string }>;
 }) {
-  const locale = await getAppLocale();
   const params = await searchParams;
-  return <RegisterForm initialLocale={locale} initialReferralCode={params.ref} />;
+  const qs = new URLSearchParams({ mode: "register" });
+  if (params.ref) qs.set("ref", params.ref);
+  redirect(`/account/customer?${qs.toString()}`);
 }

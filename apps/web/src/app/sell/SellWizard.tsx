@@ -4,14 +4,14 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/toast/ToastProvider";
 import { LocalizedFieldError, useLiveCopy, useLiveLocale } from "@/components/ui/live-i18n";
-import { inputClassName, isStrongPassword, isValidEmail } from "@/lib/field-validation";
+import { inputClassName, isStrongPassword, isValidEmail, isValidMerchantUsername } from "@/lib/field-validation";
 import { getToastDict } from "@/lib/toast-messages";
 import { primaryMarketFromCountry } from "@mlm/shared";
 
 type Locale = "en" | "ar";
 type Step = 1 | 2 | 3 | "done";
-type AccountField = "name" | "email" | "password" | "confirmPassword";
-type AccountErrorKey = "required" | "invalidEmail" | "invalidPassword" | "passwordMismatch";
+type AccountField = "name" | "email" | "username" | "password" | "confirmPassword";
+type AccountErrorKey = "required" | "invalidEmail" | "invalidUsername" | "invalidPassword" | "passwordMismatch";
 
 export default function SellWizard({
   locale: serverLocale,
@@ -45,6 +45,7 @@ export default function SellWizard({
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [storeName, setStoreName] = useState("");
@@ -67,6 +68,7 @@ export default function SellWizard({
   ): AccountErrorKey | null {
     const currentName = overrides?.name ?? name;
     const currentEmail = overrides?.email ?? email;
+    const currentUsername = overrides?.username ?? username;
     const currentPassword = overrides?.password ?? password;
     const currentConfirm = overrides?.confirmPassword ?? confirmPassword;
 
@@ -74,6 +76,10 @@ export default function SellWizard({
     if (field === "email") {
       if (!currentEmail.trim()) return "required";
       return isValidEmail(currentEmail) ? null : "invalidEmail";
+    }
+    if (field === "username") {
+      if (!currentUsername.trim()) return "required";
+      return isValidMerchantUsername(currentUsername) ? null : "invalidUsername";
     }
     if (field === "password") {
       if (!currentPassword) return "required";
@@ -101,7 +107,7 @@ export default function SellWizard({
 
   function validateAccountStep() {
     const nextErrors: Partial<Record<AccountField, AccountErrorKey>> = {};
-    (["name", "email", "password", "confirmPassword"] as const).forEach((field) => {
+    (["name", "email", "username", "password", "confirmPassword"] as const).forEach((field) => {
       const key = validateAccountField(field);
       if (key) nextErrors[field] = key;
     });
@@ -184,6 +190,7 @@ export default function SellWizard({
         body: JSON.stringify({
           name,
           email,
+          username: username.trim().toLowerCase(),
           password,
           confirmPassword,
           acceptPlan: true,
@@ -194,6 +201,7 @@ export default function SellWizard({
         const p = (await res.json().catch(() => null)) as { error?: string } | null;
         const raw = p?.error ?? "";
         if (/password/i.test(raw)) throw new Error(ui.invalidPassword);
+        if (/username/i.test(raw)) throw new Error(ui.invalidUsername);
         if (/email/i.test(raw) && /use|exist|already/i.test(raw)) throw new Error(ui.invalidEmail);
         throw new Error(ui.errorGeneric);
       }
@@ -213,7 +221,7 @@ export default function SellWizard({
       <div className="app-callout-success mt-8 p-8" dir={direction}>
         <h2 className="text-xl font-semibold text-emerald-900 dark:text-emerald-100">{ui.successTitle}</h2>
         <p className="mt-2 text-sm text-[var(--muted)]">{ui.successBody}</p>
-        <Link href="/login" className="mt-6 inline-flex rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white">
+        <Link href="/account/merchant" className="mt-6 inline-flex rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white">
           {ui.goToLogin}
         </Link>
       </div>
@@ -290,6 +298,27 @@ export default function SellWizard({
               onBlur={() => showAccountError("email")}
             />
             <LocalizedFieldError message={accountErrors.email ? ui[accountErrors.email] : null} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium">{ui.merchantUsername}</label>
+            <input
+              className={inputClassName(Boolean(accountErrors.username))}
+              required
+              value={username}
+              dir="ltr"
+              autoComplete="username"
+              aria-invalid={Boolean(accountErrors.username)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setUsername(next);
+                if (accountErrors.username) showAccountError("username", { username: next });
+              }}
+              onBlur={() => showAccountError("username")}
+            />
+            <p className="mt-1 text-xs text-[var(--muted)]">{ui.merchantUsernameHint}</p>
+            <LocalizedFieldError
+              message={accountErrors.username ? ui[accountErrors.username] : null}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium">{ui.password}</label>

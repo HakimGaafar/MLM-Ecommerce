@@ -1,7 +1,5 @@
-import LoginForm from "./LoginForm";
-import { getAppLocale } from "@/lib/ui-locale";
+import { redirect } from "next/navigation";
 
-export default async function LoginPage() {
-  const locale = await getAppLocale();
-  return <LoginForm initialLocale={locale} />;
+export default function LoginPage() {
+  redirect("/account/customer");
 }
