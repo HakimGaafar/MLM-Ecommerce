@@ -4,8 +4,10 @@ import type { MarketCode } from "@mlm/shared";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { getAppLocale } from "@/lib/ui-locale";
-import { BRAND_LINKS, BRAND_LOGO_PATH, getBrandName } from "@/lib/brand";
+import { BRAND_LINKS, BRAND_LOGO_PATH, getBrandName, getMarketContact } from "@/lib/brand";
 import { getActiveMarket } from "@/lib/market-server";
+import { getServerSession } from "@/lib/server-session";
+import FooterCustomerAccount from "@/components/FooterCustomerAccount";
 
 /** Market-specific official verification badges (not shown on GLOBAL). */
 const MARKET_VERIFICATION: Partial<
@@ -102,12 +104,15 @@ export function SocialIcon({
 
 export default async function SiteFooter({ compact = false }: { compact?: boolean }) {
   const locale = await getAppLocale();
-  const f = locale === "ar" ? ar.siteFooter : en.siteFooter;
+  const dict = locale === "ar" ? ar : en;
+  const f = dict.siteFooter;
   const direction = locale === "ar" ? "rtl" : "ltr";
   const year = new Date().getFullYear();
   const appName = getBrandName(locale);
   const market = await getActiveMarket();
+  const session = await getServerSession();
   const verification = MARKET_VERIFICATION[market.code];
+  const contact = getMarketContact(market.code);
 
   const socialUrl = (envKey: string, fallback: string) => {
     const fromEnv = process.env[envKey]?.trim();
@@ -120,8 +125,8 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
     { href: socialUrl("NEXT_PUBLIC_SOCIAL_INSTAGRAM", BRAND_LINKS.instagram), icon: "instagram", title: "Instagram" },
     { href: socialUrl("NEXT_PUBLIC_SOCIAL_YOUTUBE", BRAND_LINKS.youtube), icon: "youtube", title: "YouTube" },
     { href: socialUrl("NEXT_PUBLIC_SOCIAL_X", BRAND_LINKS.x), icon: "x", title: "X" },
-    { href: BRAND_LINKS.whatsapp, icon: "whatsapp", title: "WhatsApp" },
-    { href: BRAND_LINKS.maps, icon: "maps", title: f.location },
+    { href: contact.whatsapp, icon: "whatsapp", title: "WhatsApp" },
+    { href: contact.maps, icon: "maps", title: f.location },
   ].filter((s) => s.href.length > 0);
 
   const essential = [
@@ -197,12 +202,21 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
                     ·
                   </span>
                 ) : null}
-                <Link
-                  href={item.href}
-                  className="font-medium text-[var(--primary)] transition hover:underline"
-                >
-                  {item.label}
-                </Link>
+                {item.href === "/account/customer" ? (
+                  <FooterCustomerAccount
+                    label={item.label}
+                    controlPanelLabel={dict.customerNav.controlPanel}
+                    logoutLabel={dict.customerNav.logout}
+                    isLoggedIn={Boolean(session)}
+                  />
+                ) : (
+                  <Link
+                    href={item.href}
+                    className="font-medium text-[var(--primary)] transition hover:underline"
+                  >
+                    {item.label}
+                  </Link>
+                )}
               </span>
             ))}
           </nav>

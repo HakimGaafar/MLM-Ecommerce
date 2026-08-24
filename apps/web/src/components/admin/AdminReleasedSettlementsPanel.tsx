@@ -6,6 +6,7 @@ import Pagination from "@/components/Pagination";
 import { formatMoney } from "@/lib/format-currency";
 import { LIST_PAGE_SIZE } from "@/lib/list-page";
 import { getPaginationLabels } from "@/lib/pagination-labels";
+import DateField from "@/components/ui/DateField";
 
 type Locale = "en" | "ar";
 
@@ -156,8 +157,7 @@ export default function AdminReleasedSettlementsPanel({
       <div className="flex flex-wrap items-end gap-3 text-sm">
         <label className="space-y-1">
           <span className="font-medium">{ui.dateFrom}</span>
-          <input
-            type="date"
+          <DateField
             className="app-input"
             value={dateFrom}
             onChange={(ev) => setDateFrom(ev.target.value)}
@@ -165,8 +165,7 @@ export default function AdminReleasedSettlementsPanel({
         </label>
         <label className="space-y-1">
           <span className="font-medium">{ui.dateTo}</span>
-          <input
-            type="date"
+          <DateField
             className="app-input"
             value={dateTo}
             onChange={(ev) => setDateTo(ev.target.value)}

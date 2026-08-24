@@ -101,7 +101,7 @@ export default async function ProductDetailPage({
         ) : (
           <div className="mt-8 space-y-3 border-t border-[var(--border)] pt-6">
             <p className="text-sm text-[var(--muted)]">{ui.loginToAdd}</p>
-            <Link href="/login" className="btn-primary">
+            <Link href="/account/customer" className="btn-primary">
               {loginUi.title}
             </Link>
           </div>

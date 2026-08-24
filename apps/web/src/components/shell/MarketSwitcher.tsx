@@ -26,11 +26,13 @@ export default function MarketSwitcher({
   activeMarketCode,
   options,
   labels,
+  variant = "menu",
 }: {
   locale: Locale;
   activeMarketCode: MarketCode;
   options: MarketOption[];
   labels: MarketSwitcherLabels;
+  variant?: "menu" | "header";
 }) {
   const toast = useToast();
   const toastDict = getToastDict(locale);
@@ -67,25 +69,36 @@ export default function MarketSwitcher({
     }
   }
 
+  const select = (
+    <select
+      id={variant === "header" ? "market-switcher-header" : "market-switcher"}
+      disabled={saving}
+      value={activeMarketCode}
+      onChange={(e) => void onChange(e.target.value as MarketCode)}
+      aria-label={labels.label}
+      className={
+        variant === "header"
+          ? "app-input h-9 max-w-[11rem] truncate py-1 text-xs sm:max-w-[14rem] sm:text-sm"
+          : "app-input w-full text-sm"
+      }
+      dir={locale === "ar" ? "rtl" : "ltr"}
+    >
+      {options.map((opt) => (
+        <option key={opt.code} value={opt.code}>
+          {opt.label} ({opt.currency})
+        </option>
+      ))}
+    </select>
+  );
+
+  if (variant === "header") return select;
+
   return (
     <div className="border-t border-[var(--border)] px-3 py-2">
       <label className="mb-1.5 block text-xs font-medium text-[var(--muted)]" htmlFor="market-switcher">
         {labels.label}
       </label>
-      <select
-        id="market-switcher"
-        disabled={saving}
-        value={activeMarketCode}
-        onChange={(e) => void onChange(e.target.value as MarketCode)}
-        className="app-input w-full text-sm"
-        dir={locale === "ar" ? "rtl" : "ltr"}
-      >
-        {options.map((opt) => (
-          <option key={opt.code} value={opt.code}>
-            {opt.label} ({opt.currency})
-          </option>
-        ))}
-      </select>
+      {select}
     </div>
   );
 }

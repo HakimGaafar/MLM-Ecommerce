@@ -13,6 +13,7 @@ import { getThemePreference } from "@/lib/theme-preference";
 import { getInternationalShoppingNoticeStatus } from "@mlm/domain";
 import { getServerSession } from "@/lib/server-session";
 import { getBrandName } from "@/lib/brand";
+import { htmlLangAttr } from "@/lib/format-currency";
 import { getActiveMarket } from "@/lib/market-server";
 import { ACTIVE_ROLE_COOKIE, resolveActiveRole } from "@/lib/active-role";
 
@@ -64,7 +65,7 @@ export default async function RootLayout({
 
   return (
     <html
-      lang={locale}
+      lang={htmlLangAttr(locale)}
       dir={direction}
       data-scroll-behavior="smooth"
       className={`h-full antialiased ${theme === "dark" ? "dark" : ""}`}

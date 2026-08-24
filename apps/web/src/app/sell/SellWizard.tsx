@@ -363,7 +363,7 @@ export default function SellWizard({
           </div>
           <p className="text-sm text-[var(--muted)]">
             {ui.existingAccount}{" "}
-            <Link href="/login" className="text-link underline">
+            <Link href="/account/customer" className="text-link underline">
               {ui.signIn}
             </Link>
           </p>

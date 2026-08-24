@@ -149,6 +149,7 @@ export default function VendorProductsList({
         cache: "no-store",
       });
       if (!res.ok) {
+        if (res.status === 401) return;
         const p = (await res.json().catch(() => null)) as { error?: string } | null;
         throw new Error(p?.error ?? ui.loadError);
       }

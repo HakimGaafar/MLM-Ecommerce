@@ -79,7 +79,7 @@ export default function ForgotPasswordForm({ initialLocale }: { initialLocale: "
             <p className="app-alert-success" role="status">
               {success}
             </p>
-            <a href="/login" className="btn-primary btn-press inline-flex w-full justify-center">
+            <a href="/account/customer" className="btn-primary btn-press inline-flex w-full justify-center">
               {ui.backToLogin}
             </a>
           </div>
@@ -123,7 +123,7 @@ export default function ForgotPasswordForm({ initialLocale }: { initialLocale: "
 
         {!success ? (
           <p className="mt-4 text-sm text-[var(--muted)]">
-            <a href="/login" className="text-link font-medium">
+            <a href="/account/customer" className="text-link font-medium">
               {ui.backToLogin}
             </a>
           </p>

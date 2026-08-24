@@ -8,6 +8,7 @@ import { formatCurrencyCode } from "@/lib/format-currency";
 import { LIST_PAGE_SIZE } from "@/lib/list-page";
 import { getPaginationLabels } from "@/lib/pagination-labels";
 import { getToastDict } from "@/lib/toast-messages";
+import DateField from "@/components/ui/DateField";
 
 type Locale = "en" | "ar";
 
@@ -295,7 +296,7 @@ export default function VendorCouponsList({ locale, ui }: { locale: Locale; ui: 
           </label>
           <label className="block text-sm">
             <span className="text-[var(--muted)]">{ui.formEndsAt}</span>
-            <input
+            <DateField
               type="datetime-local"
               value={formEndsAt}
               onChange={(e) => setFormEndsAt(e.target.value)}

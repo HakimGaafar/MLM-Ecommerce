@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useToast } from "@/components/toast/ToastProvider";
 import { isAllowedKycFile, KYC_ACCEPT_ATTRIBUTE } from "@/lib/kyc-storage/mime";
+import DateField from "@/components/ui/DateField";
+import { loginPathForRequestPath } from "@/lib/auth-login-path";
 
 type Locale = "en" | "ar";
 
@@ -116,6 +119,8 @@ export default function KycDocumentsPanel({
   ui: Ui;
 }) {
   const direction = locale === "ar" ? "rtl" : "ltr";
+  const pathname = usePathname() ?? "";
+  const loginHref = loginPathForRequestPath(pathname);
   const toast = useToast();
   const [summary, setSummary] = useState<KycSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -305,7 +310,7 @@ export default function KycDocumentsPanel({
       {needsLogin ? (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-4 text-sm">
           <p className="text-amber-100">{ui.loginRequired}</p>
-          <a href="/login" className="mt-3 inline-block text-sm font-medium text-link">
+          <a href={loginHref} className="mt-3 inline-block text-sm font-medium text-link">
             {ui.loginLink}
           </a>
         </div>
@@ -449,8 +454,7 @@ export default function KycDocumentsPanel({
                 {ID_TYPES.has(doc.documentType) ? (
                   <label className="block text-sm">
                     <span className="text-[var(--muted)]">{ui.expiryLabel}</span>
-                    <input
-                      type="date"
+                    <DateField
                       className="mt-1 w-full rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                       value={expiryDates[doc.documentType] ?? ""}
                       onChange={(e) =>

@@ -35,6 +35,14 @@ async function ensureCart(userId: string, marketId: string = DEFAULT_MARKET_ID) 
   });
 }
 
+export async function getCustomerCartItemCount(userId: string, marketId: string): Promise<number> {
+  const cart = await prisma.cart.findUnique({
+    where: { userId_marketId: { userId, marketId } },
+    select: { _count: { select: { items: true } } },
+  });
+  return cart?._count.items ?? 0;
+}
+
 export async function getCustomerCart(
   userId: string,
   marketId: string,

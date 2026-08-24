@@ -30,7 +30,7 @@ export default async function CheckoutSuccessPage({
     return (
       <PageShell dir={direction} maxWidth="3xl">
         <PageHeader title={ui.title} subtitle={ui.signInHint} />
-        <Link href="/login" className="btn-primary mt-6 inline-flex">
+        <Link href="/account/customer" className="btn-primary mt-6 inline-flex">
           {ui.signInLink}
         </Link>
       </PageShell>

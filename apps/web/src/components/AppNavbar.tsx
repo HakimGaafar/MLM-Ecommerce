@@ -33,7 +33,7 @@ export default function AppNavbar({
   menuLabel,
   menuItems,
   logoutLabel,
-  logoutRedirect = "/login",
+  logoutRedirect = "/account/customer",
   containerClassName = "mx-auto w-full max-w-5xl",
   languageSwitcher,
   guestLanguageMode = false,
@@ -219,7 +219,7 @@ export default function AppNavbar({
 
               {guestLoginLabel && !hideGuestLogin ? (
                 <Link
-                  href="/login"
+                  href="/account/customer"
                   className={`block rounded-lg px-3 py-2 text-sm font-medium ${menuDivider ? "border-t border-[var(--border)]" : ""}`}
                   onClick={() => setIsMenuOpen(false)}
                 >

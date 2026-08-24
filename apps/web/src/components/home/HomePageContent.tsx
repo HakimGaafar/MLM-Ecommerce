@@ -123,7 +123,7 @@ export default function HomePageContent({
               </Link>
             ) : (
               <>
-                <Link href="/login" className="btn-secondary btn-press px-5 py-2.5">
+                <Link href="/account/customer" className="btn-secondary btn-press px-5 py-2.5">
                   {ui.signIn}
                 </Link>
                 <Link href="/register" className="btn-secondary btn-press px-5 py-2.5">

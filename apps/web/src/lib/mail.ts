@@ -105,7 +105,7 @@ export async function sendPasswordChangedEmail(input: {
   to: string;
   name: string;
 }): Promise<{ ok: boolean; mode: "resend" | "console"; error?: string }> {
-  const loginUrl = `${appBaseUrl()}/login`;
+  const loginUrl = `${appBaseUrl()}/account/customer`;
   const safeName = escapeHtml(input.name || "there");
   const subject = `Your ${APP_NAME} password was changed`;
   const text = `Hi ${input.name || "there"},

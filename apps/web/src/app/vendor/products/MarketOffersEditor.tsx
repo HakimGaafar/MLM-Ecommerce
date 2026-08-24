@@ -110,6 +110,7 @@ export default function MarketOffersEditor({
                         step="0.01"
                         min="0.01"
                         className="app-input"
+                        lang="en"
                         value={draft.price}
                         onChange={(e) => update(draft.marketId, { price: e.target.value })}
                       />
@@ -122,6 +123,7 @@ export default function MarketOffersEditor({
                         min="0"
                         step="1"
                         className="app-input"
+                        lang="en"
                         value={draft.quantity}
                         onChange={(e) => update(draft.marketId, { quantity: e.target.value })}
                       />

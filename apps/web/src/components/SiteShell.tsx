@@ -16,6 +16,7 @@ import { getActiveMarket, listMarketsForPicker } from "@/lib/market-server";
 import { getThemePreference } from "@/lib/theme-preference";
 import { getServerSession } from "@/lib/server-session";
 import { getBrandName } from "@/lib/brand";
+import { getCustomerCartItemCount } from "@mlm/domain";
 
 export default async function SiteShell({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
@@ -46,18 +47,19 @@ export default async function SiteShell({ children }: { children: React.ReactNod
   };
 
   const headerLinks = buildHeaderNav(null, navDict, isLoggedIn);
-  const customerSidebarSections = buildCustomerSidebarSections(navDict);
+  const cartItemCount =
+    session?.sub && roles.includes("CUSTOMER")
+      ? await getCustomerCartItemCount(session.sub, activeMarket.id)
+      : 0;
+  const customerSidebarSections = buildCustomerSidebarSections(navDict, {
+    cartHasItems: cartItemCount > 0,
+  });
   const vendorSidebarSections = buildVendorSidebarSections(navDict, vendorPermissions);
   const adminSidebarSections = buildAdminSidebarSections(navDict, roles);
 
   const menuItems: { href: string; label: string }[] = [];
-  if (isLoggedIn && roles.includes("CUSTOMER")) {
-    menuItems.push(
-      { href: "/dashboard", label: dict.customerNav.home },
-      { href: "/orders", label: dict.customerNav.orders },
-      { href: "/cashback", label: dict.customerNav.cashback },
-      { href: "/profile", label: dict.customerNav.profile },
-    );
+  if (isLoggedIn) {
+    menuItems.push({ href: "/dashboard", label: dict.customerNav.controlPanel });
   }
 
   const menuLabel = dict.customerNav.menu;

@@ -8,10 +8,15 @@ const LABELS_EN: Record<string, string> = {
   SAR: "SAR",
 };
 
+/** Always Western digits 0123456789, including Arabic UI. */
 const AMOUNT_LOCALE: Record<AppLocale, string> = {
   en: "en-GB",
-  ar: "ar-SA",
+  ar: "ar-SA-u-nu-latn",
 };
+
+export function htmlLangAttr(locale: AppLocale): string {
+  return locale === "ar" ? "ar-SA-u-nu-latn" : "en";
+}
 
 function parseAmount(amount: string | number): number {
   if (typeof amount === "number") return amount;
@@ -26,7 +31,7 @@ export function formatCurrencyCode(code: string, locale: AppLocale): string {
   return table[key] ?? code;
 }
 
-/** Locale-aware amount only, e.g. `0.50` (en) or `٠٫٥٠` (ar). */
+/** Locale-aware amount only, e.g. `0.50` (en) or `0.50` (ar, Western digits). */
 export function formatAmount(amount: string | number, locale: AppLocale): string {
   const n = parseAmount(amount);
   if (!Number.isFinite(n)) return String(amount);

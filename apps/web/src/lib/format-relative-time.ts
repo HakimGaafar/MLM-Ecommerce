@@ -1,7 +1,7 @@
 type Locale = "en" | "ar";
 
 function formatNumber(value: number, locale: Locale): string {
-  return new Intl.NumberFormat(locale === "ar" ? "ar-SA" : "en-US").format(value);
+  return new Intl.NumberFormat(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US").format(value);
 }
 
 function arabicUnit(value: number, singular: string, plural2to10: string): string {

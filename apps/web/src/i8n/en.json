@@ -262,7 +262,8 @@
     "kyc": "Verification",
     "profile": "Profile",
     "menu": "Account",
-    "logout": "Logout"
+    "logout": "Logout",
+    "controlPanel": "Control Panel"
   },
   "siteNav": {
     "home": "Home",
@@ -422,8 +423,24 @@
     "title": "How can we help?",
     "subtitle": "Send us your inquiry or describe the problem you are facing. Our support team will review your message.",
     "headquarters": "Company headquarters",
-    "oman": "Oman",
-    "locationText": "Visit our headquarters location in Oman.",
+    "markets": {
+      "SA": {
+        "name": "Saudi Arabia",
+        "locationText": "Support and office details for the Saudi market."
+      },
+      "OM": {
+        "name": "Oman",
+        "locationText": "Visit our headquarters location in Oman."
+      },
+      "EG": {
+        "name": "Egypt",
+        "locationText": "Support and office details for the Egypt market."
+      },
+      "GLOBAL": {
+        "name": "International",
+        "locationText": "Contact our international support team for the global store."
+      }
+    },
     "openMaps": "Open in Google Maps",
     "whatsappTitle": "WhatsApp support",
     "whatsappText": "Message us directly on WhatsApp.",

@@ -23,7 +23,7 @@ export default async function AcceptTeamInvitePage({
         <AcceptTeamInvite token={token ?? ""} locale={locale} ui={ui} />
       </div>
       <p className="mt-8 text-center text-sm">
-        <Link href="/login" className="text-link font-medium">
+        <Link href="/account/merchant" className="text-link font-medium">
           {ui.login}
         </Link>
       </p>

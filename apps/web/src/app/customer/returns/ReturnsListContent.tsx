@@ -9,6 +9,7 @@ import { useToast } from "@/components/toast/ToastProvider";
 import { LIST_PAGE_SIZE } from "@/lib/list-page";
 import { getPaginationLabels } from "@/lib/pagination-labels";
 import { getToastDict } from "@/lib/toast-messages";
+import DateField from "@/components/ui/DateField";
 
 type Locale = "en" | "ar";
 
@@ -255,8 +256,7 @@ export default function ReturnsListContent({
           <div className="grid gap-3 border-t border-[var(--border)] pt-3 md:grid-cols-2">
             <label className="space-y-1 text-sm">
               <span className="font-medium">{ui.dateFrom}</span>
-              <input
-                type="date"
+              <DateField
                 className="app-input"
                 value={draftFrom}
                 onChange={(e) => setDraftFrom(e.target.value)}
@@ -264,8 +264,7 @@ export default function ReturnsListContent({
             </label>
             <label className="space-y-1 text-sm">
               <span className="font-medium">{ui.dateTo}</span>
-              <input
-                type="date"
+              <DateField
                 className="app-input"
                 value={draftTo}
                 onChange={(e) => setDraftTo(e.target.value)}

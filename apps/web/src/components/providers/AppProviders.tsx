@@ -1,5 +1,6 @@
 "use client";
 
+import AuthExpiryRedirect from "@/components/providers/AuthExpiryRedirect";
 import { LocaleProvider, useAppLocale } from "@/components/providers/LocaleProvider";
 import { ToastProvider } from "@/components/toast/ToastProvider";
 import type { ReactNode } from "react";
@@ -20,6 +21,7 @@ export default function AppProviders({
 }) {
   return (
     <LocaleProvider initialLocale={locale} guestLanguageMode={guestLanguageMode}>
+      <AuthExpiryRedirect />
       <ToastLocaleBridge>{children}</ToastLocaleBridge>
     </LocaleProvider>
   );

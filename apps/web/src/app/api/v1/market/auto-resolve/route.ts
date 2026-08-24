@@ -13,6 +13,7 @@ import {
 } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { getAccessTokenFromRequest, verifyAccessToken } from "@/lib/auth";
+import { loginPathForRequestPath } from "@/lib/auth-login-path";
 
 function cookieOptions() {
   return {
@@ -60,7 +61,7 @@ async function handleAutoResolve(request: NextRequest, returnTo: string, asRedir
   const token = getAccessTokenFromRequest(request);
   if (!token) {
     if (asRedirect) {
-      return NextResponse.redirect(new URL("/login", request.url));
+      return NextResponse.redirect(new URL(loginPathForRequestPath(returnTo), request.url));
     }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -68,7 +69,7 @@ async function handleAutoResolve(request: NextRequest, returnTo: string, asRedir
   const session = await verifyAccessToken(token).catch(() => null);
   if (!session?.sub) {
     if (asRedirect) {
-      return NextResponse.redirect(new URL("/login", request.url));
+      return NextResponse.redirect(new URL(loginPathForRequestPath(returnTo), request.url));
     }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

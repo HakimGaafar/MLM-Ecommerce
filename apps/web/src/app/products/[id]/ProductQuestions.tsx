@@ -168,7 +168,7 @@ export default function ProductQuestions({
         ) : (
           <div className="mt-3 space-y-2">
             <p className="text-sm text-[var(--muted)]">{ui.loginToAsk}</p>
-            <Link href="/login" className="btn-primary inline-block text-center">
+            <Link href="/account/customer" className="btn-primary inline-block text-center">
               {locale === "ar" ? "تسجيل الدخول" : "Sign in"}
             </Link>
           </div>

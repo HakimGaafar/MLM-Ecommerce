@@ -136,7 +136,7 @@ export default function ResetPasswordForm({ initialLocale }: { initialLocale: "e
             <p className="app-alert-success" role="status">
               {ui.successMessage}
             </p>
-            <a href="/login" className="btn-primary btn-press inline-flex w-full justify-center">
+            <a href="/account/customer" className="btn-primary btn-press inline-flex w-full justify-center">
               {ui.goToLogin}
             </a>
           </div>
@@ -152,7 +152,7 @@ export default function ResetPasswordForm({ initialLocale }: { initialLocale: "e
               {ui.requestNewLink}
             </a>
             <p className="text-sm text-[var(--muted)]">
-              <a href="/login" className="text-link font-medium">
+              <a href="/account/customer" className="text-link font-medium">
                 {ui.backToLogin}
               </a>
             </p>
@@ -240,7 +240,7 @@ export default function ResetPasswordForm({ initialLocale }: { initialLocale: "e
             </button>
 
             <p className="text-sm text-[var(--muted)]">
-              <a href="/login" className="text-link font-medium">
+              <a href="/account/customer" className="text-link font-medium">
                 {ui.backToLogin}
               </a>
             </p>

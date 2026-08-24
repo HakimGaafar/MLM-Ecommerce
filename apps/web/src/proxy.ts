@@ -4,6 +4,7 @@ import { getPermissionsForVendorActor, resolveVendorAccessForUser } from "@mlm/d
 import { canAccessVendorPath, firstAllowedVendorNavHref } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { getAccessTokenFromRequest, verifyAccessToken } from "@/lib/auth";
+import { loginPathForRequestPath } from "@/lib/auth-login-path";
 
 const REFERRAL_COOKIE = "mlm_referral_code";
 
@@ -150,7 +151,7 @@ export async function proxy(request: NextRequest) {
     if (isApiRoute) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL(loginPathForRequestPath(pathname), request.url));
   }
 
   if (cleanPath && !isApiRoute) {

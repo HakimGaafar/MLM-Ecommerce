@@ -13,7 +13,7 @@ import { getServerSession } from "@/lib/server-session";
 export default async function DashboardPage() {
   const session = await getServerSession();
   if (!session?.sub) {
-    redirect("/login");
+    redirect("/account/customer");
   }
   const cookieStore = await cookies();
   const role = resolveActiveRole(session?.roles ?? [], cookieStore.get(ACTIVE_ROLE_COOKIE)?.value);
@@ -31,5 +31,5 @@ export default async function DashboardPage() {
   }
   if (role === "CUSTOMER") return <CustomerDashboardPage />;
 
-  redirect("/login");
+  redirect("/account/customer");
 }

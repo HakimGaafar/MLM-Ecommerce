@@ -3,20 +3,24 @@ import Image from "next/image";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { SocialIcon } from "@/components/SiteFooter";
-import { BRAND_LINKS, BRAND_LOGO_PATH, BRAND_WHATSAPP_DISPLAY, getBrandName } from "@/lib/brand";
+import { BRAND_LINKS, BRAND_LOGO_PATH, getBrandName, getMarketContact } from "@/lib/brand";
+import { getActiveMarket } from "@/lib/market-server";
 import { getAppLocale } from "@/lib/ui-locale";
 import ContactForm from "./ContactForm";
 
 export const metadata: Metadata = {
   title: "Contact",
-  description: "Contact Fources customer support and find our headquarters in Oman.",
+  description: "Contact Fources customer support for your current market.",
 };
 
 export default async function ContactPage() {
   const locale = await getAppLocale();
+  const market = await getActiveMarket();
   const ui = locale === "ar" ? ar.contactPage : en.contactPage;
   const direction = locale === "ar" ? "rtl" : "ltr";
   const brandName = getBrandName(locale);
+  const contact = getMarketContact(market.code);
+  const marketCopy = ui.markets[market.code] ?? ui.markets.GLOBAL;
 
   const socialLinks = [
     { label: "Facebook", href: BRAND_LINKS.facebook, icon: "facebook" },
@@ -51,10 +55,10 @@ export default async function ContactPage() {
             <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
               {ui.headquarters}
             </p>
-            <h2 className="mt-1 text-xl font-semibold">{ui.oman}</h2>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{ui.locationText}</p>
+            <h2 className="mt-1 text-xl font-semibold">{marketCopy.name}</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{marketCopy.locationText}</p>
             <a
-              href={BRAND_LINKS.maps}
+              href={contact.maps}
               target="_blank"
               rel="noopener noreferrer"
               className="btn-secondary mt-4 inline-flex"
@@ -86,23 +90,25 @@ export default async function ContactPage() {
         <div className="space-y-6">
           <ContactForm locale={locale} />
 
-          <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
-            <h2 className="text-xl font-semibold">{ui.whatsappTitle}</h2>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{ui.whatsappText}</p>
-            <p className="mt-2 text-start text-sm font-medium">
-              <bdi dir="ltr">{BRAND_WHATSAPP_DISPLAY}</bdi>
-            </p>
-            <div className="mt-4">
-              <a
-                href={BRAND_LINKS.whatsapp}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-secondary inline-flex"
-              >
-                {ui.whatsappButton}
-              </a>
-            </div>
-          </section>
+          {contact.whatsapp ? (
+            <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+              <h2 className="text-xl font-semibold">{ui.whatsappTitle}</h2>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{ui.whatsappText}</p>
+              <p className="mt-2 text-start text-sm font-medium">
+                <bdi dir="ltr">{contact.whatsappDisplay}</bdi>
+              </p>
+              <div className="mt-4">
+                <a
+                  href={contact.whatsapp}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary inline-flex"
+                >
+                  {ui.whatsappButton}
+                </a>
+              </div>
+            </section>
+          ) : null}
         </div>
       </div>
     </main>

@@ -64,6 +64,7 @@ export type ShellNavDict = {
     affiliate: string;
     kyc: string;
     profile: string;
+    controlPanel: string;
   };
   vendorNav: {
     dashboard: string;
@@ -136,27 +137,16 @@ export type ShellNavDict = {
 };
 
 export function buildHeaderNav(
-  role: AppRole | null,
+  _role: AppRole | null,
   dict: ShellNavDict,
-  isLoggedIn: boolean,
+  _isLoggedIn?: boolean,
 ): ShellNavItem[] {
-  if (!isLoggedIn) {
-    return [
-      { href: "/", label: dict.siteNav.home },
-      { href: "/products", label: dict.siteNav.products, activeMatchStartsWith: true },
-      { href: "/stores", label: dict.siteNav.stores, activeMatchStartsWith: true },
-      { href: "/contact", label: dict.siteNav.contact },
-    ];
-  }
-
-  const shared: ShellNavItem[] = [
-    { href: "/dashboard", label: dict.customerNav.home },
+  return [
+    { href: "/", label: dict.siteNav.home },
     { href: "/products", label: dict.siteNav.products, activeMatchStartsWith: true },
     { href: "/stores", label: dict.siteNav.stores, activeMatchStartsWith: true },
     { href: "/contact", label: dict.siteNav.contact },
   ];
-
-  return shared;
 }
 
 export function buildSidebarNav(
@@ -322,8 +312,17 @@ export function buildVendorSidebarSections(
 }
 
 /** Grouped customer account sidebar (Phase IX1). */
-export function buildCustomerSidebarSections(dict: ShellNavDict): ShellNavSection[] {
+export function buildCustomerSidebarSections(
+  dict: ShellNavDict,
+  options: { cartHasItems?: boolean } = {},
+): ShellNavSection[] {
   const sections = dict.shell.customerNavSections;
+  const shopItems: ShellNavItem[] = [
+    { href: "/cart", label: dict.customerNav.cart, activeMatchStartsWith: true },
+  ];
+  if (options.cartHasItems) {
+    shopItems.push({ href: "/checkout", label: dict.customerNav.checkout, activeMatchStartsWith: true });
+  }
   return [
     {
       id: "account",
@@ -338,10 +337,7 @@ export function buildCustomerSidebarSections(dict: ShellNavDict): ShellNavSectio
       id: "shop",
       label: sections.shop,
       collapsible: false,
-      items: [
-        { href: "/cart", label: dict.customerNav.cart, activeMatchStartsWith: true },
-        { href: "/checkout", label: dict.customerNav.checkout, activeMatchStartsWith: true },
-      ],
+      items: shopItems,
     },
     {
       id: "orders",
