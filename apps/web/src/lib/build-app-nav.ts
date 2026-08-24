@@ -329,7 +329,6 @@ export function buildCustomerSidebarSections(
       label: sections.account,
       collapsible: false,
       items: [
-        { href: "/kyc", label: dict.customerNav.kyc, activeMatchStartsWith: true },
         { href: "/profile", label: dict.customerNav.profile, activeMatchStartsWith: true },
       ],
     },

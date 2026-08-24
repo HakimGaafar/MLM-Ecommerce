@@ -36,6 +36,7 @@ import {
   type CartLineForCoupon,
   type CouponsCheckoutResolution,
 } from "./coupon-checkout.service";
+import { computeWalletBalanceBuckets } from "../wallet/wallet.service";
 import { assertShippingCountryMatchesMarket, pickShippingAddressForMarket } from "./delivery-market";
 import type { MarketCode } from "@mlm/shared";
 import { vendorCoversCity } from "../shipping/vendor-delivery-coverage.service";
@@ -421,9 +422,13 @@ export async function getCheckoutQuoteForUser(
 
   const wallet = await prisma.wallet.findUnique({
     where: { userId_marketId: { userId: buyerUserId, marketId } },
-    select: { availableBalance: true },
+    select: { id: true, availableBalance: true },
   });
-  const walletAvailable = wallet?.availableBalance ?? new Prisma.Decimal(0);
+  let walletAvailable = new Prisma.Decimal(0);
+  if (wallet) {
+    const buckets = await computeWalletBalanceBuckets(wallet.id);
+    walletAvailable = new Prisma.Decimal(buckets.cashbackAvailable);
+  }
   const totalDec = new Prisma.Decimal(totals.totalAmount);
   const walletUseRequested = options.useWalletBalance === true;
   if (walletUseRequested && walletAvailable.lte(0)) {
@@ -577,20 +582,35 @@ export async function createOrderFromCart(
     const vatRate = await getVatRate(marketId);
     const { vatTotal, totalAmount } = computeOrderTotals(subtotal, discountTotal, shippingFee, vatRate);
     const walletRequested = input.useWalletBalance === true;
+    let cashbackAvailableDec = new Prisma.Decimal(0);
+    if (walletRequested) {
+      const walletRow = await tx.wallet.findUnique({
+        where: { userId_marketId: { userId: buyerUserId, marketId } },
+        select: { id: true },
+      });
+      if (!walletRow) {
+        throw new CheckoutError(
+          "INSUFFICIENT_WALLET_BALANCE",
+          "No wallet balance available to use.",
+        );
+      }
+      const buckets = await computeWalletBalanceBuckets(walletRow.id);
+      cashbackAvailableDec = new Prisma.Decimal(buckets.cashbackAvailable);
+      if (cashbackAvailableDec.lte(0)) {
+        throw new CheckoutError(
+          "INSUFFICIENT_WALLET_BALANCE",
+          "No cashback balance available to use.",
+        );
+      }
+    }
     const wallet = walletRequested
       ? await tx.wallet.findUnique({
           where: { userId_marketId: { userId: buyerUserId, marketId } },
           select: { id: true, availableBalance: true },
         })
       : null;
-    if (walletRequested && (!wallet || wallet.availableBalance.lte(0))) {
-      throw new CheckoutError(
-        "INSUFFICIENT_WALLET_BALANCE",
-        "No wallet balance available to use.",
-      );
-    }
     const walletApplied = wallet
-      ? Prisma.Decimal.min(wallet.availableBalance, totalAmount)
+      ? Prisma.Decimal.min(cashbackAvailableDec, totalAmount)
       : new Prisma.Decimal(0);
     const remainingAmount = Prisma.Decimal.max(totalAmount.sub(walletApplied), new Prisma.Decimal(0));
 

@@ -143,6 +143,13 @@ enum KycDocumentType {
   PROOF_OF_ADDRESS
 }
 
+enum AffiliateIdentityDocumentKind {
+  NATIONAL_ID
+  RESIDENCY
+  PASSPORT
+  OTHER
+}
+
 enum VendorStoreApprovalStatus {
   PENDING
   APPROVED
@@ -594,6 +601,9 @@ model KycDocument {
   fileSizeBytes     Int               @map("file_size_bytes")
   documentExpiresAt DateTime?         @map("document_expires_at")
   ibanNumber        String?           @map("iban_number") @db.VarChar(34)
+  identityDocumentKind      AffiliateIdentityDocumentKind? @map("identity_document_kind")
+  identityDocumentKindOther String?                        @map("identity_document_kind_other") @db.VarChar(120)
+  documentNumber            String?                        @map("document_number") @db.VarChar(64)
   rejectionReason   String?           @map("rejection_reason") @db.Text
   reviewedByUserId  String?           @map("reviewed_by_user_id")
   reviewedAt        DateTime?         @map("reviewed_at")

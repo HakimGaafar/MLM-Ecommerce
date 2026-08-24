@@ -1,4 +1,4 @@
-import type { KycDocumentStatus, KycDocumentType, KycSubjectType } from "@mlm/db";
+import type { AffiliateIdentityDocumentKind, KycDocumentStatus, KycDocumentType, KycSubjectType } from "@mlm/db";
 import { prisma, raceSafeUpsert } from "@mlm/db";
 import { getKycExpiryWarning, type KycExpiryWarning } from "./kyc-expiry";
 import {
@@ -22,6 +22,9 @@ export type KycDocumentDto = {
   fileSizeBytes: number | null;
   documentExpiresAt: string | null;
   ibanNumber: string | null;
+  identityDocumentKind: string | null;
+  identityDocumentKindOther: string | null;
+  documentNumber: string | null;
   rejectionReason: string | null;
   submittedAt: string | null;
   reviewedAt: string | null;
@@ -52,6 +55,8 @@ export class KycDocumentError extends Error {
       | "INVALID_STATUS"
       | "MISSING_EXPIRY"
       | "MISSING_IBAN"
+      | "MISSING_DOCUMENT_NUMBER"
+      | "MISSING_IDENTITY_KIND"
       | "FORBIDDEN"
       | "ALREADY_PENDING",
     message?: string,
@@ -71,6 +76,9 @@ function mapRow(row: {
   fileSizeBytes: number;
   documentExpiresAt: Date | null;
   ibanNumber: string | null;
+  identityDocumentKind: string | null;
+  identityDocumentKindOther: string | null;
+  documentNumber: string | null;
   rejectionReason: string | null;
   submittedAt: Date | null;
   reviewedAt: Date | null;
@@ -89,6 +97,9 @@ function mapRow(row: {
     fileSizeBytes: row.fileSizeBytes,
     documentExpiresAt: row.documentExpiresAt?.toISOString() ?? null,
     ibanNumber: row.ibanNumber,
+    identityDocumentKind: row.identityDocumentKind,
+    identityDocumentKindOther: row.identityDocumentKindOther,
+    documentNumber: row.documentNumber,
     rejectionReason: row.rejectionReason,
     submittedAt: row.submittedAt?.toISOString() ?? null,
     reviewedAt: row.reviewedAt?.toISOString() ?? null,
@@ -111,6 +122,9 @@ function emptyDocumentDto(subjectType: KycSubjectType, documentType: KycDocument
     fileSizeBytes: null,
     documentExpiresAt: null,
     ibanNumber: null,
+    identityDocumentKind: null,
+    identityDocumentKindOther: null,
+    documentNumber: null,
     rejectionReason: null,
     submittedAt: null,
     reviewedAt: null,
@@ -215,6 +229,9 @@ export async function upsertKycDocumentUpload(params: {
   fileSizeBytes: number;
   documentExpiresAt?: Date | null;
   ibanNumber?: string | null;
+  identityDocumentKind?: string | null;
+  identityDocumentKindOther?: string | null;
+  documentNumber?: string | null;
 }): Promise<KycDocumentDto> {
   if (!isAllowedKycDocumentType(params.subjectType, params.documentType)) {
     throw new KycDocumentError("INVALID_DOCUMENT_TYPE");
@@ -240,21 +257,47 @@ export async function upsertKycDocumentUpload(params: {
 
   const documentExpiresAt =
     params.documentExpiresAt ??
-    (existing?.documentExpiresAt && kycDocumentTypeRequiresExpiry(params.documentType)
+    (existing?.documentExpiresAt &&
+    kycDocumentTypeRequiresExpiry(params.documentType, params.subjectType)
       ? existing.documentExpiresAt
       : null);
 
-  if (kycDocumentTypeRequiresExpiry(params.documentType) && !documentExpiresAt) {
+  if (kycDocumentTypeRequiresExpiry(params.documentType, params.subjectType) && !documentExpiresAt) {
     throw new KycDocumentError("MISSING_EXPIRY", "Document expiry date is required.");
   }
 
   const ibanNumber =
     params.ibanNumber?.trim() ||
-    (kycDocumentTypeSupportsIbanNumber(params.documentType) ? existing?.ibanNumber?.trim() : null) ||
+    (kycDocumentTypeSupportsIbanNumber(params.documentType, params.subjectType)
+      ? existing?.ibanNumber?.trim()
+      : null) ||
     null;
 
-  if (kycDocumentTypeSupportsIbanNumber(params.documentType) && !ibanNumber) {
+  if (kycDocumentTypeSupportsIbanNumber(params.documentType, params.subjectType) && !ibanNumber) {
     throw new KycDocumentError("MISSING_IBAN", "IBAN number is required.");
+  }
+
+  const identityDocumentKind =
+    params.identityDocumentKind?.trim() ||
+    existing?.identityDocumentKind ||
+    null;
+  const identityDocumentKindOther =
+    params.identityDocumentKindOther?.trim() ||
+    existing?.identityDocumentKindOther ||
+    null;
+  const documentNumber =
+    params.documentNumber?.trim() || existing?.documentNumber?.trim() || null;
+
+  if (params.subjectType === "AFFILIATE" && params.documentType === "NATIONAL_ID") {
+    if (!identityDocumentKind) {
+      throw new KycDocumentError("MISSING_IDENTITY_KIND", "Select an identity document type.");
+    }
+    if (identityDocumentKind === "OTHER" && !identityDocumentKindOther?.trim()) {
+      throw new KycDocumentError("MISSING_IDENTITY_KIND", "Describe the document type when Other is selected.");
+    }
+    if (!documentNumber) {
+      throw new KycDocumentError("MISSING_DOCUMENT_NUMBER", "Document number is required.");
+    }
   }
 
   const kycWhere = {
@@ -281,6 +324,10 @@ export async function upsertKycDocumentUpload(params: {
           fileSizeBytes: params.fileSizeBytes,
           documentExpiresAt,
           ibanNumber,
+          identityDocumentKind: identityDocumentKind as AffiliateIdentityDocumentKind | null,
+          identityDocumentKindOther:
+            identityDocumentKind === "OTHER" ? identityDocumentKindOther : null,
+          documentNumber,
           rejectionReason: null,
           reviewedByUserId: null,
           reviewedAt: null,
@@ -294,6 +341,10 @@ export async function upsertKycDocumentUpload(params: {
           fileSizeBytes: params.fileSizeBytes,
           documentExpiresAt,
           ibanNumber,
+          identityDocumentKind: identityDocumentKind as AffiliateIdentityDocumentKind | null,
+          identityDocumentKindOther:
+            identityDocumentKind === "OTHER" ? identityDocumentKindOther : null,
+          documentNumber,
           rejectionReason: null,
           reviewedByUserId: null,
           reviewedAt: null,

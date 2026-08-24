@@ -16,6 +16,8 @@ type WalletSummary = {
   marketCode: string;
   currency: string;
   availableBalance: string;
+  cashbackAvailable: string;
+  commissionWithdrawable: string;
   pendingBalance: string;
   lockedBalance: string;
   cashbackRatePercent: number;
@@ -50,6 +52,8 @@ type Ui = {
   loading: string;
   loadError: string;
   available: string;
+  cashbackAvailable: string;
+  commissionWithdrawable: string;
   pending: string;
   locked: string;
   rulesTitle: string;
@@ -75,6 +79,7 @@ type Ui = {
   withdrawError: string;
   withdrawMinHint: string;
   withdrawBelowMin: string;
+  withdrawCommissionOnly: string;
   kycRequiredBanner: string;
   kycExpiredBanner: string;
   kycLink: string;
@@ -228,6 +233,11 @@ export default function CashbackView({
       toast.error(ui.kycRequiredBanner);
       return;
     }
+    const commissionMax = Number.parseFloat(summary.commissionWithdrawable);
+    if (Number.isFinite(commissionMax) && amount > commissionMax) {
+      toast.error(ui.withdrawCommissionOnly);
+      return;
+    }
     setWithdrawing(true);
     setError(null);
     try {
@@ -253,6 +263,7 @@ export default function CashbackView({
         }
         if (code === "KYC_ID_EXPIRED") throw new Error(ui.kycExpiredBanner);
         if (code === "KYC_NOT_APPROVED") throw new Error(ui.kycRequiredBanner);
+        if (code === "INSUFFICIENT_COMMISSION_BALANCE") throw new Error(ui.withdrawCommissionOnly);
         throw new Error(payload?.error ?? ui.withdrawError);
       }
       setWithdrawAmount("");
@@ -316,11 +327,17 @@ export default function CashbackView({
 
   return (
     <div dir={direction}>
-      <section className="mt-8 grid gap-4 sm:grid-cols-3">
+      <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">{ui.available}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">{ui.cashbackAvailable}</p>
           <p className="mt-2 text-2xl font-semibold tabular-nums">
-            {formatMoney(summary.availableBalance, summary.currency, locale)}
+            {formatMoney(summary.cashbackAvailable, summary.currency, locale)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">{ui.commissionWithdrawable}</p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums">
+            {formatMoney(summary.commissionWithdrawable, summary.currency, locale)}
           </p>
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
@@ -390,7 +407,7 @@ export default function CashbackView({
             type="button"
             disabled={
               withdrawing ||
-              Number.parseFloat(summary.availableBalance) < Number.parseFloat(summary.minWithdrawalAmount) ||
+              Number.parseFloat(summary.commissionWithdrawable) < Number.parseFloat(summary.minWithdrawalAmount) ||
               !summary.withdrawKycApproved ||
               summary.withdrawIdExpired
             }

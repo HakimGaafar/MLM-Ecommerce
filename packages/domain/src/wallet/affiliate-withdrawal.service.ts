@@ -3,13 +3,14 @@ import { Prisma, prisma } from "@mlm/db";
 import { DEFAULT_MARKET_ID } from "@mlm/shared";
 import { getMinWithdrawalAmount } from "../platform-config/platform-config.service";
 import { assertKycApprovedForWithdraw, KycWithdrawGateError } from "../kyc/kyc-withdraw-gate";
-import { ensureWallet } from "./wallet.service";
+import { computeWalletBalanceBuckets, ensureWallet } from "./wallet.service";
 
 export class AffiliateWithdrawalError extends Error {
   constructor(
     public readonly code:
       | "WALLET_NOT_FOUND"
       | "INSUFFICIENT_BALANCE"
+      | "INSUFFICIENT_COMMISSION_BALANCE"
       | "INVALID_AMOUNT"
       | "WITHDRAWAL_NOT_FOUND"
       | "WITHDRAWAL_NOT_PENDING"
@@ -68,6 +69,14 @@ export async function requestAffiliateWithdrawal(params: {
       throw new AffiliateWithdrawalError("KYC_NOT_APPROVED", error.message);
     }
     throw error;
+  }
+
+  const buckets = await computeWalletBalanceBuckets(wallet.id);
+  if (buckets.commissionWithdrawable < amount) {
+    throw new AffiliateWithdrawalError(
+      "INSUFFICIENT_COMMISSION_BALANCE",
+      "Insufficient marketing commission balance for withdrawal.",
+    );
   }
 
   const available = Number(wallet.availableBalance);

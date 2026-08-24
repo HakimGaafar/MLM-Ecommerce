@@ -26,6 +26,10 @@ export type WalletSummaryDto = {
   marketCode: string;
   currency: string;
   availableBalance: string;
+  /** Spendable cashback for checkout (excludes marketing commissions). */
+  cashbackAvailable: string;
+  /** Withdrawable marketing commission balance. */
+  commissionWithdrawable: string;
   pendingBalance: string;
   lockedBalance: string;
   cashbackRatePercent: number;
@@ -34,6 +38,11 @@ export type WalletSummaryDto = {
   withdrawIdExpired: boolean;
   /** Non-active markets where the user has any wallet balance. */
   otherMarkets: WalletOtherMarketBalanceDto[];
+};
+
+export type WalletBalanceBuckets = {
+  cashbackAvailable: number;
+  commissionWithdrawable: number;
 };
 
 export type WalletOtherMarketBalanceDto = {
@@ -115,6 +124,44 @@ function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+/** Split wallet ledger into cashback (checkout) vs commission (withdraw) buckets. */
+export async function computeWalletBalanceBuckets(walletId: string): Promise<WalletBalanceBuckets> {
+  const rows = await prisma.walletTransaction.findMany({
+    where: {
+      walletId,
+      OR: [{ status: "APPROVED" }, { status: "PENDING", entryType: "WITHDRAWAL" }],
+    },
+    select: { entryType: true, direction: true, amount: true, status: true },
+  });
+
+  let cashbackCredits = 0;
+  let commissionCredits = 0;
+  let cashbackDebits = 0;
+  let commissionDebits = 0;
+
+  for (const row of rows) {
+    const amt = Number(row.amount);
+    if (row.direction === "CREDIT" && row.status === "APPROVED") {
+      if (row.entryType === "CASHBACK" || row.entryType === "ADJUSTMENT") {
+        cashbackCredits += amt;
+      } else if (row.entryType === "AFFILIATE_COMMISSION") {
+        commissionCredits += amt;
+      }
+    } else if (row.direction === "DEBIT") {
+      if (row.entryType === "ORDER_PAYMENT" || row.entryType === "CASHBACK") {
+        cashbackDebits += amt;
+      } else if (row.entryType === "WITHDRAWAL" || row.entryType === "AFFILIATE_COMMISSION") {
+        commissionDebits += amt;
+      }
+    }
+  }
+
+  return {
+    cashbackAvailable: roundMoney(Math.max(0, cashbackCredits - cashbackDebits)),
+    commissionWithdrawable: roundMoney(Math.max(0, commissionCredits - commissionDebits)),
+  };
+}
+
 export async function resolveWalletCurrency(marketId: string): Promise<string> {
   const market = await prisma.market.findUnique({
     where: { id: marketId },
@@ -185,8 +232,8 @@ async function listOtherMarketWalletBalances(
 }
 
 export async function getWalletSummary(userId: string, marketId: string = DEFAULT_MARKET_ID): Promise<WalletSummaryDto> {
-  const [wallet, kyc, platformConfig, minWithdrawal, market, otherMarkets] = await Promise.all([
-    ensureWallet(userId, marketId),
+  const wallet = await ensureWallet(userId, marketId);
+  const [kyc, platformConfig, minWithdrawal, market, otherMarkets, buckets] = await Promise.all([
     getKycStatusSummary({ subjectType: "AFFILIATE", userId }),
     getPlatformConfig(marketId),
     getMinWithdrawalAmount(marketId),
@@ -195,12 +242,15 @@ export async function getWalletSummary(userId: string, marketId: string = DEFAUL
       select: { code: true },
     }),
     listOtherMarketWalletBalances(userId, marketId),
+    computeWalletBalanceBuckets(wallet.id),
   ]);
   return {
     marketId,
     marketCode: market?.code ?? "SA",
     currency: wallet.currency,
     availableBalance: wallet.availableBalance.toString(),
+    cashbackAvailable: buckets.cashbackAvailable.toFixed(2),
+    commissionWithdrawable: buckets.commissionWithdrawable.toFixed(2),
     pendingBalance: wallet.pendingBalance.toString(),
     lockedBalance: wallet.lockedBalance.toString(),
     cashbackRatePercent: Math.round(platformConfig.cashbackRate * 1000) / 10,

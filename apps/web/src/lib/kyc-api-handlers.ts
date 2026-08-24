@@ -69,6 +69,9 @@ export async function handleKycUpload(
       fileSizeBytes: parsed.fileSizeBytes,
       documentExpiresAt: parsed.documentExpiresAt,
       ibanNumber: parsed.ibanNumber,
+      identityDocumentKind: parsed.identityDocumentKind,
+      identityDocumentKindOther: parsed.identityDocumentKindOther,
+      documentNumber: parsed.documentNumber,
     });
     return NextResponse.json({ document }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {

@@ -3,7 +3,7 @@ import type { KycDocumentType, KycSubjectType } from "@mlm/db";
 /** Documents that must be ACCEPTED for KYC approval. */
 export const KYC_REQUIRED_DOCUMENTS: Record<KycSubjectType, KycDocumentType[]> = {
   CUSTOMER: ["NATIONAL_ID", "IBAN"],
-  AFFILIATE: ["NATIONAL_ID", "IBAN"],
+  AFFILIATE: ["NATIONAL_ID"],
   VENDOR: [
     "COMMERCIAL_REGISTRATION",
     "REPRESENTATIVE_ID",
@@ -44,10 +44,18 @@ export function buildKycSubjectKey(subjectType: KycSubjectType, subjectId: strin
   return `${subjectType.toLowerCase()}:${subjectId}`;
 }
 
-export function kycDocumentTypeRequiresExpiry(documentType: KycDocumentType): boolean {
+export function kycDocumentTypeRequiresExpiry(
+  documentType: KycDocumentType,
+  subjectType?: KycSubjectType,
+): boolean {
+  if (subjectType === "AFFILIATE" && documentType === "NATIONAL_ID") return false;
   return documentType === "NATIONAL_ID" || documentType === "REPRESENTATIVE_ID";
 }
 
-export function kycDocumentTypeSupportsIbanNumber(documentType: KycDocumentType): boolean {
+export function kycDocumentTypeSupportsIbanNumber(
+  documentType: KycDocumentType,
+  subjectType?: KycSubjectType,
+): boolean {
+  if (subjectType === "AFFILIATE") return false;
   return documentType === "IBAN";
 }

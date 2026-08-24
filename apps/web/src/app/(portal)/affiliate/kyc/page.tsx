@@ -1,5 +1,5 @@
 import Link from "next/link";
-import KycDocumentsPanel from "@/components/kyc/KycDocumentsPanel";
+import AffiliateKycForm from "@/components/kyc/AffiliateKycForm";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { getCustomerPreferredLocale } from "@/lib/customer-locale";
@@ -10,6 +10,7 @@ export default async function AffiliateKycPage() {
   const locale = await getCustomerPreferredLocale();
   const dict = locale === "ar" ? ar : en;
   const ui = dict.kyc;
+  const formUi = dict.affiliateKycForm;
   const direction = locale === "ar" ? "rtl" : "ltr";
   await requirePageAuth("CUSTOMER");
 
@@ -25,15 +26,7 @@ export default async function AffiliateKycPage() {
         </Link>
       </div>
       <div className="mt-8">
-        <KycDocumentsPanel
-          apiBase="/api/v1/affiliate/kyc"
-          locale={locale}
-          ui={{
-            ...ui.panel,
-            documentTypes: ui.documentTypes,
-            statusLabels: ui.statusLabels,
-          }}
-        />
+        <AffiliateKycForm locale={locale} ui={formUi} />
       </div>
     </main>
   );

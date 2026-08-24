@@ -20,6 +20,9 @@ export type ParsedKycUpload = {
   fileSizeBytes: number;
   documentExpiresAt: Date | null;
   ibanNumber: string | null;
+  identityDocumentKind: string | null;
+  identityDocumentKindOther: string | null;
+  documentNumber: string | null;
 };
 
 const DOCUMENT_TYPES = new Set<KycDocumentType>([
@@ -65,6 +68,9 @@ export async function parseKycUploadForm(
   }
 
   const ibanNumber = String(form.get("ibanNumber") ?? "").trim() || null;
+  const identityDocumentKind = String(form.get("identityDocumentKind") ?? "").trim() || null;
+  const identityDocumentKindOther = String(form.get("identityDocumentKindOther") ?? "").trim() || null;
+  const documentNumber = String(form.get("documentNumber") ?? "").trim() || null;
   const buffer = Buffer.from(await file.arrayBuffer());
 
   if (!sniffMatchesDeclaredMime(buffer, file.type || "")) {
@@ -80,6 +86,9 @@ export async function parseKycUploadForm(
     fileSizeBytes: file.size,
     documentExpiresAt,
     ibanNumber,
+    identityDocumentKind,
+    identityDocumentKindOther,
+    documentNumber,
   };
 }
 

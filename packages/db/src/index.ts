@@ -43,6 +43,7 @@ export {
   KycSubjectType,
   KycDocumentType,
   KycDocumentStatus,
+  AffiliateIdentityDocumentKind,
 } from "@prisma/client";
 
 /** Model types used in service layers. */
