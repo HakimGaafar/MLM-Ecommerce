@@ -3,7 +3,10 @@ import { prisma, raceSafeUpsert } from "@mlm/db";
 import { getKycExpiryWarning, type KycExpiryWarning } from "./kyc-expiry";
 import {
   buildKycSubjectKey,
+  isAllowedKycDocumentType,
+  isKycDocumentRequired,
   KYC_REQUIRED_DOCUMENTS,
+  kycDocumentsForSubject,
   kycDocumentTypeRequiresExpiry,
   kycDocumentTypeSupportsIbanNumber,
 } from "./kyc-requirements";
@@ -13,6 +16,7 @@ export type KycDocumentDto = {
   subjectType: KycSubjectType;
   documentType: KycDocumentType;
   status: KycDocumentStatus | "NOT_UPLOADED";
+  required: boolean;
   originalFileName: string | null;
   mimeType: string | null;
   fileSizeBytes: number | null;
@@ -79,6 +83,7 @@ function mapRow(row: {
     subjectType: row.subjectType,
     documentType: row.documentType,
     status: row.status,
+    required: isKycDocumentRequired(row.subjectType, row.documentType),
     originalFileName: row.originalFileName,
     mimeType: row.mimeType,
     fileSizeBytes: row.fileSizeBytes,
@@ -100,6 +105,7 @@ function emptyDocumentDto(subjectType: KycSubjectType, documentType: KycDocument
     subjectType,
     documentType,
     status: "NOT_UPLOADED",
+    required: isKycDocumentRequired(subjectType, documentType),
     originalFileName: null,
     mimeType: null,
     fileSizeBytes: null,
@@ -162,12 +168,13 @@ export async function getKycStatusSummary(params: {
   await syncExpiredKycDocuments(params);
   const { subjectKey } = subjectScope(params);
   const required = KYC_REQUIRED_DOCUMENTS[params.subjectType];
+  const listed = kycDocumentsForSubject(params.subjectType);
   const rows = await prisma.kycDocument.findMany({
-    where: { subjectKey, documentType: { in: required } },
+    where: { subjectKey, documentType: { in: listed } },
   });
   const byType = new Map(rows.map((row) => [row.documentType, row]));
 
-  const documents = required.map((documentType) => {
+  const documents = listed.map((documentType) => {
     const row = byType.get(documentType);
     return row ? mapRow(row) : emptyDocumentDto(params.subjectType, documentType);
   });
@@ -209,8 +216,7 @@ export async function upsertKycDocumentUpload(params: {
   documentExpiresAt?: Date | null;
   ibanNumber?: string | null;
 }): Promise<KycDocumentDto> {
-  const required = KYC_REQUIRED_DOCUMENTS[params.subjectType];
-  if (!required.includes(params.documentType)) {
+  if (!isAllowedKycDocumentType(params.subjectType, params.documentType)) {
     throw new KycDocumentError("INVALID_DOCUMENT_TYPE");
   }
 

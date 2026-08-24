@@ -43,6 +43,8 @@ function resolveEffectiveStatus(row: {
   endsAt: Date | null;
 }): CouponStatus {
   const now = Date.now();
+  if (row.status === "SUSPENDED") return "SUSPENDED";
+  if (row.status === "TERMINATED") return "TERMINATED";
   if (row.status === "EXPIRED") return "EXPIRED";
   if (row.endsAt && row.endsAt.getTime() < now) return "EXPIRED";
   if (row.status === "ACTIVE") {
@@ -106,16 +108,20 @@ function tabWhere(tab: CouponListTab | undefined) {
       ],
     };
   }
+  if (tab === "SUSPENDED") return { status: "SUSPENDED" as const };
+  if (tab === "TERMINATED") return { status: "TERMINATED" as const };
   return {
-    OR: [{ status: "EXPIRED" as const }, { endsAt: { lt: now } }],
+    OR: [{ status: "EXPIRED" as const }, { endsAt: { lt: now }, status: "ACTIVE" as const }],
   };
 }
 
 function assertStatusTransition(current: CouponStatus, next: CouponStatus): void {
   if (current === next) return;
   const allowed: Partial<Record<CouponStatus, CouponStatus[]>> = {
-    DRAFT: ["ACTIVE", "EXPIRED"],
-    ACTIVE: ["EXPIRED"],
+    DRAFT: ["ACTIVE"],
+    ACTIVE: ["SUSPENDED", "TERMINATED"],
+    SUSPENDED: ["ACTIVE", "TERMINATED"],
+    TERMINATED: [],
     EXPIRED: [],
   };
   if (!(allowed[current]?.includes(next) ?? false)) {
@@ -188,19 +194,47 @@ export async function updateVendorCoupon(
     assertStatusTransition(existing.status as CouponStatus, input.status);
   }
 
+  // After activation, only status changes (suspend/terminate/reactivate) are allowed.
+  if (existing.status !== "DRAFT") {
+    const touchingFields =
+      input.description !== undefined ||
+      input.discountType !== undefined ||
+      input.discountValue !== undefined ||
+      input.currency !== undefined ||
+      input.startsAt !== undefined ||
+      input.endsAt !== undefined ||
+      input.usageLimit !== undefined;
+    if (touchingFields) {
+      throw new VendorCouponError(
+        "INVALID_STATUS_TRANSITION",
+        "Activated coupons can only be suspended or terminated.",
+      );
+    }
+  }
+
   const row = await prisma.coupon.update({
     where: { id: couponId },
     data: {
-      ...(input.description !== undefined ? { description: input.description } : {}),
-      ...(input.discountType ? { discountType: input.discountType } : {}),
-      ...(input.discountValue != null ? { discountValue: input.discountValue } : {}),
-      ...(input.currency ? { currency: input.currency } : {}),
+      ...(existing.status === "DRAFT" && input.description !== undefined
+        ? { description: input.description }
+        : {}),
+      ...(existing.status === "DRAFT" && input.discountType
+        ? { discountType: input.discountType }
+        : {}),
+      ...(existing.status === "DRAFT" && input.discountValue != null
+        ? { discountValue: input.discountValue }
+        : {}),
+      ...(existing.status === "DRAFT" && input.currency ? { currency: input.currency } : {}),
       ...(input.status ? { status: input.status } : {}),
-      ...(input.startsAt !== undefined
+      ...(existing.status === "DRAFT" && input.startsAt !== undefined
         ? { startsAt: input.startsAt ? new Date(input.startsAt) : null }
         : {}),
-      ...(input.endsAt !== undefined ? { endsAt: input.endsAt ? new Date(input.endsAt) : null } : {}),
-      ...(input.usageLimit !== undefined ? { usageLimit: input.usageLimit } : {}),
+      ...(existing.status === "DRAFT" && input.endsAt !== undefined
+        ? { endsAt: input.endsAt ? new Date(input.endsAt) : null }
+        : {}),
+      ...(existing.status === "DRAFT" && input.usageLimit !== undefined
+        ? { usageLimit: input.usageLimit }
+        : {}),
     },
   });
   return toDto(row);

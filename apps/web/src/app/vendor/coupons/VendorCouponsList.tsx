@@ -37,12 +37,16 @@ type Ui = {
   actions: string;
   activate: string;
   expire: string;
+  suspend: string;
+  terminate: string;
   delete: string;
   percentOff: string;
   fixedOff: string;
   statusDraft: string;
   statusActive: string;
   statusExpired: string;
+  statusSuspended: string;
+  statusTerminated: string;
   createTitle: string;
   formCode: string;
   formDescription: string;
@@ -71,6 +75,10 @@ function statusLabel(status: CouponStatus, ui: Ui): string {
       return ui.statusActive;
     case "EXPIRED":
       return ui.statusExpired;
+    case "SUSPENDED":
+      return ui.statusSuspended;
+    case "TERMINATED":
+      return ui.statusTerminated;
     default:
       return status;
   }
@@ -377,15 +385,48 @@ export default function VendorCouponsList({ locale, ui }: { locale: Locale; ui: 
                         </>
                       )}
                       {row.status === "ACTIVE" && row.effectiveStatus === "ACTIVE" && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            void patchCoupon(row.id, { status: "EXPIRED" }, toastDict.couponExpired)
-                          }
-                          className="text-xs text-[var(--muted)] underline"
-                        >
-                          {ui.expire}
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void patchCoupon(row.id, { status: "SUSPENDED" }, toastDict.couponSuspended)
+                            }
+                            className="text-xs text-[var(--muted)] underline"
+                          >
+                            {ui.suspend}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void patchCoupon(row.id, { status: "TERMINATED" }, toastDict.couponTerminated)
+                            }
+                            className="text-xs text-red-600 underline"
+                          >
+                            {ui.terminate}
+                          </button>
+                        </>
+                      )}
+                      {row.status === "SUSPENDED" && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void patchCoupon(row.id, { status: "ACTIVE" }, toastDict.couponActivated)
+                            }
+                            className="text-xs text-link underline"
+                          >
+                            {ui.activate}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void patchCoupon(row.id, { status: "TERMINATED" }, toastDict.couponTerminated)
+                            }
+                            className="text-xs text-red-600 underline"
+                          >
+                            {ui.terminate}
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>

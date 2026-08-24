@@ -96,6 +96,7 @@ function productSelectForMarket(marketId?: string) {
 function publishedInMarketWhere(marketId: string) {
   return {
     status: "PUBLISHED" as const,
+    vendor: { storeApprovalStatus: "APPROVED" as const },
     OR: [
       { marketOffers: { some: { marketId } } },
       { marketId, marketOffers: { none: {} } },
@@ -113,7 +114,9 @@ export async function findPublishedProductsByIds(
   const rows = await prisma.product.findMany({
     where: {
       id: { in: [...new Set(orderedIds)] },
-      ...(marketId ? publishedInMarketWhere(marketId) : { status: "PUBLISHED" }),
+      ...(marketId
+        ? publishedInMarketWhere(marketId)
+        : { status: "PUBLISHED", vendor: { storeApprovalStatus: "APPROVED" } }),
     },
     select: productSelectForMarket(marketId),
   });
@@ -218,7 +221,9 @@ export async function getPublicProductById(
   const row = await prisma.product.findFirst({
     where: {
       id: productId,
-      ...(marketId ? publishedInMarketWhere(marketId) : { status: "PUBLISHED" }),
+      ...(marketId
+        ? publishedInMarketWhere(marketId)
+        : { status: "PUBLISHED", vendor: { storeApprovalStatus: "APPROVED" } }),
     },
     select: {
       ...productSelectForMarket(marketId),

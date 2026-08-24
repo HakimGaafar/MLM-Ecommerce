@@ -130,6 +130,7 @@ export async function addCartItem(
     where: {
       id: productId,
       status: "PUBLISHED",
+      vendor: { storeApprovalStatus: "APPROVED" },
       OR: [
         { marketOffers: { some: { marketId } } },
         { marketId, marketOffers: { none: {} } },

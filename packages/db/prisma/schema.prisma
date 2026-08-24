@@ -93,6 +93,8 @@ enum CouponStatus {
   DRAFT
   ACTIVE
   EXPIRED
+  SUSPENDED
+  TERMINATED
 }
 
 enum CouponDiscountType {
@@ -138,6 +140,14 @@ enum KycDocumentType {
   LICENSE
   TAX_CERTIFICATE
   REPRESENTATIVE_ID
+  PROOF_OF_ADDRESS
+}
+
+enum VendorStoreApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
 }
 
 enum KycDocumentStatus {
@@ -486,6 +496,10 @@ model Vendor {
   shippingProfileStatus    VendorShippingProfileStatus @default(PENDING_APPROVAL) @map("shipping_profile_status")
   shippingApprovedAt       DateTime?                   @map("shipping_approved_at")
   shippingFeeSetByAdmin    Boolean                     @default(false) @map("shipping_fee_set_by_admin")
+  storeApprovalStatus      VendorStoreApprovalStatus   @default(PENDING) @map("store_approval_status")
+  storeApprovedAt          DateTime?                   @map("store_approved_at")
+  storeApprovedByUserId    String?                     @map("store_approved_by_user_id")
+  storeApprovalNote        String?                     @map("store_approval_note") @db.VarChar(500)
   payoutAccountHolder   String?            @map("payout_account_holder") @db.VarChar(200)
   payoutIban            String?            @map("payout_iban") @db.VarChar(34)
   contactPhone          String?            @map("contact_phone") @db.VarChar(32)
@@ -530,6 +544,7 @@ model Vendor {
   @@index([ownerUserId])
   @@index([primaryMarketId])
   @@index([shippingProfileStatus])
+  @@index([storeApprovalStatus])
   @@map("vendors")
 }
 

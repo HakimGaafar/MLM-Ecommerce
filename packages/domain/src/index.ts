@@ -95,6 +95,7 @@ export * from "./vendor/vendor-shipping.service";
 export * from "./shipping/shipping-checkout.service";
 export * from "./shipping/fources-warehouse.service";
 export * from "./admin/admin-vendor-shipping.service";
+export * from "./vendor/vendor-merchant-gate.service";
 export * from "./vendor/vendor-analytics.service";
 export * from "./vendor/vendor-permissions.service";
 export * from "./vendor/vendor-coupons.service";

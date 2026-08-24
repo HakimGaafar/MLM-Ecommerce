@@ -29,6 +29,8 @@ type Setup = {
 
 type Ui = Record<string, string>;
 
+const STEP_ORDER: StepId[] = ["branding", "shipping", "payout"];
+
 export default function VendorSetupForm({ locale, ui }: { locale: Locale; ui: Ui }) {
   const toast = useToast();
   const toastDict = getToastDict(locale);
@@ -37,7 +39,9 @@ export default function VendorSetupForm({ locale, ui }: { locale: Locale; ui: Ui
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<StepId | null>(null);
+  const [uploading, setUploading] = useState<"logo" | "banner" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [stepIndex, setStepIndex] = useState(0);
 
   const [logoUrl, setLogoUrl] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
@@ -94,33 +98,62 @@ export default function VendorSetupForm({ locale, ui }: { locale: Locale; ui: Ui
       setMessage(ui.saved);
       toast.success(toastDict.setupStepSaved);
       await load();
+      return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : ui.saveError;
       setError(msg);
       toast.error(msg);
+      return false;
     } finally {
       setSaving(null);
     }
   }
 
-  function onBranding(e: FormEvent) {
-    e.preventDefault();
-    void saveStep("branding", { logoUrl, bannerUrl });
+  async function uploadBrandImage(kind: "logo" | "banner", file: File) {
+    setUploading(kind);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const res = await fetch("/api/v1/vendor/products/upload", {
+        method: "POST",
+        credentials: "include",
+        body: form,
+      });
+      const payload = (await res.json().catch(() => null)) as { url?: string; error?: string } | null;
+      if (!res.ok || !payload?.url) throw new Error(payload?.error ?? ui.uploadError);
+      if (kind === "logo") setLogoUrl(payload.url);
+      else setBannerUrl(payload.url);
+      toast.success(ui.uploadSuccess);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : ui.uploadError;
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setUploading(null);
+    }
   }
 
-  function onShipping(e: FormEvent) {
+  async function onBranding(e: FormEvent) {
     e.preventDefault();
-    void saveStep("shipping", {
+    const ok = await saveStep("branding", { logoUrl, bannerUrl });
+    if (ok) setStepIndex(1);
+  }
+
+  async function onShipping(e: FormEvent) {
+    e.preventDefault();
+    const ok = await saveStep("shipping", {
       shippingNotes,
       shippingMode,
       indirectFulfillment: shippingMode === "INDIRECT" ? indirectFulfillment || null : null,
       shippingFee: Number.parseFloat(shippingFee),
     });
+    if (ok) setStepIndex(2);
   }
 
-  function onPayout(e: FormEvent) {
+  async function onPayout(e: FormEvent) {
     e.preventDefault();
-    void saveStep("payout", { payoutAccountHolder, payoutIban });
+    await saveStep("payout", { payoutAccountHolder, payoutIban });
   }
 
   if (loading) return <p className="mt-8 text-sm text-[var(--muted)]">{ui.loading ?? "…"}</p>;
@@ -128,129 +161,221 @@ export default function VendorSetupForm({ locale, ui }: { locale: Locale; ui: Ui
   if (!setup) return null;
 
   const stepDone = (id: StepId) => setup.steps.find((s) => s.id === id)?.complete ?? false;
+  const current = STEP_ORDER[stepIndex] ?? "branding";
 
   return (
-    <div className="mt-8 space-y-8" dir={direction}>
+    <div className="mt-8 space-y-6" dir={direction}>
       <p className="text-sm text-[var(--muted)]">
         {ui.progress.replace("{done}", String(setup.completedCount)).replace("{total}", String(setup.totalSteps))}
       </p>
+
+      <ol className="flex flex-wrap gap-2 text-sm">
+        {STEP_ORDER.map((id, index) => (
+          <li key={id}>
+            <button
+              type="button"
+              onClick={() => setStepIndex(index)}
+              className={`rounded-lg border px-3 py-1.5 ${
+                index === stepIndex
+                  ? "border-[var(--primary)] bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] font-medium"
+                  : "border-[var(--border)] text-[var(--muted)]"
+              }`}
+            >
+              {index + 1}.{" "}
+              {id === "branding" ? ui.stepBranding : id === "shipping" ? ui.stepShipping : ui.stepPayout}
+              {stepDone(id) ? " ✓" : ""}
+            </button>
+          </li>
+        ))}
+      </ol>
+
       {message ? <p className="text-sm text-emerald-700 dark:text-emerald-400">{message}</p> : null}
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-      <section className="rounded-xl border border-[var(--border)] p-6">
-        <h2 className="font-semibold">
-          {ui.stepBranding} {stepDone("branding") ? `✓` : ""}
-        </h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">{ui.stepBrandingHint}</p>
-        <form className="mt-4 space-y-3" onSubmit={onBranding}>
-          <label className="block text-sm">
-            {ui.logoUrl}
-            <input className="mt-1 w-full rounded border px-3 py-2 dark:bg-[var(--surface)]" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} />
-          </label>
-          <label className="block text-sm">
-            {ui.bannerUrl}
-            <input className="mt-1 w-full rounded border px-3 py-2 dark:bg-[var(--surface)]" value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)} />
-          </label>
-          <button type="submit" disabled={saving === "branding"} className="btn-primary rounded-lg px-4 py-2 text-sm disabled:opacity-60">
-            {saving === "branding" ? ui.saving : ui.save}
-          </button>
-        </form>
-      </section>
+      {current === "branding" ? (
+        <section className="rounded-xl border border-[var(--border)] p-6">
+          <h2 className="font-semibold">
+            {ui.stepBranding} {stepDone("branding") ? "✓" : ""}
+          </h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">{ui.stepBrandingHint}</p>
+          <form className="mt-4 space-y-4" onSubmit={(e) => void onBranding(e)}>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{ui.logoUpload}</p>
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoUrl} alt="" className="h-16 w-16 rounded object-cover border border-[var(--border)]" />
+              ) : null}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="block w-full text-sm"
+                disabled={uploading === "logo"}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void uploadBrandImage("logo", file);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{ui.bannerUpload}</p>
+              {bannerUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={bannerUrl} alt="" className="h-24 w-full max-w-md rounded object-cover border border-[var(--border)]" />
+              ) : null}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="block w-full text-sm"
+                disabled={uploading === "banner"}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void uploadBrandImage("banner", file);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="submit"
+                disabled={saving === "branding" || !logoUrl || !bannerUrl}
+                className="btn-primary rounded-lg px-4 py-2 text-sm disabled:opacity-60"
+              >
+                {saving === "branding" ? ui.saving : ui.saveAndNext}
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
 
-      <section className="rounded-xl border border-[var(--border)] p-6">
-        <h2 className="font-semibold">
-          {ui.stepShipping} {stepDone("shipping") ? `✓` : ""}
-        </h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">{ui.stepShippingHint}</p>
-        {setup.shipping.profileStatus === "APPROVED" ? (
-          <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">{ui.shippingStatusApproved}</p>
-        ) : (
-          <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">{ui.shippingStatusPending}</p>
-        )}
-        {setup.shipping.feeSetByAdmin ? (
-          <p className="mt-1 text-xs text-[var(--muted)]">{ui.shippingSetByAdmin}</p>
-        ) : null}
-        {setup.shipping.pendingRequest ? (
-          <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">{ui.shippingStatusPendingRequest}</p>
-        ) : null}
-        <form className="mt-4 space-y-3" onSubmit={onShipping}>
-          <label className="block text-sm">
-            {ui.shippingMode}
-            <select
-              className="app-input mt-1 w-full"
-              value={shippingMode}
-              onChange={(e) => setShippingMode(e.target.value as ShippingMode)}
-            >
-              <option value="DIRECT">{ui.shippingModeDirect}</option>
-              <option value="INDIRECT">{ui.shippingModeIndirect}</option>
-            </select>
-          </label>
-          {shippingMode === "INDIRECT" ? (
+      {current === "shipping" ? (
+        <section className="rounded-xl border border-[var(--border)] p-6">
+          <h2 className="font-semibold">
+            {ui.stepShipping} {stepDone("shipping") ? "✓" : ""}
+          </h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">{ui.stepShippingHint}</p>
+          {setup.shipping.profileStatus === "APPROVED" ? (
+            <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">{ui.shippingStatusApproved}</p>
+          ) : (
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">{ui.shippingStatusPending}</p>
+          )}
+          {setup.shipping.feeSetByAdmin ? (
+            <p className="mt-1 text-xs text-[var(--muted)]">{ui.shippingSetByAdmin}</p>
+          ) : null}
+          {setup.shipping.pendingRequest ? (
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">{ui.shippingStatusPendingRequest}</p>
+          ) : null}
+          <form className="mt-4 space-y-3" onSubmit={(e) => void onShipping(e)}>
             <label className="block text-sm">
-              {ui.indirectFulfillment}
+              {ui.shippingMode}
               <select
                 className="app-input mt-1 w-full"
-                value={indirectFulfillment}
-                onChange={(e) => setIndirectFulfillment(e.target.value as IndirectFulfillment)}
-                required
+                value={shippingMode}
+                onChange={(e) => setShippingMode(e.target.value as ShippingMode)}
               >
-                <option value="">{ui.indirectFulfillment}</option>
-                <option value="FORSEIZ_STOCK">{ui.indirectForseizStock}</option>
-                <option value="ON_ORDER">{ui.indirectOnOrder}</option>
+                <option value="DIRECT">{ui.shippingModeDirect}</option>
+                <option value="INDIRECT">{ui.shippingModeIndirect}</option>
               </select>
             </label>
-          ) : null}
-          <label className="block text-sm">
-            {ui.shippingFee}
-            <input
-              className="mt-1 w-full rounded border px-3 py-2 dark:bg-[var(--surface)]"
-              type="number"
-              min={0}
-              step="0.01"
-              value={shippingFee}
-              onChange={(e) => setShippingFee(e.target.value)}
-              required
-            />
-          </label>
-          <label className="block text-sm">
-            {ui.shippingNotes}
-            <textarea
-              className="app-input mt-1 min-h-28 w-full resize-y"
-              dir="auto"
-              rows={4}
-              value={shippingNotes}
-              onChange={(e) => setShippingNotes(e.target.value)}
-              required
-            />
-          </label>
-          <button type="submit" disabled={saving === "shipping" || setup.shipping.pendingRequest} className="btn-primary rounded-lg px-4 py-2 text-sm disabled:opacity-60">
-            {saving === "shipping" ? ui.saving : ui.submitShippingRequest}
-          </button>
-        </form>
-      </section>
+            {shippingMode === "INDIRECT" ? (
+              <label className="block text-sm">
+                {ui.indirectFulfillment}
+                <select
+                  className="app-input mt-1 w-full"
+                  value={indirectFulfillment}
+                  onChange={(e) => setIndirectFulfillment(e.target.value as IndirectFulfillment)}
+                  required
+                >
+                  <option value="">{ui.indirectFulfillment}</option>
+                  <option value="FORSEIZ_STOCK">{ui.indirectForseizStock}</option>
+                  <option value="ON_ORDER">{ui.indirectOnOrder}</option>
+                </select>
+              </label>
+            ) : null}
+            <label className="block text-sm">
+              {ui.shippingFee}
+              <input
+                className="mt-1 w-full rounded border px-3 py-2 dark:bg-[var(--surface)]"
+                type="number"
+                min={0}
+                step="0.01"
+                value={shippingFee}
+                onChange={(e) => setShippingFee(e.target.value)}
+                required
+              />
+            </label>
+            <label className="block text-sm">
+              {ui.shippingNotes}
+              <textarea
+                className="app-input mt-1 min-h-28 w-full resize-y"
+                dir="auto"
+                rows={4}
+                value={shippingNotes}
+                onChange={(e) => setShippingNotes(e.target.value)}
+                required
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn-neutral rounded-lg px-4 py-2 text-sm" onClick={() => setStepIndex(0)}>
+                {ui.back}
+              </button>
+              <button
+                type="submit"
+                disabled={saving === "shipping" || setup.shipping.pendingRequest}
+                className="btn-primary rounded-lg px-4 py-2 text-sm disabled:opacity-60"
+              >
+                {saving === "shipping" ? ui.saving : ui.saveAndNext}
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
 
-      <section className="rounded-xl border border-[var(--border)] p-6">
-        <h2 className="font-semibold">
-          {ui.stepPayout} {stepDone("payout") ? `✓` : ""}
-        </h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">{ui.stepPayoutHint}</p>
-        {setup.payout.payoutIbanMasked ? (
-          <p className="mt-2 text-xs text-[var(--muted)]">IBAN: {setup.payout.payoutIbanMasked}</p>
-        ) : null}
-        <form className="mt-4 space-y-3" onSubmit={onPayout}>
-          <label className="block text-sm">
-            {ui.payoutAccountHolder}
-            <input className="mt-1 w-full rounded border px-3 py-2 dark:bg-[var(--surface)]" value={payoutAccountHolder} onChange={(e) => setPayoutAccountHolder(e.target.value)} required />
-          </label>
-          <label className="block text-sm">
-            {ui.payoutIban}
-            <input className="mt-1 w-full rounded border px-3 py-2 dark:bg-[var(--surface)]" value={payoutIban} onChange={(e) => setPayoutIban(e.target.value)} required />
-          </label>
-          <button type="submit" disabled={saving === "payout"} className="btn-primary rounded-lg px-4 py-2 text-sm disabled:opacity-60">
-            {saving === "payout" ? ui.saving : ui.save}
-          </button>
-        </form>
-      </section>
+      {current === "payout" ? (
+        <section className="rounded-xl border border-[var(--border)] p-6">
+          <h2 className="font-semibold">
+            {ui.stepPayout} {stepDone("payout") ? "✓" : ""}
+          </h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">{ui.stepPayoutHint}</p>
+          {setup.payout.payoutIbanMasked ? (
+            <p className="mt-2 text-xs text-[var(--muted)]">IBAN: {setup.payout.payoutIbanMasked}</p>
+          ) : null}
+          <form className="mt-4 space-y-3" onSubmit={(e) => void onPayout(e)}>
+            <label className="block text-sm">
+              {ui.payoutAccountHolder}
+              <input
+                className="mt-1 w-full rounded border px-3 py-2 dark:bg-[var(--surface)]"
+                value={payoutAccountHolder}
+                onChange={(e) => setPayoutAccountHolder(e.target.value)}
+                required
+              />
+            </label>
+            <label className="block text-sm">
+              {ui.payoutIban}
+              <input
+                className="mt-1 w-full rounded border px-3 py-2 dark:bg-[var(--surface)]"
+                value={payoutIban}
+                onChange={(e) => setPayoutIban(e.target.value)}
+                required
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn-neutral rounded-lg px-4 py-2 text-sm" onClick={() => setStepIndex(1)}>
+                {ui.back}
+              </button>
+              <button
+                type="submit"
+                disabled={saving === "payout"}
+                className="btn-primary rounded-lg px-4 py-2 text-sm disabled:opacity-60"
+              >
+                {saving === "payout" ? ui.saving : ui.save}
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
+      <p className="text-sm text-[var(--muted)]">{ui.wizardNote}</p>
 
       <Link href="/vendor" className="text-sm text-link">
         {ui.backToDashboard}

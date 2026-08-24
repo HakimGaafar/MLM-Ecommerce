@@ -51,8 +51,20 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ product }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (e) {
-    if (e instanceof VendorProductError && e.code === "INVALID_CATEGORY") {
-      return NextResponse.json({ error: publicErrorMessage(e, PUBLIC_API_ERRORS.generic, "api") }, { status: 400 });
+    if (e instanceof VendorProductError) {
+      if (
+        e.code === "STORE_NOT_APPROVED" ||
+        e.code === "SETUP_INCOMPLETE" ||
+        e.code === "KYC_INCOMPLETE"
+      ) {
+        return NextResponse.json({ error: e.message, code: e.code }, { status: 409 });
+      }
+      if (e.code === "INVALID_CATEGORY") {
+        return NextResponse.json(
+          { error: publicErrorMessage(e, PUBLIC_API_ERRORS.generic, "api") },
+          { status: 400 },
+        );
+      }
     }
     throw e;
   }

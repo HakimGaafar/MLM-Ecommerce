@@ -14,6 +14,7 @@ type KycDocumentRow = {
   id: string;
   documentType: string;
   status: string;
+  required?: boolean;
   originalFileName: string | null;
   documentExpiresAt: string | null;
   ibanNumber: string | null;
@@ -44,6 +45,8 @@ type Ui = {
   approvedBanner: string;
   expiredBanner: string;
   pendingBanner: string;
+  requiredBadge: string;
+  conditionalBadge: string;
   documentTypes: Record<string, string>;
   statusLabels: Record<string, string>;
   uploadLabel: string;
@@ -354,7 +357,18 @@ export default function KycDocumentsPanel({
         {(summary?.documents ?? []).map((doc) => (
           <li key={doc.documentType} className="rounded-xl border border-[var(--border)] p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="font-medium">{ui.documentTypes[doc.documentType] ?? doc.documentType}</h3>
+              <h3 className="font-medium">
+                {ui.documentTypes[doc.documentType] ?? doc.documentType}
+                <span
+                  className={`ms-2 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                    doc.required !== false
+                      ? "bg-red-500/15 text-red-700 dark:text-red-300"
+                      : "bg-sky-500/15 text-sky-700 dark:text-sky-300"
+                  }`}
+                >
+                  {doc.required !== false ? ui.requiredBadge : ui.conditionalBadge}
+                </span>
+              </h3>
               <div className="flex flex-wrap items-center gap-2">
                 {doc.expiryWarning && expiryWarningLabel(doc.expiryWarning, ui) ? (
                   <span

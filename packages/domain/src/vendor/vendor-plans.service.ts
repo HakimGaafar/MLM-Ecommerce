@@ -67,6 +67,20 @@ async function dedupeVendorBills(vendorId: string): Promise<void> {
 async function ensureVendorBillStubs(vendorId: string): Promise<void> {
   await dedupeVendorBills(vendorId);
 
+  const vendor = await prisma.vendor.findUnique({
+    where: { id: vendorId },
+    select: { planCode: true },
+  });
+  const planCode = vendor?.planCode ?? "FREE";
+
+  // Free-only era: do not show paid platform fee stubs.
+  if (planCode === "FREE") {
+    await prisma.vendorBill.updateMany({
+      where: { vendorId, type: "PLATFORM_FEE", status: "PENDING" },
+      data: { status: "WAIVED" },
+    });
+  }
+
   const { monthStart, monthEnd } = await currentBillingPeriod();
   const existing = await prisma.vendorBill.findMany({
     where: { vendorId, periodStart: monthStart },
@@ -98,11 +112,12 @@ async function ensureVendorBillStubs(vendorId: string): Promise<void> {
     });
   }
 
-  if (!existingTypes.has("PLATFORM_FEE")) {
+  // Only generate paid platform fees when a paid plan is active.
+  if (planCode !== "FREE" && !existingTypes.has("PLATFORM_FEE")) {
     stubs.push({
       vendorId,
       type: "PLATFORM_FEE",
-      description: "Platform service fee (stub)",
+      description: "Platform service fee",
       amount: 49,
       currency: "SAR",
       status: "PENDING",
@@ -146,7 +161,14 @@ export async function listVendorBills(
 ): Promise<PaginatedResult<VendorBillDto>> {
   await ensureVendorBillStubs(vendorId);
   const { page, pageSize, skip, take } = normalizePagination(params);
-  const where = { vendorId };
+  const vendor = await prisma.vendor.findUnique({
+    where: { id: vendorId },
+    select: { planCode: true },
+  });
+  const where =
+    vendor?.planCode === "FREE"
+      ? { vendorId, NOT: { type: "PLATFORM_FEE" as const } }
+      : { vendorId };
   const [rows, total] = await prisma.$transaction([
     prisma.vendorBill.findMany({
       where,

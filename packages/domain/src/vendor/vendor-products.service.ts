@@ -20,7 +20,7 @@ import {
   replaceProductMarketOffers,
   type ProductMarketOfferDto,
 } from "./product-market-offer.service";
-import { assertVendorShippingApproved } from "./vendor-shipping.service";
+import { assertMerchantCanSell, MerchantGateError } from "./vendor-merchant-gate.service";
 
 export class VendorProductError extends Error {
   constructor(
@@ -29,7 +29,10 @@ export class VendorProductError extends Error {
       | "INVALID_STATUS"
       | "HAS_ORDER_HISTORY"
       | "INVALID_CATEGORY"
-      | "PENDING_EDIT_REQUEST_EXISTS",
+      | "PENDING_EDIT_REQUEST_EXISTS"
+      | "STORE_NOT_APPROVED"
+      | "SETUP_INCOMPLETE"
+      | "KYC_INCOMPLETE",
     message?: string,
   ) {
     super(message ?? code);
@@ -222,6 +225,16 @@ export async function createVendorProduct(
   input: VendorProductCreateInput,
   locale: "en" | "ar" = "en",
 ): Promise<VendorProductDto> {
+  try {
+    await assertMerchantCanSell(vendorId);
+  } catch (e) {
+    if (e instanceof MerchantGateError) {
+      const code = e.code === "VENDOR_NOT_FOUND" ? "NOT_FOUND" : e.code;
+      throw new VendorProductError(code, e.message);
+    }
+    throw e;
+  }
+
   const vendorRow = await prisma.vendor.findUniqueOrThrow({
     where: { id: vendorId },
     select: { marketId: true },
@@ -440,7 +453,15 @@ export async function submitVendorProductForReview(
   });
   if (!existing) return null;
 
-  await assertVendorShippingApproved(vendorId);
+  try {
+    await assertMerchantCanSell(vendorId);
+  } catch (e) {
+    if (e instanceof MerchantGateError) {
+      const code = e.code === "VENDOR_NOT_FOUND" ? "NOT_FOUND" : e.code;
+      throw new VendorProductError(code, e.message);
+    }
+    throw e;
+  }
 
   const current = existing.status as ProductStatus;
   if (current !== "DRAFT" && current !== "ON_HOLD" && current !== "REJECTED") {

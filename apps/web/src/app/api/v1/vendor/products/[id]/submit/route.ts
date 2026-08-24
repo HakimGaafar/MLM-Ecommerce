@@ -1,8 +1,7 @@
-import { submitVendorProductForReview, VendorShippingError } from "@mlm/domain";
+import { submitVendorProductForReview, VendorProductError } from "@mlm/domain";
 import { NextRequest, NextResponse } from "next/server";
 import { requireVendorSession } from "@/lib/require-vendor-session";
 import { requireVendorPermission } from "@/lib/require-vendor-permission";
-import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function POST(
   request: NextRequest,
@@ -21,8 +20,14 @@ export async function POST(
     if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ product }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
-    if (e instanceof VendorShippingError && e.code === "PROFILE_NOT_APPROVED") {
-      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status: 409 });
+    if (e instanceof VendorProductError) {
+      if (
+        e.code === "STORE_NOT_APPROVED" ||
+        e.code === "SETUP_INCOMPLETE" ||
+        e.code === "KYC_INCOMPLETE"
+      ) {
+        return NextResponse.json({ error: e.message, code: e.code }, { status: 409 });
+      }
     }
     if (e instanceof Error && e.message === "INVALID_STATUS_TRANSITION") {
       return NextResponse.json({ error: "Cannot submit this product for review" }, { status: 400 });

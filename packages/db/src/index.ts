@@ -36,6 +36,7 @@ export {
   VendorShippingProfileStatus,
   VendorShippingChangeRequestStatus,
   VendorShippingAuditActor,
+  VendorStoreApprovalStatus,
   OrderFulfillmentEscalationLevel,
   OrderCustomerNoticeType,
   OrderVendorCancellationStatus,

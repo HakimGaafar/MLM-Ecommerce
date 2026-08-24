@@ -49,7 +49,7 @@ export async function listPublicStores(params: {
 
   const [rows, total] = await prisma.$transaction([
     prisma.vendor.findMany({
-      where: { marketId: params.marketId },
+      where: { marketId: params.marketId, storeApprovalStatus: "APPROVED" },
       orderBy: { storeName: "asc" },
       skip,
       take,
@@ -62,7 +62,9 @@ export async function listPublicStores(params: {
         _count: { select: { products: { where: { status: "PUBLISHED" } } } },
       },
     }),
-    prisma.vendor.count({ where: { marketId: params.marketId } }),
+    prisma.vendor.count({
+      where: { marketId: params.marketId, storeApprovalStatus: "APPROVED" },
+    }),
   ]);
 
   return buildPaginatedResult(
@@ -88,6 +90,13 @@ export async function listPublicStoreProducts(params: {
 }): Promise<PaginatedResult<PublicStoreProductDto>> {
   const locale = params.locale ?? "en";
   const { page, pageSize, skip, take } = normalizePagination(params);
+  const vendorOk = await prisma.vendor.findFirst({
+    where: { id: params.vendorId, storeApprovalStatus: "APPROVED" },
+    select: { id: true },
+  });
+  if (!vendorOk) {
+    return buildPaginatedResult([], 0, page, pageSize);
+  }
   const where = { vendorId: params.vendorId, status: "PUBLISHED" as const };
   const [rows, total] = await prisma.$transaction([
     prisma.product.findMany({
@@ -138,6 +147,7 @@ export async function getPublicStoreBySlug(
   const vendor = await prisma.vendor.findFirst({
     where: {
       slug: normalized,
+      storeApprovalStatus: "APPROVED",
       ...(marketId ? { marketId } : {}),
     },
     include: {
