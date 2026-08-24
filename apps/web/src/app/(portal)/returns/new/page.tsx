@@ -87,10 +87,14 @@ export default async function ReturnStartPage({
   }
 
   if (!order.canRequestReturn) {
+    const apology =
+      order.returnWindowExpired
+        ? uiStart.returnWindowExpiredApology
+        : uiStart.notEligible;
     return (
       <main className="mx-auto max-w-lg p-8 animate-page-enter" dir={direction}>
         <h1 className="text-2xl font-semibold">{uiStart.title}</h1>
-        <p className="mt-4 text-sm text-[var(--muted)]">{uiStart.notEligible}</p>
+        <p className="mt-4 text-sm text-[var(--muted)]">{apology}</p>
         <Link
           href={`/orders/${order.id}`}
           className="mt-6 btn-secondary btn-press"

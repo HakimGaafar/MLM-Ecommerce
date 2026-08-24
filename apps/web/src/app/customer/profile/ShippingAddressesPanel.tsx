@@ -1,7 +1,13 @@
 "use client";
 
 import type { CustomerShippingAddressDto } from "@mlm/shared";
-import { useCallback, useEffect, useState } from "react";
+import {
+  ADDRESS_CITIES,
+  ADDRESS_GOVERNORATES,
+  isAddressCountryCode,
+  type AddressCountryCode,
+} from "@mlm/shared";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Pagination from "@/components/Pagination";
 import { useToast } from "@/components/toast/ToastProvider";
 import { LIST_PAGE_SIZE } from "@/lib/list-page";
@@ -20,10 +26,24 @@ type Ui = {
   recipient: string;
   phone: string;
   countryCode: string;
+  countrySA: string;
+  countryOM: string;
+  countryEG: string;
+  governorate: string;
   city: string;
+  cityOther: string;
+  neighborhood: string;
+  building: string;
   postalCode: string;
   line1: string;
   line2: string;
+  fullAddress: string;
+  shortNationalAddress: string;
+  mapPin: string;
+  mapPinHint: string;
+  latitude: string;
+  longitude: string;
+  openMap: string;
   labelOptional: string;
   setDefault: string;
   delete: string;
@@ -35,16 +55,96 @@ type Ui = {
   deleteConfirm: string;
 };
 
-const emptyForm = {
+type AddressFormState = {
+  label: string;
+  recipientName: string;
+  phone: string;
+  countryCode: AddressCountryCode;
+  governorate: string;
+  city: string;
+  cityCustom: string;
+  neighborhood: string;
+  building: string;
+  postalCode: string;
+  addressLine1: string;
+  addressLine2: string;
+  fullAddress: string;
+  shortNationalAddress: string;
+  latitude: string;
+  longitude: string;
+};
+
+const emptyForm: AddressFormState = {
   label: "",
   recipientName: "",
   phone: "",
   countryCode: "SA",
+  governorate: "",
   city: "",
+  cityCustom: "",
+  neighborhood: "",
+  building: "",
   postalCode: "",
   addressLine1: "",
   addressLine2: "",
+  fullAddress: "",
+  shortNationalAddress: "",
+  latitude: "",
+  longitude: "",
 };
+
+const inputClass =
+  "mt-1 w-full rounded border border-[var(--border-strong)] px-2 py-1.5 dark:bg-[var(--surface)]";
+
+function resolveCity(form: AddressFormState): string {
+  return form.city === "__other__" ? form.cityCustom.trim() : form.city.trim();
+}
+
+function formToPayload(form: AddressFormState) {
+  const lat = form.latitude.trim() ? Number(form.latitude) : undefined;
+  const lng = form.longitude.trim() ? Number(form.longitude) : undefined;
+  return {
+    label: form.label.trim() || undefined,
+    recipientName: form.recipientName.trim(),
+    phone: form.phone.trim(),
+    countryCode: form.countryCode,
+    governorate: form.governorate.trim() || undefined,
+    city: resolveCity(form),
+    neighborhood: form.neighborhood.trim() || undefined,
+    building: form.building.trim() || undefined,
+    postalCode: form.postalCode.trim(),
+    addressLine1: form.addressLine1.trim() || form.neighborhood.trim() || resolveCity(form) || "—",
+    addressLine2: form.addressLine2.trim() || undefined,
+    fullAddress: form.fullAddress.trim() || undefined,
+    shortNationalAddress: form.shortNationalAddress.trim() || undefined,
+    latitude: lat != null && !Number.isNaN(lat) ? lat : undefined,
+    longitude: lng != null && !Number.isNaN(lng) ? lng : undefined,
+  };
+}
+
+function rowToForm(row: CustomerShippingAddressDto): AddressFormState {
+  const cc = isAddressCountryCode(row.countryCode) ? row.countryCode : "SA";
+  const cities = ADDRESS_CITIES[cc];
+  const cityKnown = cities.includes(row.city);
+  return {
+    label: row.label ?? "",
+    recipientName: row.recipientName,
+    phone: row.phone,
+    countryCode: cc,
+    governorate: row.governorate ?? "",
+    city: cityKnown ? row.city : "__other__",
+    cityCustom: cityKnown ? "" : row.city,
+    neighborhood: row.neighborhood ?? "",
+    building: row.building ?? "",
+    postalCode: row.postalCode,
+    addressLine1: row.addressLine1,
+    addressLine2: row.addressLine2 ?? "",
+    fullAddress: row.fullAddress ?? "",
+    shortNationalAddress: row.shortNationalAddress ?? "",
+    latitude: row.latitude != null ? String(row.latitude) : "",
+    longitude: row.longitude != null ? String(row.longitude) : "",
+  };
+}
 
 export default function ShippingAddressesPanel({ locale, ui }: { locale: Locale; ui: Ui }) {
   const toast = useToast();
@@ -57,7 +157,7 @@ export default function ShippingAddressesPanel({ locale, ui }: { locale: Locale;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<AddressFormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -126,37 +226,20 @@ export default function ShippingAddressesPanel({ locale, ui }: { locale: Locale;
   function startEdit(row: CustomerShippingAddressDto) {
     setShowAdd(false);
     setEditingId(row.id);
-    setForm({
-      label: row.label ?? "",
-      recipientName: row.recipientName,
-      phone: row.phone,
-      countryCode: row.countryCode,
-      city: row.city,
-      postalCode: row.postalCode,
-      addressLine1: row.addressLine1,
-      addressLine2: row.addressLine2 ?? "",
-    });
+    setForm(rowToForm(row));
   }
 
   async function submitForm(forEditId: string | null) {
     setError(null);
     setSaving(true);
     try {
+      const body = formToPayload(form);
       if (forEditId) {
         const res = await fetch(`/api/v1/customer/shipping-addresses/${encodeURIComponent(forEditId)}`, {
           method: "PATCH",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            label: form.label.trim() || undefined,
-            recipientName: form.recipientName.trim(),
-            phone: form.phone.trim(),
-            countryCode: form.countryCode.trim(),
-            city: form.city.trim(),
-            postalCode: form.postalCode.trim(),
-            addressLine1: form.addressLine1.trim(),
-            addressLine2: form.addressLine2.trim() || undefined,
-          }),
+          body: JSON.stringify(body),
         });
         if (!res.ok) {
           const p = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -168,16 +251,7 @@ export default function ShippingAddressesPanel({ locale, ui }: { locale: Locale;
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            label: form.label.trim() || undefined,
-            recipientName: form.recipientName.trim(),
-            phone: form.phone.trim(),
-            countryCode: form.countryCode.trim(),
-            city: form.city.trim(),
-            postalCode: form.postalCode.trim(),
-            addressLine1: form.addressLine1.trim(),
-            addressLine2: form.addressLine2.trim() || undefined,
-          }),
+          body: JSON.stringify(body),
         });
         if (!res.ok) {
           const p = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -217,51 +291,65 @@ export default function ShippingAddressesPanel({ locale, ui }: { locale: Locale;
               {editingId === row.id ? (
                 <AddressFormFields form={form} setForm={setForm} ui={ui} />
               ) : (
-                <>
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <p className="font-medium text-[var(--foreground)]">
-                        {row.recipientName}
-                        {row.label ? <span className="text-[var(--muted)]"> · {row.label}</span> : null}
-                        {row.isDefault ? (
-                          <span className="ms-2 rounded-full bg-[color-mix(in_srgb,var(--foreground)_12%,var(--surface))] px-2 py-0.5 text-xs dark:bg-[color-mix(in_srgb,var(--foreground)_18%,var(--surface))]">{ui.defaultBadge}</span>
-                        ) : null}
-                      </p>
-                      <p className="mt-1 text-sm text-[var(--muted)]">{row.phone}</p>
-                      <p className="mt-1 text-sm text-[var(--foreground)]">
-                        {row.addressLine1}
-                        {row.addressLine2 ? `, ${row.addressLine2}` : ""}
-                        <br />
-                        {row.city}, {row.postalCode}, {row.countryCode}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {!row.isDefault ? (
-                        <button
-                          type="button"
-                          className="text-sm font-medium text-[var(--primary)]"
-                          onClick={() => void onSetDefault(row.id)}
-                        >
-                          {ui.setDefault}
-                        </button>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-[var(--foreground)]">
+                      {row.recipientName}
+                      {row.label ? <span className="text-[var(--muted)]"> · {row.label}</span> : null}
+                      {row.isDefault ? (
+                        <span className="ms-2 rounded-full bg-[color-mix(in_srgb,var(--foreground)_12%,var(--surface))] px-2 py-0.5 text-xs dark:bg-[color-mix(in_srgb,var(--foreground)_18%,var(--surface))]">
+                          {ui.defaultBadge}
+                        </span>
                       ) : null}
+                    </p>
+                    <p className="mt-1 text-sm text-[var(--muted)]">{row.phone}</p>
+                    <p className="mt-1 text-sm text-[var(--foreground)]">
+                      {[row.neighborhood, row.addressLine1, row.building].filter(Boolean).join(", ")}
+                      <br />
+                      {[row.governorate, row.city, row.postalCode, row.countryCode].filter(Boolean).join(", ")}
+                      {row.shortNationalAddress ? (
+                        <>
+                          <br />
+                          {row.shortNationalAddress}
+                        </>
+                      ) : null}
+                      {row.latitude != null && row.longitude != null ? (
+                        <>
+                          <br />
+                          <a
+                            className="text-link"
+                            href={`https://www.openstreetmap.org/?mlat=${row.latitude}&mlon=${row.longitude}#map=16/${row.latitude}/${row.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {ui.openMap}
+                          </a>
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {!row.isDefault ? (
                       <button
                         type="button"
                         className="text-sm font-medium text-[var(--primary)]"
-                        onClick={() => startEdit(row)}
+                        onClick={() => void onSetDefault(row.id)}
                       >
-                        {ui.edit}
+                        {ui.setDefault}
                       </button>
-                      <button
-                        type="button"
-                        className="text-sm font-medium text-red-600 dark:text-red-400"
-                        onClick={() => void onDelete(row.id)}
-                      >
-                        {ui.delete}
-                      </button>
-                    </div>
+                    ) : null}
+                    <button type="button" className="text-sm font-medium text-[var(--primary)]" onClick={() => startEdit(row)}>
+                      {ui.edit}
+                    </button>
+                    <button
+                      type="button"
+                      className="text-sm font-medium text-red-600 dark:text-red-400"
+                      onClick={() => void onDelete(row.id)}
+                    >
+                      {ui.delete}
+                    </button>
                   </div>
-                </>
+                </div>
               )}
               {editingId === row.id ? (
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -347,77 +435,210 @@ function AddressFormFields({
   setForm,
   ui,
 }: {
-  form: typeof emptyForm;
-  setForm: (v: typeof emptyForm) => void;
+  form: AddressFormState;
+  setForm: (v: AddressFormState) => void;
   ui: Ui;
 }) {
+  const cc = form.countryCode;
+  const cities = ADDRESS_CITIES[cc];
+  const governorates = cc === "OM" || cc === "EG" ? ADDRESS_GOVERNORATES[cc] : [];
+  const showStreet = cc === "SA" || cc === "EG";
+  const showBuilding = cc === "EG";
+  const showGovernorate = cc === "OM" || cc === "EG";
+  const showShortNational = cc === "SA";
+
+  const mapHref = useMemo(() => {
+    const q = encodeURIComponent(
+      [form.neighborhood, resolveCity(form), form.governorate, form.countryCode].filter(Boolean).join(", "),
+    );
+    if (form.latitude.trim() && form.longitude.trim()) {
+      return `https://www.openstreetmap.org/?mlat=${form.latitude.trim()}&mlon=${form.longitude.trim()}#map=16/${form.latitude.trim()}/${form.longitude.trim()}`;
+    }
+    return `https://www.openstreetmap.org/search?query=${q}`;
+  }, [form]);
+
   return (
     <div className="mt-3 grid gap-3 sm:grid-cols-2">
       <label className="block text-sm sm:col-span-2">
         <span className="text-[var(--muted)]">{ui.labelOptional}</span>
-        <input
-          className="mt-1 w-full rounded border border-[var(--border-strong)] px-2 py-1.5 dark:bg-[var(--surface)]"
-          value={form.label}
-          onChange={(e) => setForm({ ...form, label: e.target.value })}
-        />
+        <input className={inputClass} value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
       </label>
       <label className="block text-sm">
         <span className="text-[var(--muted)]">{ui.recipient}</span>
         <input
-          className="mt-1 w-full rounded border border-[var(--border-strong)] px-2 py-1.5 dark:bg-[var(--surface)]"
+          className={inputClass}
           value={form.recipientName}
           onChange={(e) => setForm({ ...form, recipientName: e.target.value })}
+          required
         />
       </label>
       <label className="block text-sm">
         <span className="text-[var(--muted)]">{ui.phone}</span>
-        <input
-          className="mt-1 w-full rounded border border-[var(--border-strong)] px-2 py-1.5 dark:bg-[var(--surface)]"
-          value={form.phone}
-          onChange={(e) => setForm({ ...form, phone: e.target.value })}
-        />
+        <input className={inputClass} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
       </label>
       <label className="block text-sm">
         <span className="text-[var(--muted)]">{ui.countryCode}</span>
-        <input
-          className="mt-1 w-full rounded border border-[var(--border-strong)] px-2 py-1.5 dark:bg-[var(--surface)]"
-          maxLength={2}
+        <select
+          className={inputClass}
           value={form.countryCode}
-          onChange={(e) => setForm({ ...form, countryCode: e.target.value.toUpperCase() })}
-        />
+          onChange={(e) => {
+            const next = e.target.value as AddressCountryCode;
+            setForm({
+              ...form,
+              countryCode: next,
+              governorate: "",
+              city: "",
+              cityCustom: "",
+            });
+          }}
+        >
+          <option value="SA">{ui.countrySA}</option>
+          <option value="OM">{ui.countryOM}</option>
+          <option value="EG">{ui.countryEG}</option>
+        </select>
       </label>
+      {showGovernorate ? (
+        <label className="block text-sm">
+          <span className="text-[var(--muted)]">{ui.governorate}</span>
+          <select
+            className={inputClass}
+            value={form.governorate}
+            onChange={(e) => setForm({ ...form, governorate: e.target.value })}
+            required
+          >
+            <option value="">—</option>
+            {governorates.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <label className="block text-sm">
         <span className="text-[var(--muted)]">{ui.city}</span>
-        <input
-          className="mt-1 w-full rounded border border-[var(--border-strong)] px-2 py-1.5 dark:bg-[var(--surface)]"
+        <select
+          className={inputClass}
           value={form.city}
-          onChange={(e) => setForm({ ...form, city: e.target.value })}
+          onChange={(e) => setForm({ ...form, city: e.target.value, cityCustom: e.target.value === "__other__" ? form.cityCustom : "" })}
+          required
+        >
+          <option value="">—</option>
+          {cities.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+          <option value="__other__">{ui.cityOther}</option>
+        </select>
+      </label>
+      {form.city === "__other__" ? (
+        <label className="block text-sm">
+          <span className="text-[var(--muted)]">{ui.city}</span>
+          <input
+            className={inputClass}
+            value={form.cityCustom}
+            onChange={(e) => setForm({ ...form, cityCustom: e.target.value })}
+            required
+          />
+        </label>
+      ) : null}
+      <label className="block text-sm">
+        <span className="text-[var(--muted)]">{ui.neighborhood}</span>
+        <input
+          className={inputClass}
+          value={form.neighborhood}
+          onChange={(e) => setForm({ ...form, neighborhood: e.target.value })}
+          required
         />
       </label>
+      {showBuilding ? (
+        <label className="block text-sm">
+          <span className="text-[var(--muted)]">{ui.building}</span>
+          <input
+            className={inputClass}
+            value={form.building}
+            onChange={(e) => setForm({ ...form, building: e.target.value })}
+            required
+          />
+        </label>
+      ) : null}
       <label className="block text-sm">
         <span className="text-[var(--muted)]">{ui.postalCode}</span>
         <input
-          className="mt-1 w-full rounded border border-[var(--border-strong)] px-2 py-1.5 dark:bg-[var(--surface)]"
+          className={inputClass}
           value={form.postalCode}
           onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
+          required
         />
       </label>
+      {showStreet ? (
+        <label className="block text-sm sm:col-span-2">
+          <span className="text-[var(--muted)]">{ui.line1}</span>
+          <input
+            className={inputClass}
+            value={form.addressLine1}
+            onChange={(e) => setForm({ ...form, addressLine1: e.target.value })}
+            required
+          />
+        </label>
+      ) : null}
+      {showShortNational ? (
+        <label className="block text-sm sm:col-span-2">
+          <span className="text-[var(--muted)]">{ui.shortNationalAddress}</span>
+          <input
+            className={inputClass}
+            value={form.shortNationalAddress}
+            onChange={(e) => setForm({ ...form, shortNationalAddress: e.target.value })}
+          />
+        </label>
+      ) : null}
       <label className="block text-sm sm:col-span-2">
-        <span className="text-[var(--muted)]">{ui.line1}</span>
+        <span className="text-[var(--muted)]">{ui.fullAddress}</span>
         <input
-          className="mt-1 w-full rounded border border-[var(--border-strong)] px-2 py-1.5 dark:bg-[var(--surface)]"
-          value={form.addressLine1}
-          onChange={(e) => setForm({ ...form, addressLine1: e.target.value })}
+          className={inputClass}
+          value={form.fullAddress}
+          onChange={(e) => setForm({ ...form, fullAddress: e.target.value })}
         />
       </label>
       <label className="block text-sm sm:col-span-2">
         <span className="text-[var(--muted)]">{ui.line2}</span>
         <input
-          className="mt-1 w-full rounded border border-[var(--border-strong)] px-2 py-1.5 dark:bg-[var(--surface)]"
+          className={inputClass}
           value={form.addressLine2}
           onChange={(e) => setForm({ ...form, addressLine2: e.target.value })}
         />
       </label>
+
+      <div className="sm:col-span-2 rounded-lg border border-dashed border-[var(--border)] p-3">
+        <p className="text-sm font-medium text-[var(--foreground)]">{ui.mapPin}</p>
+        <p className="mt-1 text-xs text-[var(--muted)]">{ui.mapPinHint}</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="block text-sm">
+            <span className="text-[var(--muted)]">{ui.latitude}</span>
+            <input
+              className={inputClass}
+              inputMode="decimal"
+              value={form.latitude}
+              onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+              placeholder="24.7136"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-[var(--muted)]">{ui.longitude}</span>
+            <input
+              className={inputClass}
+              inputMode="decimal"
+              value={form.longitude}
+              onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+              placeholder="46.6753"
+            />
+          </label>
+        </div>
+        <a className="mt-3 inline-block text-sm text-link" href={mapHref} target="_blank" rel="noopener noreferrer">
+          {ui.openMap}
+        </a>
+      </div>
     </div>
   );
 }

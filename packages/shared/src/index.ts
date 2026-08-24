@@ -26,6 +26,7 @@ export const LEDGER_STATUS = ["PENDING", "APPROVED", "DECLINED", "REVERSED"] as 
 export type LedgerStatus = (typeof LEDGER_STATUS)[number];
 
 export * from "./market";
+export * from "./address-catalog";
 export * from "./validation/pagination";
 export * from "./validation/customer-profile";
 export * from "./validation/cart";

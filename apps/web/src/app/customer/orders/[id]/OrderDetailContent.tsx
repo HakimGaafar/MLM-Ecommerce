@@ -74,6 +74,7 @@ type OrderDetailUi = {
   requestReturn: string;
   contactSupport: string;
   returnWindowHint: string;
+  returnWindowExpiredApology: string;
   viewOpenReturn: string;
 };
 
@@ -254,6 +255,13 @@ export default function OrderDetailContent({
             >
               {ui.requestReturn}
             </Link>
+          ) : order.returnWindowExpired ? (
+            <Link
+              href={`/returns/new?orderId=${encodeURIComponent(order.id)}`}
+              className="btn-primary btn-press"
+            >
+              {ui.requestReturn}
+            </Link>
           ) : supportHref ? (
             <a
               href={supportHref}
@@ -269,7 +277,11 @@ export default function OrderDetailContent({
             </span>
           )}
         </div>
-        <p className="mt-3 text-xs text-[var(--muted)]">{ui.returnWindowHint}</p>
+        {order.returnWindowExpired && !order.canRequestReturn && !order.hasOpenReturn ? (
+          <p className="mt-3 text-sm text-[var(--muted)]">{ui.returnWindowExpiredApology}</p>
+        ) : (
+          <p className="mt-3 text-xs text-[var(--muted)]">{ui.returnWindowHint}</p>
+        )}
       </section>
 
       <section className="app-card mt-6 p-6">

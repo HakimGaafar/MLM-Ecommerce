@@ -89,8 +89,10 @@ export type CustomerOrderDetailDto = CustomerOrderListItemDto & {
   shipping: CustomerOrderShippingSnapshotDto | null;
   shippingBreakdown: CustomerOrderVendorShippingDto[];
   deliveredAt: string | null;
-  /** From payment until 15 days after delivery (see `deliveredAt`); COD-friendly. */
+  /** From payment until N days after delivery (see `deliveredAt`); COD-friendly. */
   canRequestReturn: boolean;
+  /** Paid/delivered but past the return window — show apology, keep action visible. */
+  returnWindowExpired: boolean;
   /** Open return case exists (blocks a second request). */
   hasOpenReturn: boolean;
   /** Id of blocking return, if any. */
@@ -148,6 +150,20 @@ function computeCanRequestReturn(
   const deadline = new Date(deliveryMoment);
   deadline.setUTCDate(deadline.getUTCDate() + returnWindowDays);
   return Date.now() <= deadline.getTime();
+}
+
+/** True when order was paid/delivered but the return window has closed. */
+function computeReturnWindowExpired(
+  row: Pick<Order, "status" | "paymentStatus" | "deliveredAt" | "updatedAt">,
+  returnWindowDays: number,
+): boolean {
+  if (row.status === "CANCELLED") return false;
+  if (row.paymentStatus !== "PAID") return false;
+  const deliveryMoment = row.deliveredAt ?? (row.status === "COMPLETED" ? row.updatedAt : null);
+  if (!deliveryMoment) return false;
+  const deadline = new Date(deliveryMoment);
+  deadline.setUTCDate(deadline.getUTCDate() + returnWindowDays);
+  return Date.now() > deadline.getTime();
 }
 
 /** Exported for return creation rules (same as order detail `canRequestReturn` before open-return check). */
@@ -291,6 +307,7 @@ function orderToDetailDto(
     })),
     deliveredAt: row.deliveredAt?.toISOString() ?? null,
     canRequestReturn: computeCanRequestReturn(row, returnWindowDays) && !hasOpenReturn && returnableUnitCount > 0,
+    returnWindowExpired: computeReturnWindowExpired(row, returnWindowDays),
     hasOpenReturn,
     activeReturnId: activeReturn?.id ?? null,
     returnableUnitCount,

@@ -5,10 +5,17 @@ export type CustomerShippingAddressDto = {
   recipientName: string;
   phone: string;
   countryCode: string;
+  governorate?: string;
   city: string;
+  neighborhood?: string;
+  building?: string;
   postalCode: string;
   addressLine1: string;
   addressLine2?: string;
+  fullAddress?: string;
+  shortNationalAddress?: string;
+  latitude?: number;
+  longitude?: number;
   isDefault: boolean;
   createdAt: string;
   updatedAt: string;

@@ -12,14 +12,27 @@ export class ShippingProfileError extends Error {
 
 /** Saved delivery row has everything needed to ship an order. */
 export function isSavedShippingAddressComplete(addr: CustomerShippingAddressDto): boolean {
-  return Boolean(
-    addr.recipientName?.trim() &&
+  if (
+    !(
+      addr.recipientName?.trim() &&
       addr.phone?.trim() &&
       addr.countryCode?.trim().length === 2 &&
       addr.city?.trim() &&
       addr.postalCode?.trim() &&
-      addr.addressLine1?.trim(),
-  );
+      addr.addressLine1?.trim()
+    )
+  ) {
+    return false;
+  }
+  const cc = addr.countryCode.trim().toUpperCase();
+  if (cc === "SA" || cc === "OM" || cc === "EG") {
+    if (!addr.neighborhood?.trim()) return false;
+  }
+  if (cc === "OM" || cc === "EG") {
+    if (!addr.governorate?.trim()) return false;
+  }
+  if (cc === "EG" && !addr.building?.trim()) return false;
+  return true;
 }
 
 export function assertProfileReadyForCheckout(profile: CustomerProfileDto | null): asserts profile is CustomerProfileDto {

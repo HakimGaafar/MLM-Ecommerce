@@ -4,7 +4,12 @@ import type {
   CustomerShippingAddressUpdateInput,
   PaginatedResult,
 } from "@mlm/shared";
-import { buildPaginatedResult, normalizePagination } from "@mlm/shared";
+import {
+  ADDRESS_REQUIRED_FIELDS,
+  buildPaginatedResult,
+  isAddressCountryCode,
+  normalizePagination,
+} from "@mlm/shared";
 import { Prisma, prisma } from "@mlm/db";
 import { getCustomerProfile } from "./profile.service";
 import { assertProfileReadyForCheckout, buildShippingSnapshotFromProfile } from "./shipping-profile";
@@ -17,6 +22,8 @@ type AddressSignatureFields = {
   postalCode: string;
   addressLine1: string;
   addressLine2: string | null;
+  neighborhood: string | null;
+  governorate: string | null;
 };
 
 function addressSignature(row: AddressSignatureFields): string {
@@ -28,6 +35,8 @@ function addressSignature(row: AddressSignatureFields): string {
     row.postalCode.trim(),
     row.addressLine1.trim().toLowerCase(),
     (row.addressLine2?.trim() ?? "").toLowerCase(),
+    (row.neighborhood?.trim() ?? "").toLowerCase(),
+    (row.governorate?.trim() ?? "").toLowerCase(),
   ].join("\0");
 }
 
@@ -87,10 +96,17 @@ function mapRow(row: {
   recipientName: string;
   phone: string;
   countryCode: string;
+  governorate: string | null;
   city: string;
+  neighborhood: string | null;
+  building: string | null;
   postalCode: string;
   addressLine1: string;
   addressLine2: string | null;
+  fullAddress: string | null;
+  shortNationalAddress: string | null;
+  latitude: { toString(): string } | null;
+  longitude: { toString(): string } | null;
   isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -102,14 +118,35 @@ function mapRow(row: {
     recipientName: row.recipientName,
     phone: row.phone,
     countryCode: row.countryCode,
+    governorate: row.governorate ?? undefined,
     city: row.city,
+    neighborhood: row.neighborhood ?? undefined,
+    building: row.building ?? undefined,
     postalCode: row.postalCode,
     addressLine1: row.addressLine1,
     addressLine2: row.addressLine2 ?? undefined,
+    fullAddress: row.fullAddress ?? undefined,
+    shortNationalAddress: row.shortNationalAddress ?? undefined,
+    latitude: row.latitude != null ? Number(row.latitude.toString()) : undefined,
+    longitude: row.longitude != null ? Number(row.longitude.toString()) : undefined,
     isDefault: row.isDefault,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+function formatExtraAddressLine(addr: CustomerShippingAddressDto): string | null {
+  const parts: string[] = [];
+  if (addr.governorate?.trim()) parts.push(`Gov: ${addr.governorate.trim()}`);
+  if (addr.neighborhood?.trim()) parts.push(`Neighborhood: ${addr.neighborhood.trim()}`);
+  if (addr.building?.trim()) parts.push(`Building: ${addr.building.trim()}`);
+  if (addr.shortNationalAddress?.trim()) parts.push(`National: ${addr.shortNationalAddress.trim()}`);
+  if (addr.fullAddress?.trim()) parts.push(addr.fullAddress.trim());
+  if (addr.latitude != null && addr.longitude != null) {
+    parts.push(`Pin: ${addr.latitude},${addr.longitude}`);
+  }
+  if (addr.addressLine2?.trim()) parts.push(addr.addressLine2.trim());
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 /**
@@ -141,6 +178,8 @@ export async function ensureDefaultShippingAddressFromProfile(userId: string): P
     postalCode: snap.shippingPostalCode,
     addressLine1: snap.shippingAddressLine1,
     addressLine2: snap.shippingAddressLine2,
+    neighborhood: null,
+    governorate: null,
   };
   const sig = addressSignature(seedRow);
 
@@ -170,25 +209,11 @@ export async function ensureDefaultShippingAddressFromProfile(userId: string): P
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
-      return;
-    }
-    throw error;
+  } catch (e) {
+    // Concurrent seed races are fine — list/dedupe will clean up.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034") return;
+    throw e;
   }
-}
-
-/** All addresses — used at checkout (radio list). */
-export async function listAllCustomerShippingAddressesForCheckout(
-  userId: string,
-): Promise<CustomerShippingAddressDto[]> {
-  await ensureDefaultShippingAddressFromProfile(userId);
-  await dedupeIdenticalShippingAddresses(userId);
-  const rows = await prisma.customerShippingAddress.findMany({
-    where: { userId },
-    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-  });
-  return rows.map(mapRow);
 }
 
 export async function listCustomerShippingAddresses(
@@ -209,6 +234,19 @@ export async function listCustomerShippingAddresses(
     prisma.customerShippingAddress.count({ where }),
   ]);
   return buildPaginatedResult(rows.map(mapRow), total, page, pageSize);
+}
+
+/** Unpaginated list for checkout address picker. */
+export async function listAllCustomerShippingAddressesForCheckout(
+  userId: string,
+): Promise<CustomerShippingAddressDto[]> {
+  await ensureDefaultShippingAddressFromProfile(userId);
+  await dedupeIdenticalShippingAddresses(userId);
+  const rows = await prisma.customerShippingAddress.findMany({
+    where: { userId },
+    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+  });
+  return rows.map(mapRow);
 }
 
 export async function getDefaultShippingAddressId(userId: string): Promise<string | null> {
@@ -245,7 +283,7 @@ export function buildOrderShippingFromSavedAddress(addr: CustomerShippingAddress
     shippingCity: addr.city.trim(),
     shippingPostalCode: addr.postalCode.trim(),
     shippingAddressLine1: addr.addressLine1.trim(),
-    shippingAddressLine2: addr.addressLine2?.trim() || null,
+    shippingAddressLine2: formatExtraAddressLine(addr),
   };
 }
 
@@ -269,11 +307,18 @@ export async function createCustomerShippingAddress(
         label: input.label ?? null,
         recipientName: input.recipientName.trim(),
         phone: input.phone.trim(),
-        countryCode: input.countryCode.trim(),
+        countryCode: input.countryCode.trim().toUpperCase(),
+        governorate: input.governorate?.trim() ?? null,
         city: input.city.trim(),
+        neighborhood: input.neighborhood?.trim() ?? null,
+        building: input.building?.trim() ?? null,
         postalCode: input.postalCode.trim(),
         addressLine1: input.addressLine1.trim(),
         addressLine2: input.addressLine2?.trim() ?? null,
+        fullAddress: input.fullAddress?.trim() ?? null,
+        shortNationalAddress: input.shortNationalAddress?.trim() ?? null,
+        latitude: input.latitude != null ? new Prisma.Decimal(input.latitude) : null,
+        longitude: input.longitude != null ? new Prisma.Decimal(input.longitude) : null,
         isDefault: makeDefault,
       },
     });
@@ -297,8 +342,11 @@ export async function updateCustomerShippingAddress(
       ...(input.label !== undefined ? { label: input.label ?? null } : {}),
       ...(input.recipientName !== undefined ? { recipientName: input.recipientName.trim() } : {}),
       ...(input.phone !== undefined ? { phone: input.phone.trim() } : {}),
-      ...(input.countryCode !== undefined ? { countryCode: input.countryCode.trim() } : {}),
+      ...(input.countryCode !== undefined ? { countryCode: input.countryCode.trim().toUpperCase() } : {}),
+      ...(input.governorate !== undefined ? { governorate: input.governorate } : {}),
       ...(input.city !== undefined ? { city: input.city.trim() } : {}),
+      ...(input.neighborhood !== undefined ? { neighborhood: input.neighborhood } : {}),
+      ...(input.building !== undefined ? { building: input.building } : {}),
       ...(input.postalCode !== undefined ? { postalCode: input.postalCode.trim() } : {}),
       ...(input.addressLine1 !== undefined ? { addressLine1: input.addressLine1.trim() } : {}),
       ...(input.addressLine2 !== undefined
@@ -308,6 +356,16 @@ export async function updateCustomerShippingAddress(
                 ? null
                 : input.addressLine2.trim() || null,
           }
+        : {}),
+      ...(input.fullAddress !== undefined ? { fullAddress: input.fullAddress } : {}),
+      ...(input.shortNationalAddress !== undefined
+        ? { shortNationalAddress: input.shortNationalAddress }
+        : {}),
+      ...(input.latitude !== undefined
+        ? { latitude: input.latitude == null ? null : new Prisma.Decimal(input.latitude) }
+        : {}),
+      ...(input.longitude !== undefined
+        ? { longitude: input.longitude == null ? null : new Prisma.Decimal(input.longitude) }
         : {}),
     },
   });
@@ -359,4 +417,27 @@ export async function setDefaultCustomerShippingAddress(userId: string, addressI
     });
   });
   return true;
+}
+
+/** Re-export for callers that validate completeness with country rules. */
+export function addressMeetsCountryRequirements(addr: CustomerShippingAddressDto): boolean {
+  if (!isAddressCountryCode(addr.countryCode)) {
+    return Boolean(
+      addr.recipientName?.trim() &&
+        addr.phone?.trim() &&
+        addr.city?.trim() &&
+        addr.postalCode?.trim() &&
+        addr.addressLine1?.trim(),
+    );
+  }
+  const required = ADDRESS_REQUIRED_FIELDS[addr.countryCode];
+  for (const key of required) {
+    if (key === "street" && !addr.addressLine1?.trim()) return false;
+    if (key === "city" && !addr.city?.trim()) return false;
+    if (key === "postalCode" && !addr.postalCode?.trim()) return false;
+    if (key === "governorate" && !addr.governorate?.trim()) return false;
+    if (key === "neighborhood" && !addr.neighborhood?.trim()) return false;
+    if (key === "building" && !addr.building?.trim()) return false;
+  }
+  return Boolean(addr.recipientName?.trim() && addr.phone?.trim());
 }

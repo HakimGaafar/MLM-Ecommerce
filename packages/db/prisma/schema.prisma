@@ -1110,10 +1110,20 @@ model CustomerShippingAddress {
   recipientName   String   @map("recipient_name") @db.VarChar(120)
   phone           String   @db.VarChar(32)
   countryCode     String   @map("country_code") @db.Char(2)
+  /** Governorate / state (OM, EG). */
+  governorate     String?  @db.VarChar(120)
   city            String   @db.VarChar(120)
+  neighborhood    String?  @db.VarChar(120)
+  building        String?  @db.VarChar(120)
   postalCode      String   @map("postal_code") @db.VarChar(20)
   addressLine1    String   @map("address_line_1") @db.VarChar(200)
   addressLine2    String?  @map("address_line_2") @db.VarChar(200)
+  /** Optional free-form full address line. */
+  fullAddress     String?  @map("full_address") @db.VarChar(500)
+  /** Saudi short national address (e.g. RQCD…. ). */
+  shortNationalAddress String? @map("short_national_address") @db.VarChar(64)
+  latitude        Decimal? @db.Decimal(10, 7)
+  longitude       Decimal? @db.Decimal(10, 7)
   isDefault       Boolean  @default(false) @map("is_default")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
