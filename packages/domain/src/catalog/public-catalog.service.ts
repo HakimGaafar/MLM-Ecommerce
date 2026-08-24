@@ -96,10 +96,24 @@ function productSelectForMarket(marketId?: string) {
 function publishedInMarketWhere(marketId: string) {
   return {
     status: "PUBLISHED" as const,
-    vendor: { storeApprovalStatus: "APPROVED" as const },
-    OR: [
-      { marketOffers: { some: { marketId } } },
-      { marketId, marketOffers: { none: {} } },
+    AND: [
+      { vendor: { storeApprovalStatus: "APPROVED" as const } },
+      {
+        OR: [
+          {
+            marketOffers: {
+              some: { marketId, stockLocation: "FOURCES_WAREHOUSE" as const },
+            },
+          },
+          {
+            marketOffers: {
+              some: { marketId, stockLocation: "MERCHANT" as const },
+            },
+            vendor: { deliveryCities: { some: {} } },
+          },
+          { marketId, marketOffers: { none: {} } },
+        ],
+      },
     ],
   };
 }

@@ -136,10 +136,37 @@ export async function addCartItem(
         { marketId, marketOffers: { none: {} } },
       ],
     },
-    select: { id: true },
+    select: {
+      id: true,
+      vendorId: true,
+      marketOffers: {
+        where: { marketId },
+        take: 1,
+        select: { stockLocation: true },
+      },
+    },
   });
   if (!product) {
     throw new Error("PRODUCT_NOT_FOUND");
+  }
+
+  const offer = product.marketOffers[0];
+  if (offer?.stockLocation === "MERCHANT") {
+    const address = await prisma.customerShippingAddress.findFirst({
+      where: { userId, isDefault: true },
+      select: { city: true, countryCode: true },
+    });
+    if (address?.city && address.countryCode) {
+      const { vendorCoversCity } = await import("../shipping/vendor-delivery-coverage.service");
+      const covered = await vendorCoversCity({
+        vendorId: product.vendorId,
+        countryCode: address.countryCode,
+        city: address.city,
+      });
+      if (!covered) {
+        throw new Error("PRODUCT_OUTSIDE_COVERAGE");
+      }
+    }
   }
 
   const cart = await ensureCart(userId, marketId);

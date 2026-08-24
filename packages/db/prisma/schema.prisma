@@ -203,6 +203,37 @@ enum ProductStockLocation {
   FOURCES_WAREHOUSE
 }
 
+/// Stage 4 — platform shipping rate list (merchant cannot set checkout fees).
+model ShippingRate {
+  id          String                        @id @default(cuid())
+  code        String                        @unique @db.VarChar(64)
+  packageType ShippingPackageType           @map("package_type")
+  fourcesMode VendorIndirectFulfillment?    @map("fources_mode")
+  amount      Decimal                       @db.Decimal(18, 2)
+  currency    String                        @default("SAR") @db.Char(3)
+  perUnit     Boolean                       @default(true) @map("per_unit")
+  isActive    Boolean                       @default(true) @map("is_active")
+  createdAt   DateTime                      @default(now()) @map("created_at")
+  updatedAt   DateTime                      @updatedAt @map("updated_at")
+
+  @@index([packageType, fourcesMode, isActive])
+  @@map("shipping_rates")
+}
+
+/// Stage 4 — cities a merchant covers for direct (from-my-stock) delivery.
+model VendorDeliveryCity {
+  id          String   @id @default(cuid())
+  vendorId    String   @map("vendor_id")
+  countryCode String   @map("country_code") @db.Char(2)
+  city        String   @db.VarChar(120)
+  createdAt   DateTime @default(now()) @map("created_at")
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, countryCode, city])
+  @@index([vendorId, countryCode])
+  @@map("vendor_delivery_cities")
+}
+
 enum VendorShippingProfileStatus {
   PENDING_APPROVAL
   APPROVED
@@ -538,6 +569,7 @@ model Vendor {
   fulfillmentEscalations  OrderFulfillmentEscalation[]
   vendorCancellations     OrderVendorCancellation[]
   kycDocuments            KycDocument[]
+  deliveryCities          VendorDeliveryCity[]
 
   @@unique([marketId, slug])
   @@unique([ownerUserId, marketId])
@@ -811,6 +843,8 @@ model ProductMarketOffer {
   currency      String               @db.Char(3)
   stockLocation ProductStockLocation @map("stock_location")
   warehouseId   String?              @map("warehouse_id")
+  /// FOURCES A (pre-stocked) vs B (on-order). Null when stock is at merchant.
+  fourcesMode   VendorIndirectFulfillment? @map("fources_mode")
   quantity      Int                  @default(0)
   createdAt     DateTime             @default(now()) @map("created_at")
   updatedAt     DateTime             @updatedAt @map("updated_at")

@@ -16,6 +16,7 @@ export const ProductMarketOfferInputSchema = z
     currency: z.string().trim().length(3).toUpperCase(),
     stockLocation: z.enum(PRODUCT_STOCK_LOCATIONS),
     warehouseId: z.string().trim().min(1).nullable().optional(),
+    fourcesMode: z.enum(["FORSEIZ_STOCK", "ON_ORDER"]).nullable().optional(),
     quantity: z.coerce.number().int().min(0).max(1_000_000),
   })
   .superRefine((value, ctx) => {
@@ -32,6 +33,13 @@ export const ProductMarketOfferInputSchema = z
           code: "custom",
           message: "FOURCES warehouses are only available in Saudi Arabia, Oman, and Egypt.",
           path: ["stockLocation"],
+        });
+      }
+      if (!value.fourcesMode) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Select FOURCES stock mode (pre-stocked or on-order).",
+          path: ["fourcesMode"],
         });
       }
     }

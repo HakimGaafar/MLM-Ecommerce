@@ -21,7 +21,18 @@ export const VendorSetupShippingSchema = z
     shippingNotes: z.string().trim().min(10).max(2000),
     shippingMode: shippingMode.default("DIRECT"),
     indirectFulfillment: indirectFulfillment.optional().nullable(),
-    shippingFee: z.coerce.number().min(0).max(1_000_000),
+    /** Ignored for checkout pricing — platform rate list applies. Kept for profile approval workflow. */
+    shippingFee: z.coerce.number().min(0).max(1_000_000).optional().default(0),
+    deliveryCities: z
+      .array(
+        z.object({
+          countryCode: z.string().trim().length(2).toUpperCase(),
+          city: z.string().trim().min(2).max(120),
+        }),
+      )
+      .max(100)
+      .optional()
+      .default([]),
   })
   .superRefine((data, ctx) => {
     if (data.shippingMode === "INDIRECT" && !data.indirectFulfillment) {
@@ -36,6 +47,13 @@ export const VendorSetupShippingSchema = z
         code: "custom",
         message: "Warehouse type must be empty for direct shipping.",
         path: ["indirectFulfillment"],
+      });
+    }
+    if (data.shippingMode === "DIRECT" && (data.deliveryCities?.length ?? 0) === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Add at least one delivery city for direct shipping.",
+        path: ["deliveryCities"],
       });
     }
   });

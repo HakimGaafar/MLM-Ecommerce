@@ -11,7 +11,6 @@ import { catalogCategoriesUrl } from "@/lib/locale-shared";
 import { useToast } from "@/components/toast/ToastProvider";
 import { getToastDict } from "@/lib/toast-messages";
 import { vendorProductFormUi } from "./vendor-product-form-ui";
-import { vendorProductFulfillmentOptions } from "@/lib/fulfillment-labels";
 import MarketOffersEditor, {
   createDefaultOfferDrafts,
   draftsToOffersPayload,
@@ -56,18 +55,12 @@ export default function VendorProductForm({ productId }: { productId?: string })
   const fileRef = useRef<HTMLInputElement>(null);
   const direction = locale === "ar" ? "rtl" : "ltr";
 
-  const fulfillmentOptions = useMemo(
-    () => vendorProductFulfillmentOptions(locale === "ar" ? ar.vendorProducts : en.vendorProducts),
-    [locale],
-  );
-
   const [categories, setCategories] = useState<Category[]>([]);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("SAR");
   const [offerDrafts, setOfferDrafts] = useState<OfferDraft[]>(() => createDefaultOfferDrafts());
   const [categoryId, setCategoryId] = useState("");
-  const [fulfillmentType, setFulfillmentType] = useState("DIRECT");
   const [metaTitle, setMetaTitle] = useState("");
   const [metaDescription, setMetaDescription] = useState("");
   const [imageItems, setImageItems] = useState<ImageItem[]>([]);
@@ -132,6 +125,7 @@ export default function VendorProductForm({ productId }: { productId?: string })
               price: string;
               currency: string;
               stockLocation: "MERCHANT" | "FOURCES_WAREHOUSE";
+              fourcesMode?: "FORSEIZ_STOCK" | "ON_ORDER" | null;
               quantity: number;
             }>;
           };
@@ -151,6 +145,7 @@ export default function VendorProductForm({ productId }: { productId?: string })
                 price: offer.price,
                 currency: offer.currency,
                 stockLocation: offer.stockLocation,
+                fourcesMode: offer.fourcesMode === "ON_ORDER" ? "ON_ORDER" : "FORSEIZ_STOCK",
                 quantity: String(offer.quantity ?? 0),
               };
             }
@@ -163,7 +158,6 @@ export default function VendorProductForm({ productId }: { productId?: string })
         }
         setOfferDrafts(drafts);
         setCategoryId(data.product.categoryId);
-        setFulfillmentType(data.product.fulfillmentType ?? "DIRECT");
         setMetaTitle(data.product.metaTitle ?? "");
         setMetaDescription(data.product.metaDescription ?? "");
         const imgs = data.product.images
@@ -294,7 +288,6 @@ export default function VendorProductForm({ productId }: { productId?: string })
         price: offers[0]!.price,
         currency: offers[0]!.currency,
         categoryId,
-        fulfillmentType,
         offers,
         images,
         metaTitle: metaTitle.trim(),
@@ -371,23 +364,6 @@ export default function VendorProductForm({ productId }: { productId?: string })
         </select>
       </label>
 
-      <label className="block space-y-1 text-sm">
-        <span className="font-medium">{ui.formFulfillment}</span>
-        <select
-          required
-          className="app-input"
-          value={fulfillmentType}
-          onChange={(e) => setFulfillmentType(e.target.value)}
-        >
-          {fulfillmentOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        <span className="text-xs text-[var(--muted)]">{ui.formFulfillmentHint}</span>
-      </label>
-
       <MarketOffersEditor
         drafts={offerDrafts}
         onChange={setOfferDrafts}
@@ -407,6 +383,11 @@ export default function VendorProductForm({ productId }: { productId?: string })
           stockFources: ui.formOfferStockFources,
           stockFourcesHint: ui.formOfferStockFourcesHint,
           stockFourcesUnavailable: ui.formOfferStockFourcesUnavailable,
+          fourcesMode: ui.formOfferFourcesMode,
+          fourcesStockA: ui.formOfferFourcesStockA,
+          fourcesStockAHint: ui.formOfferFourcesStockAHint,
+          fourcesStockB: ui.formOfferFourcesStockB,
+          fourcesStockBHint: ui.formOfferFourcesStockBHint,
         }}
       />
 

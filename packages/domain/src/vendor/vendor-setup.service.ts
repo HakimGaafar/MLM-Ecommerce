@@ -1,6 +1,11 @@
 import type { VendorSetupBrandingInput, VendorSetupPayoutInput, VendorSetupShippingInput } from "@mlm/shared";
 import { prisma } from "@mlm/db";
-import { getVendorShippingProfile, submitVendorShippingChangeRequest } from "./vendor-shipping.service";
+import { submitVendorShippingChangeRequest } from "./vendor-shipping.service";
+import {
+  listVendorDeliveryCities,
+  replaceVendorDeliveryCities,
+  type VendorDeliveryCityDto,
+} from "../shipping/vendor-delivery-coverage.service";
 
 export type VendorSetupStepDto = {
   id: "branding" | "shipping" | "payout";
@@ -21,6 +26,8 @@ export type VendorSetupDto = {
     feeSetByAdmin: boolean;
     pendingRequest: boolean;
     shippingSetupAt: string | null;
+    deliveryCities: VendorDeliveryCityDto[];
+    ratesNote: string;
   };
   payout: {
     payoutAccountHolder: string | null;
@@ -49,9 +56,12 @@ function buildSetup(row: {
   payoutIban: string | null;
   payoutSetupAt: Date | null;
   pendingRequest: boolean;
+  deliveryCities: VendorDeliveryCityDto[];
 }): VendorSetupDto {
   const brandingComplete = Boolean(row.logoUrl?.trim() && row.bannerUrl?.trim());
-  const shippingComplete = row.shippingProfileStatus === "APPROVED";
+  const coverageOk =
+    row.shippingMode !== "DIRECT" || row.deliveryCities.length > 0;
+  const shippingComplete = row.shippingProfileStatus === "APPROVED" && coverageOk;
   const payoutComplete = Boolean(row.payoutSetupAt);
 
   const steps: VendorSetupStepDto[] = [
@@ -74,6 +84,8 @@ function buildSetup(row: {
       feeSetByAdmin: row.shippingFeeSetByAdmin,
       pendingRequest: row.pendingRequest,
       shippingSetupAt: row.shippingSetupAt?.toISOString() ?? null,
+      deliveryCities: row.deliveryCities,
+      ratesNote: "Checkout shipping fees come from the platform rate list (not merchant-set).",
     },
     payout: {
       payoutAccountHolder: row.payoutAccountHolder,
@@ -108,7 +120,8 @@ async function loadSetupRow(vendorId: string) {
     where: { vendorId, status: "PENDING" },
     select: { id: true },
   });
-  return buildSetup({ ...row, pendingRequest: Boolean(pending) });
+  const deliveryCities = await listVendorDeliveryCities(vendorId);
+  return buildSetup({ ...row, pendingRequest: Boolean(pending), deliveryCities });
 }
 
 export async function getVendorSetup(vendorId: string): Promise<VendorSetupDto | null> {
@@ -133,10 +146,16 @@ export async function updateVendorSetupShipping(
   vendorId: string,
   input: VendorSetupShippingInput,
 ): Promise<VendorSetupDto | null> {
+  if (input.deliveryCities) {
+    await replaceVendorDeliveryCities({
+      vendorId,
+      cities: input.deliveryCities,
+    });
+  }
   await submitVendorShippingChangeRequest(vendorId, {
     shippingMode: input.shippingMode,
     indirectFulfillment: input.indirectFulfillment ?? null,
-    shippingFee: input.shippingFee,
+    shippingFee: input.shippingFee ?? 0,
     shippingNotes: input.shippingNotes,
   });
   return loadSetupRow(vendorId);

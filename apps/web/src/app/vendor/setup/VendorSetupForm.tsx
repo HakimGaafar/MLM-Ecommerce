@@ -23,6 +23,8 @@ type Setup = {
     profileStatus: "PENDING_APPROVAL" | "APPROVED";
     feeSetByAdmin: boolean;
     pendingRequest: boolean;
+    deliveryCities: Array<{ id: string; countryCode: string; city: string }>;
+    ratesNote: string;
   };
   payout: { payoutAccountHolder: string | null; payoutIbanMasked: string | null };
 };
@@ -48,9 +50,12 @@ export default function VendorSetupForm({ locale, ui }: { locale: Locale; ui: Ui
   const [shippingNotes, setShippingNotes] = useState("");
   const [shippingMode, setShippingMode] = useState<ShippingMode>("DIRECT");
   const [indirectFulfillment, setIndirectFulfillment] = useState<IndirectFulfillment | "">("");
-  const [shippingFee, setShippingFee] = useState("15");
+  const [shippingFee, setShippingFee] = useState("0");
   const [payoutAccountHolder, setPayoutAccountHolder] = useState("");
   const [payoutIban, setPayoutIban] = useState("");
+  const [coverageCountry, setCoverageCountry] = useState("SA");
+  const [coverageCity, setCoverageCity] = useState("");
+  const [deliveryCities, setDeliveryCities] = useState<Array<{ countryCode: string; city: string }>>([]);
 
   const load = useCallback(async () => {
     setError(null);
@@ -65,8 +70,14 @@ export default function VendorSetupForm({ locale, ui }: { locale: Locale; ui: Ui
       setShippingNotes(data.setup.shipping.shippingNotes ?? "");
       setShippingMode(data.setup.shipping.shippingMode ?? "DIRECT");
       setIndirectFulfillment(data.setup.shipping.indirectFulfillment ?? "");
-      setShippingFee(data.setup.shipping.shippingFee ?? "15");
+      setShippingFee(data.setup.shipping.shippingFee ?? "0");
       setPayoutAccountHolder(data.setup.payout.payoutAccountHolder ?? "");
+      setDeliveryCities(
+        (data.setup.shipping.deliveryCities ?? []).map((c) => ({
+          countryCode: c.countryCode,
+          city: c.city,
+        })),
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : ui.loadError);
     } finally {
@@ -146,7 +157,8 @@ export default function VendorSetupForm({ locale, ui }: { locale: Locale; ui: Ui
       shippingNotes,
       shippingMode,
       indirectFulfillment: shippingMode === "INDIRECT" ? indirectFulfillment || null : null,
-      shippingFee: Number.parseFloat(shippingFee),
+      shippingFee: 0,
+      deliveryCities: shippingMode === "DIRECT" ? deliveryCities : [],
     });
     if (ok) setStepIndex(2);
   }
@@ -291,19 +303,76 @@ export default function VendorSetupForm({ locale, ui }: { locale: Locale; ui: Ui
                   <option value="ON_ORDER">{ui.indirectOnOrder}</option>
                 </select>
               </label>
-            ) : null}
-            <label className="block text-sm">
-              {ui.shippingFee}
-              <input
-                className="mt-1 w-full rounded border px-3 py-2 dark:bg-[var(--surface)]"
-                type="number"
-                min={0}
-                step="0.01"
-                value={shippingFee}
-                onChange={(e) => setShippingFee(e.target.value)}
-                required
-              />
-            </label>
+            ) : (
+              <div className="space-y-2 rounded-lg border border-[var(--border)] p-3">
+                <p className="text-sm font-medium">{ui.deliveryCitiesTitle}</p>
+                <p className="text-xs text-[var(--muted)]">{ui.deliveryCitiesHint}</p>
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    className="app-input"
+                    value={coverageCountry}
+                    onChange={(e) => setCoverageCountry(e.target.value)}
+                  >
+                    <option value="SA">SA</option>
+                    <option value="OM">OM</option>
+                    <option value="EG">EG</option>
+                  </select>
+                  <input
+                    className="app-input min-w-[10rem] flex-1"
+                    placeholder={ui.deliveryCityPlaceholder}
+                    value={coverageCity}
+                    onChange={(e) => setCoverageCity(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn-neutral rounded-lg px-3 py-2 text-sm"
+                    onClick={() => {
+                      const city = coverageCity.trim();
+                      if (city.length < 2) return;
+                      const key = `${coverageCountry}:${city.toLowerCase()}`;
+                      if (deliveryCities.some((c) => `${c.countryCode}:${c.city.toLowerCase()}` === key)) {
+                        setCoverageCity("");
+                        return;
+                      }
+                      setDeliveryCities((prev) => [...prev, { countryCode: coverageCountry, city }]);
+                      setCoverageCity("");
+                    }}
+                  >
+                    {ui.addCity}
+                  </button>
+                </div>
+                {deliveryCities.length > 0 ? (
+                  <ul className="flex flex-wrap gap-2">
+                    {deliveryCities.map((c) => (
+                      <li
+                        key={`${c.countryCode}:${c.city}`}
+                        className="flex items-center gap-1 rounded-full border border-[var(--border)] px-2 py-1 text-xs"
+                      >
+                        {c.countryCode} · {c.city}
+                        <button
+                          type="button"
+                          className="text-[var(--muted)]"
+                          onClick={() =>
+                            setDeliveryCities((prev) =>
+                              prev.filter(
+                                (x) =>
+                                  !(
+                                    x.countryCode === c.countryCode &&
+                                    x.city.toLowerCase() === c.city.toLowerCase()
+                                  ),
+                              ),
+                            )
+                          }
+                        >
+                          ×
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            )}
+            <p className="text-xs text-[var(--muted)]">{ui.shippingRatesNote ?? setup.shipping.ratesNote}</p>
             <label className="block text-sm">
               {ui.shippingNotes}
               <textarea

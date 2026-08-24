@@ -13,6 +13,7 @@ export type ProductMarketOfferDto = {
   currency: string;
   stockLocation: "MERCHANT" | "FOURCES_WAREHOUSE";
   warehouseId: string | null;
+  fourcesMode: "FORSEIZ_STOCK" | "ON_ORDER" | null;
   quantity: number;
 };
 
@@ -36,15 +37,20 @@ export function normalizeProductMarketOffers(
       offer.stockLocation === "FOURCES_WAREHOUSE"
         ? (offer.warehouseId ?? warehouseIdForMarket(offer.marketId))
         : null,
+    fourcesMode:
+      offer.stockLocation === "FOURCES_WAREHOUSE"
+        ? (offer.fourcesMode ?? "FORSEIZ_STOCK")
+        : null,
   }));
 }
 
 export function fulfillmentTypeFromOffers(
   offers: ProductMarketOfferInput[],
-): "DIRECT" | "FORSEIZ_STOCK" {
-  return offers.some((o) => o.stockLocation === "FOURCES_WAREHOUSE")
-    ? "FORSEIZ_STOCK"
-    : "DIRECT";
+): "DIRECT" | "FORSEIZ_STOCK" | "ON_ORDER" {
+  const fources = offers.filter((o) => o.stockLocation === "FOURCES_WAREHOUSE");
+  if (fources.length === 0) return "DIRECT";
+  if (fources.some((o) => o.fourcesMode === "ON_ORDER")) return "ON_ORDER";
+  return "FORSEIZ_STOCK";
 }
 
 /** Replace all market offers for a product (transaction client). */
@@ -66,6 +72,10 @@ export async function replaceProductMarketOffers(
       warehouseId:
         offer.stockLocation === "FOURCES_WAREHOUSE"
           ? (offer.warehouseId ?? warehouseIdForMarket(offer.marketId))
+          : null,
+      fourcesMode:
+        offer.stockLocation === "FOURCES_WAREHOUSE"
+          ? (offer.fourcesMode ?? "FORSEIZ_STOCK")
           : null,
       quantity: offer.quantity,
     })),

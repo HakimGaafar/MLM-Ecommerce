@@ -21,6 +21,10 @@ import {
   type ProductMarketOfferDto,
 } from "./product-market-offer.service";
 import { assertMerchantCanSell, MerchantGateError } from "./vendor-merchant-gate.service";
+import {
+  assertMerchantDirectShippingReady,
+  VendorCoverageError,
+} from "../shipping/vendor-delivery-coverage.service";
 
 export class VendorProductError extends Error {
   constructor(
@@ -32,7 +36,9 @@ export class VendorProductError extends Error {
       | "PENDING_EDIT_REQUEST_EXISTS"
       | "STORE_NOT_APPROVED"
       | "SETUP_INCOMPLETE"
-      | "KYC_INCOMPLETE",
+      | "KYC_INCOMPLETE"
+      | "WAREHOUSE_ADDRESS_REQUIRED"
+      | "COVERAGE_REQUIRED",
     message?: string,
   ) {
     super(message ?? code);
@@ -88,6 +94,7 @@ type ProductRow = {
     currency: string;
     stockLocation: string;
     warehouseId: string | null;
+    fourcesMode?: string | null;
     quantity: number;
     market: { code: string };
   }[];
@@ -105,6 +112,7 @@ function toOffersDto(row: ProductRow): ProductMarketOfferDto[] {
     currency: offer.currency,
     stockLocation: offer.stockLocation as ProductMarketOfferDto["stockLocation"],
     warehouseId: offer.warehouseId,
+    fourcesMode: (offer.fourcesMode as ProductMarketOfferDto["fourcesMode"]) ?? null,
     quantity: offer.quantity,
   }));
 }
@@ -246,6 +254,23 @@ export async function createVendorProduct(
     throw new VendorProductError("INVALID_CATEGORY", "Invalid product category.");
   }
 
+  const offersPreview =
+    input.offers?.length
+      ? normalizeProductMarketOffers(input.offers)
+      : [{ stockLocation: "MERCHANT" as const }];
+  if (offersPreview.some((o) => o.stockLocation === "MERCHANT")) {
+    try {
+      await assertMerchantDirectShippingReady(vendorId);
+    } catch (e) {
+      if (e instanceof VendorCoverageError) {
+        const code =
+          e.code === "OUTSIDE_COVERAGE" ? "COVERAGE_REQUIRED" : e.code;
+        throw new VendorProductError(code, e.message);
+      }
+      throw e;
+    }
+  }
+
   const row = await prisma.$transaction(async (tx) => {
     const vendor = await tx.vendor.findUniqueOrThrow({
       where: { id: vendorId },
@@ -267,6 +292,7 @@ export async function createVendorProduct(
               currency: input.currency ?? vendor.market.defaultCurrency,
               stockLocation: "MERCHANT" as const,
               warehouseId: null,
+              fourcesMode: null,
               quantity: 0,
             },
           ];
@@ -335,6 +361,22 @@ export async function updateVendorProduct(
       throw new VendorProductError("INVALID_CATEGORY", "Invalid product category.");
     }
   }
+
+  if (input.offers?.length) {
+      const offers = normalizeProductMarketOffers(input.offers);
+      if (offers.some((o) => o.stockLocation === "MERCHANT")) {
+        try {
+          await assertMerchantDirectShippingReady(vendorId);
+        } catch (e) {
+          if (e instanceof VendorCoverageError) {
+            const code =
+              e.code === "OUTSIDE_COVERAGE" ? "COVERAGE_REQUIRED" : e.code;
+            throw new VendorProductError(code, e.message);
+          }
+          throw e;
+        }
+      }
+    }
 
   if (input.status !== undefined) {
     assertVendorStatusChange(existing.status as ProductStatus, input.status);

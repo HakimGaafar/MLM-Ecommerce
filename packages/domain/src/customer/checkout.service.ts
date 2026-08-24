@@ -38,6 +38,7 @@ import {
 } from "./coupon-checkout.service";
 import { assertShippingCountryMatchesMarket, pickShippingAddressForMarket } from "./delivery-market";
 import type { MarketCode } from "@mlm/shared";
+import { vendorCoversCity } from "../shipping/vendor-delivery-coverage.service";
 import { isUserEmailVerified } from "../auth/otp-verification.service";
 
 export class CheckoutError extends Error {
@@ -54,7 +55,8 @@ export class CheckoutError extends Error {
       | "COUPON_CURRENCY_MISMATCH"
       | "INSUFFICIENT_WALLET_BALANCE"
       | "DELIVERY_MARKET_MISMATCH"
-      | "EMAIL_VERIFICATION_REQUIRED",
+      | "EMAIL_VERIFICATION_REQUIRED"
+      | "PRODUCT_OUTSIDE_COVERAGE",
     message?: string,
   ) {
     super(message ?? code);
@@ -105,6 +107,7 @@ type PreparedCartLine = CartLineForCoupon & {
   warehouseId?: string | null;
   warehouseCountry?: string | null;
   merchantCountry?: string | null;
+  fourcesMode?: "FORSEIZ_STOCK" | "ON_ORDER" | null;
 };
 
 function mapCouponCheckoutError(error: CouponCheckoutError): CheckoutError {
@@ -183,6 +186,7 @@ async function loadPreparedCartLines(
               currency: true,
               stockLocation: true,
               warehouseId: true,
+              fourcesMode: true,
               warehouse: { select: { countryCode: true } },
             },
           },
@@ -203,7 +207,11 @@ async function loadPreparedCartLines(
       vendorId: p.vendorId,
       name: p.name,
       vendorName: p.vendor.storeName,
-      fulfillmentType: p.fulfillmentType as ProductFulfillmentTypeCode,
+      fulfillmentType: (offer?.fourcesMode === "ON_ORDER"
+        ? "ON_ORDER"
+        : offer?.stockLocation === "FOURCES_WAREHOUSE"
+          ? "FORSEIZ_STOCK"
+          : p.fulfillmentType) as ProductFulfillmentTypeCode,
       quantity: row.quantity,
       unitPrice,
       lineTotal: unitPrice.mul(row.quantity),
@@ -212,6 +220,7 @@ async function loadPreparedCartLines(
       warehouseId: offer?.warehouseId,
       warehouseCountry: offer?.warehouse?.countryCode ?? null,
       merchantCountry: p.vendor.countryCode,
+      fourcesMode: offer?.fourcesMode ?? null,
     });
   }
   return prepared;
@@ -392,6 +401,8 @@ export async function getCheckoutQuoteForUser(
         warehouseCountry: line.warehouseCountry,
         merchantCountry: line.merchantCountry,
         customerCountry: addressPick.shippingCountryCode,
+        fourcesMode: line.fourcesMode,
+        quantity: line.quantity,
       })),
       prisma,
     );
@@ -524,6 +535,22 @@ export async function createOrderFromCart(
     if (prepared.length === 0) throw new CheckoutError("EMPTY_CART");
     assertSingleCurrency(prepared);
 
+    for (const line of prepared) {
+      if (line.stockLocation === "MERCHANT") {
+        const covered = await vendorCoversCity({
+          vendorId: line.vendorId,
+          countryCode: shipping.shippingCountryCode,
+          city: shipping.shippingCity,
+        });
+        if (!covered) {
+          throw new CheckoutError(
+            "PRODUCT_OUTSIDE_COVERAGE",
+            `“${line.name}” is not available for delivery to ${shipping.shippingCity}.`,
+          );
+        }
+      }
+    }
+
     let subtotal = new Prisma.Decimal(0);
     for (const line of prepared) {
       subtotal = subtotal.add(line.lineTotal);
@@ -541,6 +568,8 @@ export async function createOrderFromCart(
         warehouseCountry: line.warehouseCountry,
         merchantCountry: line.merchantCountry,
         customerCountry: shipping.shippingCountryCode,
+        fourcesMode: line.fourcesMode,
+        quantity: line.quantity,
       })),
       tx,
     );

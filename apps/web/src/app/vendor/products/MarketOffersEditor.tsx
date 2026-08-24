@@ -8,6 +8,7 @@ export type OfferDraft = {
   price: string;
   currency: string;
   stockLocation: "MERCHANT" | "FOURCES_WAREHOUSE";
+  fourcesMode: "FORSEIZ_STOCK" | "ON_ORDER";
   quantity: string;
 };
 
@@ -25,6 +26,7 @@ export function createDefaultOfferDrafts(homeMarketId?: string): OfferDraft[] {
     price: "",
     currency: defaultCurrencyForMarketId(m.id),
     stockLocation: "MERCHANT",
+    fourcesMode: "FORSEIZ_STOCK",
     quantity: "0",
   }));
 }
@@ -45,6 +47,11 @@ type Labels = {
   stockFources: string;
   stockFourcesHint: string;
   stockFourcesUnavailable: string;
+  fourcesMode: string;
+  fourcesStockA: string;
+  fourcesStockAHint: string;
+  fourcesStockB: string;
+  fourcesStockBHint: string;
 };
 
 export default function MarketOffersEditor({
@@ -157,7 +164,10 @@ export default function MarketOffersEditor({
                         disabled={!fourcesAllowed}
                         checked={draft.stockLocation === "FOURCES_WAREHOUSE"}
                         onChange={() =>
-                          update(draft.marketId, { stockLocation: "FOURCES_WAREHOUSE" })
+                          update(draft.marketId, {
+                            stockLocation: "FOURCES_WAREHOUSE",
+                            fourcesMode: draft.fourcesMode || "FORSEIZ_STOCK",
+                          })
                         }
                       />
                       <span>
@@ -168,6 +178,36 @@ export default function MarketOffersEditor({
                       </span>
                     </label>
                   </fieldset>
+
+                  {draft.stockLocation === "FOURCES_WAREHOUSE" && fourcesAllowed ? (
+                    <fieldset className="space-y-2">
+                      <legend className="text-sm font-medium">{labels.fourcesMode}</legend>
+                      <label className="flex cursor-pointer gap-2 rounded-lg border border-[var(--border)] p-2.5 text-sm has-[:checked]:border-[var(--primary)]">
+                        <input
+                          type="radio"
+                          name={`fources-${draft.marketId}`}
+                          checked={draft.fourcesMode === "FORSEIZ_STOCK"}
+                          onChange={() => update(draft.marketId, { fourcesMode: "FORSEIZ_STOCK" })}
+                        />
+                        <span>
+                          <strong className="block">{labels.fourcesStockA}</strong>
+                          <span className="text-xs text-[var(--muted)]">{labels.fourcesStockAHint}</span>
+                        </span>
+                      </label>
+                      <label className="flex cursor-pointer gap-2 rounded-lg border border-[var(--border)] p-2.5 text-sm has-[:checked]:border-[var(--primary)]">
+                        <input
+                          type="radio"
+                          name={`fources-${draft.marketId}`}
+                          checked={draft.fourcesMode === "ON_ORDER"}
+                          onChange={() => update(draft.marketId, { fourcesMode: "ON_ORDER" })}
+                        />
+                        <span>
+                          <strong className="block">{labels.fourcesStockB}</strong>
+                          <span className="text-xs text-[var(--muted)]">{labels.fourcesStockBHint}</span>
+                        </span>
+                      </label>
+                    </fieldset>
+                  ) : null}
                 </div>
               ) : null}
             </article>
@@ -188,8 +228,8 @@ export function draftsToOffersPayload(drafts: OfferDraft[]) {
         price: Number.parseFloat(d.price),
         currency: d.currency,
         stockLocation: d.stockLocation,
-        warehouseId:
-          d.stockLocation === "FOURCES_WAREHOUSE" ? meta.warehouseId : null,
+        warehouseId: d.stockLocation === "FOURCES_WAREHOUSE" ? meta.warehouseId : null,
+        fourcesMode: d.stockLocation === "FOURCES_WAREHOUSE" ? d.fourcesMode : null,
         quantity: Number.parseInt(d.quantity || "0", 10) || 0,
       };
     });

@@ -55,7 +55,9 @@ export async function POST(request: NextRequest) {
       if (
         e.code === "STORE_NOT_APPROVED" ||
         e.code === "SETUP_INCOMPLETE" ||
-        e.code === "KYC_INCOMPLETE"
+        e.code === "KYC_INCOMPLETE" ||
+        e.code === "WAREHOUSE_ADDRESS_REQUIRED" ||
+        e.code === "COVERAGE_REQUIRED"
       ) {
         return NextResponse.json({ error: e.message, code: e.code }, { status: 409 });
       }
