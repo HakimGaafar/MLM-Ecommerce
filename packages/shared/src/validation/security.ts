@@ -4,7 +4,7 @@ const cuidLike = z.string().trim().min(10).max(64);
 
 export const WalletWithdrawSchema = z.object({
   amount: z.coerce.number().positive().max(10_000_000),
-  kycSubject: z.enum(["CUSTOMER", "AFFILIATE"]).optional().default("CUSTOMER"),
+  kycSubject: z.enum(["CUSTOMER", "AFFILIATE"]).optional().default("AFFILIATE"),
 });
 
 export type WalletWithdrawInput = z.infer<typeof WalletWithdrawSchema>;

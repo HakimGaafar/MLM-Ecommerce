@@ -62,12 +62,26 @@ async function sendMail(input: {
     });
     if (result.error) {
       console.error("[mail:resend]", result.error);
+      // Resend test sender (onboarding@resend.dev) often rejects third-party inboxes.
+      // In non-production, fall back to console so wallet/checkout OTP can still be tested.
+      if (process.env.NODE_ENV !== "production") {
+        console.info(
+          `[mail:dev-fallback] Resend failed (${result.error.message}). Logging email instead.\nTo: ${input.to}\nSubject: ${input.subject}\n\n${input.text}`,
+        );
+        return { ok: true, mode: "console", error: result.error.message };
+      }
       return { ok: false, mode: "resend", error: result.error.message };
     }
     return { ok: true, mode: "resend" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "send_failed";
     console.error("[mail:resend]", message);
+    if (process.env.NODE_ENV !== "production") {
+      console.info(
+        `[mail:dev-fallback] Resend threw (${message}). Logging email instead.\nTo: ${input.to}\nSubject: ${input.subject}\n\n${input.text}`,
+      );
+      return { ok: true, mode: "console", error: message };
+    }
     return { ok: false, mode: "resend", error: message };
   }
 }
@@ -135,19 +149,54 @@ export async function sendOtpVerificationEmail(input: {
 }): Promise<{ ok: boolean; mode: "resend" | "console"; error?: string }> {
   const safeName = escapeHtml(input.name || "there");
   const safeCode = escapeHtml(input.code);
-  const subject = `Your ${APP_NAME} verification code`;
+  const subject = `${input.code} is your ${APP_NAME} verification code`;
   const text = `Hi ${input.name || "there"},
 
 Your ${APP_NAME} verification code is: ${input.code}
 
-This code expires in 10 minutes. If you did not request it, you can ignore this email.`;
+This code expires in 10 minutes. If you did not request it, you can ignore this email.
+
+Regards,
+The ${APP_NAME} Team`;
 
   const html = wrapEmail(
     `<p>Hi ${safeName},</p>
      <p>Your ${escapeHtml(APP_NAME)} verification code is:</p>
-     <p style="font-size:28px;font-weight:bold;letter-spacing:0.2em;">${safeCode}</p>
+     <p style="font-size:28px;font-weight:bold;letter-spacing:0.2em;color:#2563eb;">${safeCode}</p>
      <p>This code expires in 10 minutes.</p>
-     <p>If you did not request it, you can ignore this email.</p>`,
+     <p>If you did not request it, you can ignore this email.</p>
+     <p>Regards,<br/>The ${escapeHtml(APP_NAME)} Team</p>`,
+  );
+
+  return sendMail({ to: input.to, subject, html, text });
+}
+
+export async function sendWelcomeEmail(input: {
+  to: string;
+  name: string;
+}): Promise<{ ok: boolean; mode: "resend" | "console"; error?: string }> {
+  const loginUrl = `${appBaseUrl()}/account/customer`;
+  const safeName = escapeHtml(input.name || "there");
+  const subject = `Welcome to ${APP_NAME}`;
+  const text = `Hi ${input.name || "there"},
+
+Welcome to ${APP_NAME}! Your customer account is ready.
+
+Sign in anytime:
+${loginUrl}
+
+You can shop, track orders, and activate your wallet when you are ready.
+
+Thanks for joining us.
+The ${APP_NAME} Team`;
+
+  const html = wrapEmail(
+    `<p>Hi ${safeName},</p>
+     <p>Welcome to ${escapeHtml(APP_NAME)}! Your customer account is ready.</p>
+     <p>Sign in anytime:</p>
+     <p style="word-break:break-all;"><a href="${escapeHtml(loginUrl)}">${escapeHtml(loginUrl)}</a></p>
+     <p>You can shop, track orders, and activate your wallet when you are ready.</p>
+     <p>Thanks for joining us.<br/>The ${escapeHtml(APP_NAME)} Team</p>`,
   );
 
   return sendMail({ to: input.to, subject, html, text });

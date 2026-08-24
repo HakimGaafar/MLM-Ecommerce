@@ -34,6 +34,7 @@ export default function OtpVerificationPanel({
   const [verifying, setVerifying] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewCode, setPreviewCode] = useState<string | null>(null);
 
   const loadStatus = useCallback(async () => {
     setLoadingStatus(true);
@@ -70,10 +71,11 @@ export default function OtpVerificationPanel({
         credentials: "include",
       });
       const payload = (await res.json().catch(() => null)) as
-        | { maskedEmail?: string; error?: string }
+        | { maskedEmail?: string; error?: string; previewCode?: string }
         | null;
       if (!res.ok) throw new Error(payload?.error ?? ui.sendError);
       setMaskedEmail(payload?.maskedEmail ?? maskedEmail);
+      setPreviewCode(payload?.previewCode ?? null);
       setSent(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : ui.sendError);
@@ -126,6 +128,11 @@ export default function OtpVerificationPanel({
         </p>
       ) : null}
       {sent ? <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">{ui.resent}</p> : null}
+      {previewCode ? (
+        <p className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm" dir="ltr">
+          Dev preview code: <strong className="tracking-[0.2em]">{previewCode}</strong>
+        </p>
+      ) : null}
       {error ? <p className="app-alert-error mt-3">{error}</p> : null}
       <div className="mt-4 flex flex-wrap gap-3">
         <button

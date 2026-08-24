@@ -57,7 +57,7 @@ export async function requestAffiliateWithdrawal(params: {
     );
   }
 
-  const kycSubject = params.kycSubject ?? "CUSTOMER";
+  const kycSubject = params.kycSubject ?? "AFFILIATE";
   try {
     await assertKycApprovedForWithdraw({ userId: params.userId, subjectType: kycSubject });
   } catch (error) {

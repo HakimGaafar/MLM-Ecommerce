@@ -187,7 +187,7 @@ async function listOtherMarketWalletBalances(
 export async function getWalletSummary(userId: string, marketId: string = DEFAULT_MARKET_ID): Promise<WalletSummaryDto> {
   const [wallet, kyc, platformConfig, minWithdrawal, market, otherMarkets] = await Promise.all([
     ensureWallet(userId, marketId),
-    getKycStatusSummary({ subjectType: "CUSTOMER", userId }),
+    getKycStatusSummary({ subjectType: "AFFILIATE", userId }),
     getPlatformConfig(marketId),
     getMinWithdrawalAmount(marketId),
     prisma.market.findUnique({

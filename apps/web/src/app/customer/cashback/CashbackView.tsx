@@ -235,7 +235,7 @@ export default function CashbackView({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount }),
+        body: JSON.stringify({ amount, kycSubject: "AFFILIATE" }),
       });
       const payload = (await res.json().catch(() => null)) as {
         error?: string;
@@ -370,7 +370,7 @@ export default function CashbackView({
           )}
         </p>
         <p className="mt-2 text-sm">
-          <a href="/kyc" className="text-link font-medium">
+          <a href="/affiliate/kyc" className="text-link font-medium">
             {ui.kycLink}
           </a>
         </p>

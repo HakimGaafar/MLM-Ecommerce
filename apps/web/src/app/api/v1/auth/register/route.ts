@@ -12,6 +12,7 @@ import {
   publicErrorMessage,
   PUBLIC_API_ERRORS,
 } from "@/lib/api-error-response";
+import { sendWelcomeEmail } from "@/lib/mail";
 import { resolveRequestMarket } from "@/lib/request-market";
 import {
   consumeRateLimit,
@@ -152,6 +153,12 @@ export async function POST(request: NextRequest) {
       path: "/",
       maxAge: 0,
     });
+
+    // Best-effort welcome email — do not fail registration if mail is down.
+    void sendWelcomeEmail({ to: user.email, name: user.name }).catch((error) => {
+      console.error("[auth/register] welcome email failed", error);
+    });
+
     return response;
   } catch (error) {
     if (error instanceof ReferralBindError) {

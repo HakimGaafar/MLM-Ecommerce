@@ -70,11 +70,21 @@ export async function POST(request: NextRequest) {
       code: issued.code,
     });
     if (!mail.ok) {
-      return NextResponse.json({ error: "Could not send verification code." }, { status: 503 });
+      return NextResponse.json(
+        {
+          error: mail.error
+            ? `Could not send verification code. ${mail.error}`
+            : "Could not send verification code.",
+        },
+        { status: 503 },
+      );
     }
     return NextResponse.json({
       maskedEmail: issued.maskedEmail,
       sent: true,
+      ...(mail.mode === "console" && process.env.NODE_ENV !== "production"
+        ? { previewCode: issued.code }
+        : {}),
     });
   } catch (error) {
     if (error instanceof OtpVerificationError) return otpErrorResponse(error);

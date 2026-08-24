@@ -387,7 +387,7 @@ export default function AffiliateView({
               <Link href="/cashback" className="font-medium text-link">
                 {ui.walletLink}
               </Link>
-              <Link href="/kyc" className="font-medium text-link">
+              <Link href="/affiliate/kyc" className="font-medium text-link">
                 {ui.kycLink}
               </Link>
             </p>

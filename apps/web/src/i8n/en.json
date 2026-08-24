@@ -94,9 +94,9 @@
       "loading": "Checking verification status…"
     },
     "cashbackTitle": "Activate your wallet",
-    "cashbackBody": "Before you can use your cashback wallet, verify your email with a one-time code.",
+    "cashbackBody": "Email verification is required once — the first time you activate your wallet (or place your first order). After that you can use cashback for purchases.",
     "checkoutTitle": "Verify before your first order",
-    "checkoutBody": "Confirm your email with a one-time code before placing your first order."
+    "checkoutBody": "Confirm your email with a one-time code before placing your first order. This is only required once."
   },
   "customerDashboard": {
     "title": "Customer Dashboard",
@@ -160,7 +160,7 @@
     "directionDebit": "Debit",
     "loadMore": "Load more",
     "walletLink": "Open wallet",
-    "kycLink": "Verify identity",
+    "kycLink": "Marketer verification",
     "rankLabel": "Your rank",
     "genealogyTitle": "Your network tree",
     "genealogyTruncated": "Showing a limited portion of your network.",
@@ -171,7 +171,7 @@
       "emptyChildren": "No further referrals"
     },
     "withdrawTitle": "Request payout",
-    "withdrawHint": "Withdraw available balance from your wallet (affiliate earnings and cashback).",
+    "withdrawHint": "Commission withdrawals need approved marketer verification. Request payout from your wallet after KYC is approved.",
     "withdrawAmount": "Amount (SAR)",
     "withdrawSubmit": "Request withdrawal",
     "withdrawSubmitting": "Submitting…",
@@ -225,7 +225,7 @@
     "tabCashback": "Cashback",
     "tabAffiliate": "Affiliate earnings",
     "withdrawTitle": "Request payout",
-    "withdrawHint": "Available balance can be withdrawn after admin approval.",
+    "withdrawHint": "Withdraw available marketing commissions after marketer identity verification is approved. Cashback can still be used for purchases after email activation.",
     "withdrawAmount": "Amount",
     "withdrawSubmit": "Submit request",
     "withdrawSubmitting": "Submitting…",
@@ -236,9 +236,9 @@
     "withdrawPaidHint": "Bank transfer completed",
     "otherMarketsTitle": "Balances in other markets",
     "otherMarketsHint": "Switch marketplace from the header to view activity or withdraw from another market wallet.",
-    "kycRequiredBanner": "Identity verification is required before you can withdraw. Upload your ID and IBAN, then wait for admin approval.",
-    "kycExpiredBanner": "Your identity document has expired. Upload a valid document to withdraw again.",
-    "kycLink": "Complete verification →",
+    "kycRequiredBanner": "Marketer identity verification is required before withdrawing commissions. Complete the marketer verification form, then wait for admin approval.",
+    "kycExpiredBanner": "Your marketer identity document has expired. Upload a valid document to withdraw again.",
+    "kycLink": "Complete marketer verification →",
     "directionCredit": "Credit",
     "directionDebit": "Debit",
     "entryTypeLabels": {
@@ -2532,12 +2532,12 @@
   "kyc": {
     "customerTitle": "Identity verification",
     "customerSubtitle": "Upload your national ID and IBAN proof to withdraw cashback from your wallet.",
-    "affiliateTitle": "Affiliate verification",
-    "affiliateSubtitle": "Upload your national ID and IBAN to receive affiliate commission payouts.",
+    "affiliateTitle": "Marketer verification",
+    "affiliateSubtitle": "Upload identity proof and IBAN to unlock marketing commission withdrawals. Email activation only unlocks cashback for purchases.",
     "vendorTitle": "Vendor verification",
     "vendorSubtitle": "Upload commercial registration, license, tax certificate, representative ID, and IBAN.",
     "backToCashback": "Back to wallet",
-    "backToAffiliate": "Back to affiliate",
+    "backToAffiliate": "Back to marketer",
     "backToPayout": "Back to payout",
     "documentTypes": {
       "NATIONAL_ID": "National ID",
