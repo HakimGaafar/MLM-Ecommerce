@@ -33,6 +33,7 @@ export {
 
 export const roleCapabilities: Record<RoleCode, string[]> = {
   ADMIN: ["admin:*"],
+  SUPER_ADMIN: ["admin:*", "admin:super"],
   VENDOR: [...VENDOR_PERMISSION_CODES],
   CUSTOMER: ["marketplace:buy", "orders:read", "wallet:read"],
   AFFILIATE: ["referral:read", "commission:read"],
@@ -41,7 +42,11 @@ export const roleCapabilities: Record<RoleCode, string[]> = {
 export function hasCapability(roles: RoleCode[], capability: string): boolean {
   return roles.some((role) => {
     const permissions = roleCapabilities[role] ?? [];
-    return permissions.includes("admin:*") || permissions.includes(capability);
+    return (
+      permissions.includes("admin:*") ||
+      permissions.includes("admin:super") ||
+      permissions.includes(capability)
+    );
   });
 }
 

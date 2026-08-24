@@ -19,7 +19,12 @@ type ErrorKey = "required" | "invalidEmail" | "passwordRequired";
 
 function homeAfterLogin(roles: string[], needsStoreSetup: boolean) {
   if (needsStoreSetup) return "/sell";
-  if (roles.includes("ADMIN") || roles.includes("VENDOR") || roles.includes("CUSTOMER")) {
+  if (
+    roles.includes("ADMIN") ||
+    roles.includes("SUPER_ADMIN") ||
+    roles.includes("VENDOR") ||
+    roles.includes("CUSTOMER")
+  ) {
     return "/dashboard";
   }
   return "/";
@@ -27,7 +32,7 @@ function homeAfterLogin(roles: string[], needsStoreSetup: boolean) {
 
 function postLoginDestination(roles: string[], needsStoreSetup: boolean): string {
   const target = homeAfterLogin(roles, needsStoreSetup);
-  if (roles.includes("ADMIN")) {
+  if (roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")) {
     markMarketConfirmed();
     return target;
   }
@@ -40,7 +45,7 @@ function postLoginDestination(roles: string[], needsStoreSetup: boolean): string
 async function resolvePostLoginRedirect(roles: string[], needsStoreSetup: boolean): Promise<string> {
   const target = homeAfterLogin(roles, needsStoreSetup);
 
-  if (roles.includes("ADMIN")) {
+  if (roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")) {
     markMarketConfirmed();
     return target;
   }

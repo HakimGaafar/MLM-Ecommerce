@@ -56,3 +56,4 @@ export {
   ensureRequiredReferenceData,
   isRequiredReferenceDataPresent,
 } from "./bootstrap";
+export { ensureSuperAdminUser } from "./super-admin-bootstrap";

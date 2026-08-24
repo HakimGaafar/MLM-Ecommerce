@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import { DEFAULT_MARKET_ID, MARKET_IDS, primaryMarketIdFromCountry, type MarketCode } from "@mlm/shared";
 import { bootstrapRequiredReferenceData } from "../src/bootstrap";
+import { ensureSuperAdminUser } from "../src/super-admin-bootstrap";
 
 if (process.env.NODE_ENV === "production" && process.env.ALLOW_PRODUCTION_SEED !== "true") {
   throw new Error(
@@ -776,6 +777,7 @@ async function seedPilotMarketCatalog() {
 
 async function main() {
   await bootstrapRequiredReferenceData(prisma);
+  await ensureSuperAdminUser(prisma);
   await ensureAdminUser();
   await seedCatalogAndOrders();
   await seedBrowseCatalog();

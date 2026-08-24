@@ -2,9 +2,15 @@ import Link from "next/link";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { getCustomerPreferredLocale } from "@/lib/customer-locale";
+import { userHasSuperAdminRole } from "@/lib/require-super-admin-session";
+import { requirePageAuth } from "@/lib/require-page-auth";
 import AdminUsersList from "./AdminUsersList";
 
 export default async function AdminUsersPage() {
+  const session = await requirePageAuth("ADMIN");
+  const roles = session.roles ?? [];
+  const canPromote = userHasSuperAdminRole(roles);
+
   const locale = await getCustomerPreferredLocale();
   const dict = locale === "ar" ? ar : en;
   const ui = dict.adminUsers;
@@ -21,13 +27,17 @@ export default async function AdminUsersPage() {
           {ui.backToDashboard}
         </Link>
       </div>
-      <AdminUsersList
-        locale={locale}
-        ui={{
-          ...ui.list,
-          statusLabels: dict.userStatus as Record<string, string>,
-        }}
-      />
+      <div className="mt-8">
+        <AdminUsersList
+          locale={locale}
+          canPromote={canPromote}
+          currentUserId={session.sub}
+          ui={{
+            ...ui.list,
+            statusLabels: dict.userStatus as Record<string, string>,
+          }}
+        />
+      </div>
     </main>
   );
 }

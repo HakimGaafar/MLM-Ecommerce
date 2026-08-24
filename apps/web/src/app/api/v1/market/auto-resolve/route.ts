@@ -46,7 +46,7 @@ async function resolveMarketForSession(
   userId: string,
   roles: string[],
 ): Promise<MarketCode | null> {
-  if (roles.includes("ADMIN")) {
+  if (roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")) {
     return DEFAULT_MARKET_CODE;
   }
 

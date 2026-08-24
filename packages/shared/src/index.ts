@@ -7,7 +7,7 @@ export {
   type PaginatedResult,
 } from "./pagination";
 
-export const ROLE_CODES = ["ADMIN", "VENDOR", "CUSTOMER", "AFFILIATE"] as const;
+export const ROLE_CODES = ["ADMIN", "SUPER_ADMIN", "VENDOR", "CUSTOMER", "AFFILIATE"] as const;
 
 export type RoleCode = (typeof ROLE_CODES)[number];
 

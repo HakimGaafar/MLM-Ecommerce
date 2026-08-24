@@ -2398,7 +2398,7 @@
   },
   "adminUsers": {
     "title": "Users",
-    "subtitle": "Accounts and role assignments (read-only in v1).",
+    "subtitle": "Browse accounts. Super admin can promote or demote coworker admins.",
     "backToDashboard": "Back to dashboard",
     "list": {
       "loading": "Loading…",
@@ -2409,6 +2409,18 @@
       "roles": "Roles",
       "status": "Status",
       "created": "Created",
+      "actions": "Actions",
+      "promote": "Make admin",
+      "promoting": "Promoting…",
+      "promoteSuccess": "User promoted to admin.",
+      "promoteError": "Could not promote user.",
+      "alreadyAdmin": "This user is already an admin.",
+      "demote": "Remove admin",
+      "demoting": "Removing…",
+      "demoteSuccess": "Admin access removed.",
+      "demoteError": "Could not remove admin access.",
+      "notAdmin": "This user is not an admin.",
+      "cannotDemoteSuperAdmin": "Super admin accounts cannot be demoted here.",
       "prev": "Previous",
       "next": "Next",
       "pageOf": "Page {page} of {total}"
