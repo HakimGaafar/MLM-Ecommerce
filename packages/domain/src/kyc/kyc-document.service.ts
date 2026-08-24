@@ -10,6 +10,7 @@ import {
   kycDocumentTypeRequiresExpiry,
   kycDocumentTypeSupportsIbanNumber,
 } from "./kyc-requirements";
+import { resolveVendorKycRequiredDocuments } from "./vendor-kyc-context.service";
 
 export type KycDocumentDto = {
   id: string;
@@ -66,32 +67,48 @@ export class KycDocumentError extends Error {
   }
 }
 
-function mapRow(row: {
-  id: string;
+async function resolveRequiredDocuments(params: {
   subjectType: KycSubjectType;
-  documentType: KycDocumentType;
-  status: KycDocumentStatus;
-  originalFileName: string;
-  mimeType: string;
-  fileSizeBytes: number;
-  documentExpiresAt: Date | null;
-  ibanNumber: string | null;
-  identityDocumentKind: string | null;
-  identityDocumentKindOther: string | null;
-  documentNumber: string | null;
-  rejectionReason: string | null;
-  submittedAt: Date | null;
-  reviewedAt: Date | null;
-  updatedAt: Date;
-  updateRequestedAt?: Date | null;
-  updateRequestMessage?: string | null;
-}): KycDocumentDto {
+  vendorId?: string;
+}) {
+  if (params.subjectType === "VENDOR") {
+    if (!params.vendorId) return [];
+    return resolveVendorKycRequiredDocuments(params.vendorId);
+  }
+  return KYC_REQUIRED_DOCUMENTS[params.subjectType];
+}
+
+function mapRow(
+  row: {
+    id: string;
+    subjectType: KycSubjectType;
+    documentType: KycDocumentType;
+    status: KycDocumentStatus;
+    originalFileName: string;
+    mimeType: string;
+    fileSizeBytes: number;
+    documentExpiresAt: Date | null;
+    ibanNumber: string | null;
+    identityDocumentKind: string | null;
+    identityDocumentKindOther: string | null;
+    documentNumber: string | null;
+    rejectionReason: string | null;
+    submittedAt: Date | null;
+    reviewedAt: Date | null;
+    updatedAt: Date;
+    updateRequestedAt?: Date | null;
+    updateRequestMessage?: string | null;
+  },
+  vendorRequiredDocuments?: readonly KycDocumentType[],
+): KycDocumentDto {
   return {
     id: row.id,
     subjectType: row.subjectType,
     documentType: row.documentType,
     status: row.status,
-    required: isKycDocumentRequired(row.subjectType, row.documentType),
+    required: isKycDocumentRequired(row.subjectType, row.documentType, {
+      vendorRequiredDocuments,
+    }),
     originalFileName: row.originalFileName,
     mimeType: row.mimeType,
     fileSizeBytes: row.fileSizeBytes,
@@ -110,13 +127,19 @@ function mapRow(row: {
   };
 }
 
-function emptyDocumentDto(subjectType: KycSubjectType, documentType: KycDocumentType): KycDocumentDto {
+function emptyDocumentDto(
+  subjectType: KycSubjectType,
+  documentType: KycDocumentType,
+  vendorRequiredDocuments?: readonly KycDocumentType[],
+): KycDocumentDto {
   return {
     id: "",
     subjectType,
     documentType,
     status: "NOT_UPLOADED",
-    required: isKycDocumentRequired(subjectType, documentType),
+    required: isKycDocumentRequired(subjectType, documentType, {
+      vendorRequiredDocuments,
+    }),
     originalFileName: null,
     mimeType: null,
     fileSizeBytes: null,
@@ -181,7 +204,7 @@ export async function getKycStatusSummary(params: {
 }): Promise<KycStatusSummaryDto> {
   await syncExpiredKycDocuments(params);
   const { subjectKey } = subjectScope(params);
-  const required = KYC_REQUIRED_DOCUMENTS[params.subjectType];
+  const required = await resolveRequiredDocuments(params);
   const listed = kycDocumentsForSubject(params.subjectType);
   const rows = await prisma.kycDocument.findMany({
     where: { subjectKey, documentType: { in: listed } },
@@ -190,7 +213,9 @@ export async function getKycStatusSummary(params: {
 
   const documents = listed.map((documentType) => {
     const row = byType.get(documentType);
-    return row ? mapRow(row) : emptyDocumentDto(params.subjectType, documentType);
+    return row
+      ? mapRow(row, params.subjectType === "VENDOR" ? required : undefined)
+      : emptyDocumentDto(params.subjectType, documentType, params.subjectType === "VENDOR" ? required : undefined);
   });
 
   const idTypes: KycDocumentType[] =
@@ -354,7 +379,11 @@ export async function upsertKycDocumentUpload(params: {
     findUnique: () => prisma.kycDocument.findUnique({ where: kycWhere }),
   });
 
-  return mapRow(row);
+  const vendorRequired =
+    params.subjectType === "VENDOR" && params.vendorId
+      ? await resolveVendorKycRequiredDocuments(params.vendorId)
+      : undefined;
+  return mapRow(row, vendorRequired);
 }
 
 export async function submitKycDocumentForReview(params: {
@@ -384,7 +413,11 @@ export async function submitKycDocumentForReview(params: {
     },
   });
 
-  return mapRow(updated);
+  const vendorRequired =
+    params.subjectType === "VENDOR" && params.vendorId
+      ? await resolveVendorKycRequiredDocuments(params.vendorId)
+      : undefined;
+  return mapRow(updated, vendorRequired);
 }
 
 /** Remove a draft upload (UPLOADED only, before admin review). Returns storage key for file cleanup. */

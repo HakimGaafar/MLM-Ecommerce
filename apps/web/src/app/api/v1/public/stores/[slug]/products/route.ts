@@ -1,6 +1,7 @@
 import { getPublicStoreBySlug, listPublicStoreProducts } from "@mlm/domain";
 import { NextRequest, NextResponse } from "next/server";
 import { parsePaginationSearchParams } from "@/lib/api-pagination";
+import { resolveRequestCatalogDelivery } from "@/lib/catalog-delivery-context";
 import { resolveRequestLocale } from "@/lib/ui-locale";
 import { resolveRequestMarket } from "@/lib/request-market";
 
@@ -15,7 +16,8 @@ export async function GET(
 
   const locale = await resolveRequestLocale(request);
   const market = await resolveRequestMarket();
-  const store = await getPublicStoreBySlug(slug, locale, market.id);
+  const delivery = await resolveRequestCatalogDelivery({ marketCode: market.code });
+  const store = await getPublicStoreBySlug(slug, locale, market.id, delivery);
   if (!store) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -26,6 +28,8 @@ export async function GET(
     page,
     pageSize,
     locale,
+    marketId: market.id,
+    delivery,
   });
 
   return NextResponse.json(result, {

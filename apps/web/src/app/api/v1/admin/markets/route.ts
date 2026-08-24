@@ -1,5 +1,5 @@
-import { listAdminMarkets, setMarketActive } from "@mlm/domain";
-import { AdminMarketActiveUpdateSchema, isMarketCode } from "@mlm/shared";
+import { listAdminMarkets, updateAdminMarket } from "@mlm/domain";
+import { AdminMarketUpdateSchema, isMarketCode, type MarketCode } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { enforceUserRateLimit } from "@/lib/rate-limit-response";
 import { requireSuperAdminSession } from "@/lib/require-super-admin-session";
@@ -27,7 +27,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => null);
-  const parsed = AdminMarketActiveUpdateSchema.safeParse(body);
+  const parsed = AdminMarketUpdateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? "Invalid input." },
@@ -36,9 +36,9 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const market = await setMarketActive({
-      marketCode,
-      isActive: parsed.data.isActive,
+    const market = await updateAdminMarket({
+      marketCode: marketCode as MarketCode,
+      input: parsed.data,
     });
     return NextResponse.json({ market });
   } catch (error) {

@@ -9,6 +9,7 @@ import {
   slugifyStoreName,
 } from "@mlm/shared";
 import bcrypt from "bcryptjs";
+import { bindReferralAtRegistration } from "../referral/referral-bind.service";
 import { resolveWalletCurrency } from "../wallet/wallet.service";
 
 export class SellerOnboardError extends Error {
@@ -127,6 +128,19 @@ async function ensureVendorRole(tx: Prisma.TransactionClient, userId: string) {
   });
 }
 
+async function bindSellerReferralIfProvided(
+  tx: Prisma.TransactionClient,
+  params: { userId: string; email: string; referralCode?: string },
+) {
+  const code = params.referralCode?.trim();
+  if (!code) return;
+  await bindReferralAtRegistration(tx, {
+    childUserId: params.userId,
+    childEmail: params.email,
+    referralCode: code,
+  });
+}
+
 export async function onboardNewSeller(
   input: SellerOnboardInput,
   marketId: string,
@@ -175,6 +189,11 @@ export async function onboardNewSeller(
 
       await ensureVendorRole(tx, user.id);
       const vendor = await createVendorForOwner(tx, user.id, input, marketId);
+      await bindSellerReferralIfProvided(tx, {
+        userId: user.id,
+        email: user.email,
+        referralCode: input.referralCode,
+      });
       return { user, vendor };
     });
 
@@ -218,6 +237,11 @@ export async function onboardNewSeller(
     }
 
     const vendor = await createVendorForOwner(tx, user.id, input, marketId);
+    await bindSellerReferralIfProvided(tx, {
+      userId: user.id,
+      email: user.email,
+      referralCode: input.referralCode,
+    });
 
     return { user, vendor };
   });

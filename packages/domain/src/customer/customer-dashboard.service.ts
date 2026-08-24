@@ -1,6 +1,8 @@
 import { prisma } from "@mlm/db";
+import { getMarketCodeById } from "@mlm/shared";
 import type { PublicProductListItemDto } from "../catalog/public-catalog.service";
 import { findPublishedProductsByIds, searchPublicProducts } from "../catalog/public-catalog.service";
+import { resolveCatalogDeliveryContext } from "../catalog/catalog-delivery-context.service";
 import { listPublicCategories, type PublicCategoryDto } from "../catalog/product-categories.service";
 
 function displayFirstName(fullName: string): string {
@@ -116,6 +118,11 @@ export async function getCustomerDashboardOverview(
   locale: "en" | "ar",
   marketId: string,
 ): Promise<CustomerDashboardOverviewDto> {
+  const marketCode = getMarketCodeById(marketId);
+  const delivery = marketCode
+    ? await resolveCatalogDeliveryContext({ userId: buyerUserId, activeMarketCode: marketCode })
+    : null;
+
   const [
     user,
     orderCount,
@@ -135,9 +142,14 @@ export async function getCustomerDashboardOverview(
       select: { _count: { select: { items: true } } },
     }),
     listPublicCategories(locale, marketId),
-    searchPublicProducts({ page: 1, pageSize: FEATURED_LIMIT, sort: "newest", locale, marketId }).then(
-      (r) => r.items,
-    ),
+    searchPublicProducts({
+      page: 1,
+      pageSize: FEATURED_LIMIT,
+      sort: "newest",
+      locale,
+      marketId,
+      delivery,
+    }).then((r) => r.items),
     topCategoryIdsForBuyer(buyerUserId, marketId, PERSONAL_CATEGORY_FETCH),
     topVendorIdsForBuyer(buyerUserId, marketId, PERSONAL_CATEGORY_FETCH),
     coPurchaseProductIdsForBuyer(buyerUserId, marketId, CO_PURCHASE_LIMIT),
@@ -158,6 +170,7 @@ export async function getCustomerDashboardOverview(
           sort: "newest",
           locale,
           marketId,
+          delivery,
         }),
       ),
     ),
@@ -170,6 +183,7 @@ export async function getCustomerDashboardOverview(
           sort: "newest",
           locale,
           marketId,
+          delivery,
         }),
       ),
     ),
@@ -182,6 +196,7 @@ export async function getCustomerDashboardOverview(
     coPurchaseIds.slice(0, SHOW_ALSO_BOUGHT * 2),
     locale,
     marketId,
+    delivery,
   ).then((items) => items.slice(0, SHOW_ALSO_BOUGHT));
 
   return {

@@ -2,6 +2,7 @@ import type { PaginatedResult, PublicProductListQuery, PublicProductSort } from 
 import { buildPaginatedResult, normalizePagination } from "@mlm/shared";
 import { prisma, Prisma } from "@mlm/db";
 import { resolveCategoryId } from "./product-categories.service";
+import type { CatalogDeliveryContext } from "./catalog-delivery-context.service";
 
 export type PublicProductListItemDto = {
   id: string;
@@ -93,7 +94,28 @@ function productSelectForMarket(marketId?: string) {
   };
 }
 
-function publishedInMarketWhere(marketId: string) {
+export function publishedInMarketWhere(marketId: string, delivery?: CatalogDeliveryContext | null) {
+  const merchantStockBranch = delivery
+    ? {
+        marketOffers: {
+          some: { marketId, stockLocation: "MERCHANT" as const },
+        },
+        vendor: {
+          deliveryCities: {
+            some: {
+              countryCode: delivery.countryCode,
+              city: { equals: delivery.city, mode: "insensitive" as const },
+            },
+          },
+        },
+      }
+    : {
+        marketOffers: {
+          some: { marketId, stockLocation: "MERCHANT" as const },
+        },
+        vendor: { deliveryCities: { some: {} } },
+      };
+
   return {
     status: "PUBLISHED" as const,
     AND: [
@@ -105,12 +127,7 @@ function publishedInMarketWhere(marketId: string) {
               some: { marketId, stockLocation: "FOURCES_WAREHOUSE" as const },
             },
           },
-          {
-            marketOffers: {
-              some: { marketId, stockLocation: "MERCHANT" as const },
-            },
-            vendor: { deliveryCities: { some: {} } },
-          },
+          merchantStockBranch,
           { marketId, marketOffers: { none: {} } },
         ],
       },
@@ -123,13 +140,14 @@ export async function findPublishedProductsByIds(
   orderedIds: string[],
   locale: "en" | "ar" = "en",
   marketId?: string,
+  delivery?: CatalogDeliveryContext | null,
 ): Promise<PublicProductListItemDto[]> {
   if (orderedIds.length === 0) return [];
   const rows = await prisma.product.findMany({
     where: {
       id: { in: [...new Set(orderedIds)] },
       ...(marketId
-        ? publishedInMarketWhere(marketId)
+        ? publishedInMarketWhere(marketId, delivery)
         : { status: "PUBLISHED", vendor: { storeApprovalStatus: "APPROVED" } }),
     },
     select: productSelectForMarket(marketId),
@@ -142,7 +160,11 @@ export async function findPublishedProductsByIds(
 }
 
 export async function searchPublicProducts(
-  params: PublicProductListQuery & { locale?: "en" | "ar"; marketId: string },
+  params: PublicProductListQuery & {
+    locale?: "en" | "ar";
+    marketId: string;
+    delivery?: CatalogDeliveryContext | null;
+  },
 ): Promise<PaginatedResult<PublicProductListItemDto>> {
   const locale = params.locale ?? "en";
   const { page, pageSize, skip, take } = normalizePagination({
@@ -163,7 +185,7 @@ export async function searchPublicProducts(
   }
 
   const where = {
-    ...publishedInMarketWhere(params.marketId),
+    ...publishedInMarketWhere(params.marketId, params.delivery),
     ...(categoryId ? { categoryId } : {}),
     ...(params.vendorId ? { vendorId: params.vendorId } : {}),
     ...(params.q ? { name: { contains: params.q, mode: "insensitive" as const } } : {}),
@@ -217,12 +239,14 @@ export async function listPublicProducts(params: {
   limit: number;
   locale?: "en" | "ar";
   marketId: string;
+  delivery?: CatalogDeliveryContext | null;
 }): Promise<PublicProductListItemDto[]> {
   const result = await searchPublicProducts({
     pageSize: params.limit,
     page: 1,
     locale: params.locale,
     marketId: params.marketId,
+    delivery: params.delivery,
   });
   return result.items ?? [];
 }
@@ -231,12 +255,13 @@ export async function getPublicProductById(
   productId: string,
   locale: "en" | "ar" = "en",
   marketId?: string,
+  delivery?: CatalogDeliveryContext | null,
 ): Promise<PublicProductDetailDto | null> {
   const row = await prisma.product.findFirst({
     where: {
       id: productId,
       ...(marketId
-        ? publishedInMarketWhere(marketId)
+        ? publishedInMarketWhere(marketId, delivery)
         : { status: "PUBLISHED", vendor: { storeApprovalStatus: "APPROVED" } }),
     },
     select: {

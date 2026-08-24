@@ -3,6 +3,7 @@ import type { LedgerDirection, LedgerStatus, OrderReturnStatus, WalletEntryType 
 import { DEFAULT_MARKET_ID } from "@mlm/shared";
 import { getMinWithdrawalAmount, getPlatformConfig } from "../platform-config/platform-config.service";
 import { week1BusinessRules } from "../business-rules";
+import { getReferralDepthMax } from "../platform-config/platform-config.service";
 import { getKycStatusSummary } from "../kyc/kyc-document.service";
 import {
   markReturnUnitsCompleted,
@@ -431,9 +432,10 @@ async function reverseAffiliateCommissionsForOrderInTx(params: {
   orderId: string;
   orderReturnId: string;
   orderNo: string;
+  marketId: string;
   reversalRatio?: number;
 }): Promise<void> {
-  const depth = week1BusinessRules.referralDepthMax;
+  const depth = await getReferralDepthMax(params.marketId);
   const ratio = Math.min(1, Math.max(0, params.reversalRatio ?? 1));
 
   for (let level = 1; level <= depth; level += 1) {
@@ -546,6 +548,10 @@ import {
   getAffiliateEligibleOrderAmount,
 } from "./affiliate-commission.service";
 import {
+  accrueMerchantReferralCommissionsForCompletedOrder,
+  reverseMerchantReferralCommissionsForOrderInTx,
+} from "./merchant-referral-commission.service";
+import {
   accrueVendorEarningsForCompletedOrder,
   reverseVendorEarningsForOrderInTx,
 } from "./vendor-earning.service";
@@ -556,6 +562,7 @@ import {
 export async function finalizeOrderRewards(orderId: string): Promise<void> {
   await accrueCashbackForCompletedOrder(orderId);
   await accrueAffiliateCommissionsForCompletedOrder(orderId);
+  await accrueMerchantReferralCommissionsForCompletedOrder(orderId);
   await accrueVendorEarningsForCompletedOrder(orderId);
 }
 
@@ -678,6 +685,15 @@ export async function processReturnRefund(returnId: string): Promise<void> {
     }
 
     await reverseAffiliateCommissionsForOrderInTx({
+      tx,
+      orderId: ret.orderId,
+      orderReturnId: ret.id,
+      orderNo: ret.order.orderNo,
+      marketId: ret.order.marketId,
+      reversalRatio: ratio,
+    });
+
+    await reverseMerchantReferralCommissionsForOrderInTx({
       tx,
       orderId: ret.orderId,
       orderReturnId: ret.id,

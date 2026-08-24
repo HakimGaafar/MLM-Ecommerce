@@ -96,7 +96,12 @@ export type ShellNavDict = {
     settlementsReleased: string;
     affiliates: string;
     settings: string;
+    configAudit: string;
     markets: string;
+    shippingRates: string;
+    shippingRequests: string;
+    categories: string;
+    banners: string;
     contactInquiries: string;
     passwordResets: string;
   };
@@ -204,6 +209,8 @@ export function buildAdminSidebarSections(
       items: [
         item("/admin/orders/stuck", dict.adminOrderOps.nav.stuckOrders),
         item("/admin/kyc", dict.adminNav.kyc),
+        item("/admin/shipping/rates", dict.adminNav.shippingRates),
+        item("/admin/shipping/requests", dict.adminNav.shippingRequests),
       ],
     },
     {
@@ -239,6 +246,9 @@ export function buildAdminSidebarSections(
       items: [
         item("/admin/markets", dict.adminNav.markets),
         item("/admin/settings", dict.adminNav.settings),
+        item("/admin/settings/audit", dict.adminNav.configAudit),
+        item("/admin/catalog/categories", dict.adminNav.categories),
+        item("/admin/catalog/banners", dict.adminNav.banners),
       ],
     });
   }

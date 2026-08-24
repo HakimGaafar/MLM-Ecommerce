@@ -1,7 +1,7 @@
 import { Prisma, prisma } from "@mlm/db";
 import { ensureWalletInTx } from "./wallet.service";
-import { week1BusinessRules } from "../business-rules";
 import { getPlatformConfig, type PlatformConfigSnapshot } from "../platform-config/platform-config.service";
+import type { MissingAncestorPolicy } from "../business-rules";
 
 function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
@@ -20,7 +20,7 @@ export function getAffiliateEligibleOrderAmount(order: {
 export function calculateAffiliateCommissionAmounts(
   eligibleAmount: number,
   config: Pick<PlatformConfigSnapshot, "affiliatePoolRate" | "affiliateLevelRates">,
-  depth = week1BusinessRules.referralDepthMax,
+  depth = 4,
 ): number[] {
   const pool = roundMoney(eligibleAmount * config.affiliatePoolRate);
 
@@ -29,15 +29,11 @@ export function calculateAffiliateCommissionAmounts(
   );
 }
 
-/**
- * Walks referral parent chain from buyer upward (max 4 levels).
- * Inactive or missing parents are skipped for payout; chain still continues upward.
- */
-export async function resolveAffiliateUplineUserIds(
+async function resolveAffiliatePayoutSlots(
   buyerUserId: string,
-  maxDepth = week1BusinessRules.referralDepthMax,
-): Promise<string[]> {
-  const uplines: string[] = [];
+  maxDepth: number,
+): Promise<(string | null)[]> {
+  const slots: (string | null)[] = [];
   let childUserId = buyerUserId;
 
   for (let depth = 0; depth < maxDepth; depth += 1) {
@@ -45,20 +41,78 @@ export async function resolveAffiliateUplineUserIds(
       where: { childUserId },
       select: { parentUserId: true },
     });
-    if (!relation) break;
+    if (!relation) {
+      slots.push(null);
+      break;
+    }
 
     childUserId = relation.parentUserId;
-
     const parent = await prisma.affiliateProfile.findUnique({
       where: { userId: relation.parentUserId },
       select: { userId: true, isActive: true },
     });
-    if (!parent?.isActive) continue;
-
-    uplines.push(parent.userId);
+    slots.push(parent?.isActive ? parent.userId : null);
   }
 
-  return uplines;
+  while (slots.length < maxDepth) slots.push(null);
+  return slots.slice(0, maxDepth);
+}
+
+function applyMissingAncestorPolicy(params: {
+  levelAmounts: number[];
+  slots: (string | null)[];
+  policy: MissingAncestorPolicy;
+}): Array<{ userId: string; amount: number; level: number }> {
+  const entries: Array<{ userId: string; amount: number; level: number }> = [];
+  let redistributePool = 0;
+
+  for (let index = 0; index < params.levelAmounts.length; index += 1) {
+    const amount = params.levelAmounts[index] ?? 0;
+    if (amount <= 0) continue;
+    const userId = params.slots[index];
+    if (userId) {
+      entries.push({ userId, amount, level: index + 1 });
+    } else if (params.policy === "REDISTRIBUTE_TO_EXISTING_LEVELS") {
+      redistributePool = roundMoney(redistributePool + amount);
+    }
+  }
+
+  if (redistributePool > 0 && entries.length > 0) {
+    const share = roundMoney(redistributePool / entries.length);
+    for (const entry of entries) {
+      entry.amount = roundMoney(entry.amount + share);
+    }
+  }
+
+  return entries.filter((entry) => entry.amount > 0);
+}
+
+/**
+ * Walks referral parent chain from buyer upward (max depth levels).
+ * Inactive or missing parents are skipped for payout; chain still continues upward.
+ */
+export async function resolveAffiliateUplineUserIds(
+  buyerUserId: string,
+  maxDepth = 4,
+): Promise<string[]> {
+  const slots = await resolveAffiliatePayoutSlots(buyerUserId, maxDepth);
+  return slots.filter((id): id is string => Boolean(id));
+}
+
+/** Direct (level-1) active referrer of a user, if any. */
+export async function resolveDirectReferrerUserId(userId: string): Promise<string | null> {
+  const relation = await prisma.referralRelation.findUnique({
+    where: { childUserId: userId },
+    select: { parentUserId: true },
+  });
+  if (!relation) return null;
+
+  const parent = await prisma.affiliateProfile.findUnique({
+    where: { userId: relation.parentUserId },
+    select: { userId: true, isActive: true },
+  });
+  if (!parent?.isActive) return null;
+  return parent.userId;
 }
 
 async function postAffiliateCommissionEntry(params: {
@@ -143,39 +197,41 @@ export async function accrueAffiliateCommissionsForCompletedOrder(orderId: strin
   if (eligibleAmount <= 0) return;
 
   const platformConfig = await getPlatformConfig(order.marketId);
-  const levelAmounts = calculateAffiliateCommissionAmounts(eligibleAmount, platformConfig);
-  const uplines = await resolveAffiliateUplineUserIds(order.buyerUserId);
-  if (uplines.length === 0) return;
+  const depth = Math.min(4, Math.max(1, platformConfig.referralDepthMax));
+  const levelAmounts = calculateAffiliateCommissionAmounts(eligibleAmount, platformConfig, depth);
+  const slots = await resolveAffiliatePayoutSlots(order.buyerUserId, depth);
+  const payouts = applyMissingAncestorPolicy({
+    levelAmounts,
+    slots,
+    policy: platformConfig.missingAncestorPolicy,
+  });
+  if (payouts.length === 0) return;
 
   const { affiliatePoolRate } = platformConfig;
   const levelRates = platformConfig.affiliateLevelRates;
 
   await prisma.$transaction(async (tx) => {
-    for (let index = 0; index < levelAmounts.length; index += 1) {
-      const amount = levelAmounts[index] ?? 0;
-      const uplineUserId = uplines[index];
-      if (!uplineUserId || amount <= 0) continue;
-
+    for (const payout of payouts) {
       let wallet = await tx.wallet.findUnique({
-        where: { userId_marketId: { userId: uplineUserId, marketId: order.marketId } },
+        where: { userId_marketId: { userId: payout.userId, marketId: order.marketId } },
       });
       if (!wallet) {
-        wallet = await ensureWalletInTx(tx, uplineUserId, order.marketId);
+        wallet = await ensureWalletInTx(tx, payout.userId, order.marketId);
       }
 
       await postAffiliateCommissionEntry({
         tx,
         walletId: wallet.id,
-        userId: uplineUserId,
-        amount,
+        userId: payout.userId,
+        amount: payout.amount,
         orderId: order.id,
         orderNo: order.orderNo,
         sourceUserId: order.buyerUserId,
         sourceUserName: order.buyer.name,
-        level: index + 1,
+        level: payout.level,
         eligibleAmount,
         poolRate: affiliatePoolRate,
-        levelRate: levelRates[index] ?? 0,
+        levelRate: levelRates[payout.level - 1] ?? 0,
       });
     }
   });

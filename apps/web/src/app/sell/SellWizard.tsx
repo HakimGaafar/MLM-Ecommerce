@@ -17,6 +17,7 @@ export default function SellWizard({
   locale: serverLocale,
   mode,
   internationalNotice,
+  initialReferralCode = "",
 }: {
   locale: Locale;
   ui?: unknown;
@@ -31,6 +32,7 @@ export default function SellWizard({
     platformClause: string;
     agreement: string;
   } | null;
+  initialReferralCode?: string;
 }) {
   const locale = useLiveLocale();
   const ui = useLiveCopy("sellOnboarding");
@@ -59,6 +61,7 @@ export default function SellWizard({
   const [about, setAbout] = useState("");
   const [acceptPlan, setAcceptPlan] = useState(false);
   const [acceptInternationalSales, setAcceptInternationalSales] = useState(false);
+  const [referralCode, setReferralCode] = useState(initialReferralCode.trim().toUpperCase());
 
   void serverLocale;
 
@@ -194,6 +197,7 @@ export default function SellWizard({
           password,
           confirmPassword,
           acceptPlan: true,
+          referralCode: referralCode.trim() || undefined,
           ...storePayload(),
         }),
       });
@@ -202,6 +206,7 @@ export default function SellWizard({
         const raw = p?.error ?? "";
         if (/password/i.test(raw)) throw new Error(ui.invalidPassword);
         if (/username/i.test(raw)) throw new Error(ui.invalidUsername);
+        if (/referral/i.test(raw)) throw new Error(ui.invalidReferral);
         if (/email/i.test(raw) && /use|exist|already/i.test(raw)) throw new Error(ui.invalidEmail);
         throw new Error(ui.errorGeneric);
       }
@@ -359,6 +364,19 @@ export default function SellWizard({
             />
             <LocalizedFieldError
               message={accountErrors.confirmPassword ? ui[accountErrors.confirmPassword] : null}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium" htmlFor="seller-referral-code">
+              {ui.referralCode}
+            </label>
+            <input
+              id="seller-referral-code"
+              className={inputClass}
+              value={referralCode}
+              onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+              autoComplete="off"
+              dir="ltr"
             />
           </div>
           <p className="text-sm text-[var(--muted)]">

@@ -1,4 +1,5 @@
 import { Prisma, prisma } from "@mlm/db";
+import { DEFAULT_MARKET_ID } from "@mlm/shared";
 import type { ShippingPackageTypeCode, VendorIndirectFulfillmentCode } from "@mlm/shared";
 
 export function shippingRateCode(
@@ -26,6 +27,7 @@ const FALLBACK_AMOUNTS: Record<string, string> = {
 
 export type ShippingRateDto = {
   id: string;
+  marketId: string;
   code: string;
   packageType: ShippingPackageTypeCode;
   fourcesMode: VendorIndirectFulfillmentCode | null;
@@ -35,12 +37,20 @@ export type ShippingRateDto = {
   isActive: boolean;
 };
 
-export async function listShippingRates(
-  db: Prisma.TransactionClient | typeof prisma = prisma,
-): Promise<ShippingRateDto[]> {
-  const rows = await db.shippingRate.findMany({ orderBy: { code: "asc" } });
-  return rows.map((row) => ({
+function mapRow(row: {
+  id: string;
+  marketId: string;
+  code: string;
+  packageType: string;
+  fourcesMode: string | null;
+  amount: Prisma.Decimal;
+  currency: string;
+  perUnit: boolean;
+  isActive: boolean;
+}): ShippingRateDto {
+  return {
     id: row.id,
+    marketId: row.marketId,
     code: row.code,
     packageType: row.packageType as ShippingPackageTypeCode,
     fourcesMode: (row.fourcesMode as VendorIndirectFulfillmentCode | null) ?? null,
@@ -48,19 +58,33 @@ export async function listShippingRates(
     currency: row.currency,
     perUnit: row.perUnit,
     isActive: row.isActive,
-  }));
+  };
+}
+
+export async function listShippingRates(params?: {
+  marketId?: string;
+  db?: Prisma.TransactionClient | typeof prisma;
+}): Promise<ShippingRateDto[]> {
+  const db = params?.db ?? prisma;
+  const rows = await db.shippingRate.findMany({
+    where: params?.marketId ? { marketId: params.marketId } : undefined,
+    orderBy: [{ marketId: "asc" }, { code: "asc" }],
+  });
+  return rows.map(mapRow);
 }
 
 export async function resolveShippingRateAmount(params: {
+  marketId?: string;
   packageType: ShippingPackageTypeCode;
   fourcesMode?: VendorIndirectFulfillmentCode | null;
   quantity?: number;
   db?: Prisma.TransactionClient | typeof prisma;
 }): Promise<Prisma.Decimal> {
   const db = params.db ?? prisma;
+  const marketId = params.marketId ?? DEFAULT_MARKET_ID;
   const code = shippingRateCode(params.packageType, params.fourcesMode);
   const row = await db.shippingRate.findFirst({
-    where: { code, isActive: true },
+    where: { marketId, code, isActive: true },
     select: { amount: true, perUnit: true },
   });
 
@@ -73,27 +97,19 @@ export async function resolveShippingRateAmount(params: {
 }
 
 export async function updateShippingRateAmount(params: {
+  marketId: string;
   code: string;
   amount: number;
   perUnit?: boolean;
   isActive?: boolean;
 }): Promise<ShippingRateDto> {
   const row = await prisma.shippingRate.update({
-    where: { code: params.code },
+    where: { marketId_code: { marketId: params.marketId, code: params.code } },
     data: {
       amount: params.amount,
       ...(params.perUnit !== undefined ? { perUnit: params.perUnit } : {}),
       ...(params.isActive !== undefined ? { isActive: params.isActive } : {}),
     },
   });
-  return {
-    id: row.id,
-    code: row.code,
-    packageType: row.packageType as ShippingPackageTypeCode,
-    fourcesMode: (row.fourcesMode as VendorIndirectFulfillmentCode | null) ?? null,
-    amount: row.amount.toFixed(2),
-    currency: row.currency,
-    perUnit: row.perUnit,
-    isActive: row.isActive,
-  };
+  return mapRow(row);
 }

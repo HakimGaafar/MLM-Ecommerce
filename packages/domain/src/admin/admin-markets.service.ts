@@ -1,4 +1,5 @@
 import { prisma } from "@mlm/db";
+import type { AdminMarketUpdateInput } from "@mlm/shared";
 import {
   DEFAULT_MARKET_CODE,
   getMarketDefinition,
@@ -13,10 +14,39 @@ export type AdminMarketDto = {
   nameEn: string;
   nameAr: string;
   defaultCurrency: string;
+  geoCountryCodes: string[];
   isActive: boolean;
   sortOrder: number;
   canDisable: boolean;
 };
+
+function mapRow(row: {
+  id: string;
+  code: string;
+  subdomain: string;
+  nameEn: string;
+  nameAr: string;
+  defaultCurrency: string;
+  geoCountryCodes: string[];
+  isActive: boolean;
+  sortOrder: number;
+}): AdminMarketDto {
+  if (!isMarketCode(row.code)) {
+    throw new Error("MARKET_NOT_FOUND");
+  }
+  return {
+    id: row.id,
+    code: row.code,
+    subdomain: row.subdomain,
+    nameEn: row.nameEn,
+    nameAr: row.nameAr,
+    defaultCurrency: row.defaultCurrency,
+    geoCountryCodes: row.geoCountryCodes,
+    isActive: row.isActive,
+    sortOrder: row.sortOrder,
+    canDisable: row.code !== DEFAULT_MARKET_CODE,
+  };
+}
 
 export async function listAdminMarkets(): Promise<AdminMarketDto[]> {
   try {
@@ -29,24 +59,13 @@ export async function listAdminMarkets(): Promise<AdminMarketDto[]> {
         nameEn: true,
         nameAr: true,
         defaultCurrency: true,
+        geoCountryCodes: true,
         isActive: true,
         sortOrder: true,
       },
     });
     if (rows.length > 0) {
-      return rows
-        .filter((row) => isMarketCode(row.code))
-        .map((row) => ({
-          id: row.id,
-          code: row.code as MarketCode,
-          subdomain: row.subdomain,
-          nameEn: row.nameEn,
-          nameAr: row.nameAr,
-          defaultCurrency: row.defaultCurrency,
-          isActive: row.isActive,
-          sortOrder: row.sortOrder,
-          canDisable: row.code !== DEFAULT_MARKET_CODE,
-        }));
+      return rows.filter((row) => isMarketCode(row.code)).map(mapRow);
     }
   } catch {
     // Table may not exist before migrate — fall back to static definitions.
@@ -60,10 +79,55 @@ export async function listAdminMarkets(): Promise<AdminMarketDto[]> {
     nameEn: def.nameEn,
     nameAr: def.nameAr,
     defaultCurrency: def.defaultCurrency,
+    geoCountryCodes: [...def.geoCountryCodes],
     isActive: true,
     sortOrder: def.sortOrder,
     canDisable: def.code !== DEFAULT_MARKET_CODE,
   }));
+}
+
+export async function updateAdminMarket(params: {
+  marketCode: MarketCode;
+  input: AdminMarketUpdateInput;
+}): Promise<AdminMarketDto> {
+  const market = await prisma.market.findUnique({
+    where: { code: params.marketCode },
+    select: { id: true, code: true },
+  });
+  if (!market) {
+    throw new Error("MARKET_NOT_FOUND");
+  }
+
+  if (params.input.isActive === false) {
+    await setMarketActive({ marketCode: params.marketCode, isActive: false });
+  } else if (params.input.isActive === true) {
+    await setMarketActive({ marketCode: params.marketCode, isActive: true });
+  }
+
+  const updated = await prisma.market.update({
+    where: { id: market.id },
+    data: {
+      ...(params.input.nameEn !== undefined ? { nameEn: params.input.nameEn } : {}),
+      ...(params.input.nameAr !== undefined ? { nameAr: params.input.nameAr } : {}),
+      ...(params.input.sortOrder !== undefined ? { sortOrder: params.input.sortOrder } : {}),
+      ...(params.input.geoCountryCodes !== undefined
+        ? { geoCountryCodes: params.input.geoCountryCodes }
+        : {}),
+    },
+    select: {
+      id: true,
+      code: true,
+      subdomain: true,
+      nameEn: true,
+      nameAr: true,
+      defaultCurrency: true,
+      geoCountryCodes: true,
+      isActive: true,
+      sortOrder: true,
+    },
+  });
+
+  return mapRow(updated);
 }
 
 export async function setMarketActive(params: {
@@ -103,26 +167,13 @@ export async function setMarketActive(params: {
       nameEn: true,
       nameAr: true,
       defaultCurrency: true,
+      geoCountryCodes: true,
       isActive: true,
       sortOrder: true,
     },
   });
 
-  if (!isMarketCode(updated.code)) {
-    throw new Error("MARKET_NOT_FOUND");
-  }
-
-  return {
-    id: updated.id,
-    code: updated.code,
-    subdomain: updated.subdomain,
-    nameEn: updated.nameEn,
-    nameAr: updated.nameAr,
-    defaultCurrency: updated.defaultCurrency,
-    isActive: updated.isActive,
-    sortOrder: updated.sortOrder,
-    canDisable: updated.code !== DEFAULT_MARKET_CODE,
-  };
+  return mapRow(updated);
 }
 
 export async function isMarketCodeActive(code: MarketCode): Promise<boolean> {

@@ -19,7 +19,6 @@ export function referralCodeSeedFromEmail(email: string, userId: string): string
 /**
  * Stores referral parent at registration. Creates an inactive affiliate profile when needed
  * so the relation can be recorded before the user opts into the marketer program.
- * Merchant-sale referral commissions are not implemented yet — binding is for future use.
  */
 export async function bindReferralAtRegistration(
   tx: Prisma.TransactionClient,

@@ -16,6 +16,19 @@ export const PublicProductListQuerySchema = z.object({
   minPrice: z.coerce.number().nonnegative().optional(),
   maxPrice: z.coerce.number().positive().optional(),
   q: z.string().trim().max(120).optional(),
+  /** When set with deliveryCity, hides merchant-stock products outside direct-delivery coverage. */
+  deliveryCountryCode: z.string().trim().length(2).toUpperCase().optional(),
+  deliveryCity: z.string().trim().min(2).max(120).optional(),
+}).superRefine((value, ctx) => {
+  const hasCountry = Boolean(value.deliveryCountryCode);
+  const hasCity = Boolean(value.deliveryCity);
+  if (hasCountry !== hasCity) {
+    ctx.addIssue({
+      code: "custom",
+      message: "deliveryCountryCode and deliveryCity must be provided together.",
+      path: hasCountry ? ["deliveryCity"] : ["deliveryCountryCode"],
+    });
+  }
 });
 
 export type PublicProductListQuery = z.infer<typeof PublicProductListQuerySchema>;

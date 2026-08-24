@@ -24,6 +24,9 @@ type ConfigState = {
   vatPercent: number;
   minWithdrawalAmount: number;
   returnWindowDays: number;
+  settlementWindowDays: number;
+  referralDepthMax: number;
+  missingAncestorPolicy: "KEEP_BY_PLATFORM" | "REDISTRIBUTE_TO_EXISTING_LEVELS";
   termsUrl: string;
   termsText: string;
   privacyUrl: string;
@@ -67,6 +70,8 @@ type Ui = {
     tax: string;
     withdrawal: string;
     returns: string;
+    settlement: string;
+    referralStructure: string;
     policies: string;
     paymentGateways: string;
   };
@@ -82,6 +87,9 @@ type Ui = {
     vatPercent: string;
     minWithdrawalAmount: string;
     returnWindowDays: string;
+    settlementWindowDays: string;
+    referralDepthMax: string;
+    missingAncestorPolicy: string;
     termsUrl: string;
     termsText: string;
     privacyUrl: string;
@@ -98,7 +106,11 @@ type Ui = {
     appliesToNewOrders: string;
     policiesOptional: string;
     paymentGateways: string;
+    settlementWindow: string;
+    missingAncestorKeep: string;
+    missingAncestorRedistribute: string;
   };
+  viewAuditLog: string;
   lastUpdated: string;
   neverUpdated: string;
 };
@@ -431,6 +443,60 @@ export default function AdminPlatformSettingsForm({
                 onChange={(e) => setNumber("returnWindowDays", e.target.value)}
               />
             </SettingsField>
+          </section>
+
+          <section className="rounded-xl border border-[var(--border)] p-6">
+            <h2 className="text-lg font-medium">{ui.sections.settlement}</h2>
+            <p className="mt-1 text-xs text-[var(--muted)]">{ui.hints.settlementWindow}</p>
+            <SettingsField label={ui.fields.settlementWindowDays} className="mt-4 max-w-xs">
+              <input
+                type="number"
+                min={1}
+                max={90}
+                step={1}
+                className="app-input"
+                value={form.settlementWindowDays}
+                onChange={(e) => setNumber("settlementWindowDays", e.target.value)}
+              />
+            </SettingsField>
+          </section>
+
+          <section className="rounded-xl border border-[var(--border)] p-6">
+            <h2 className="text-lg font-medium">{ui.sections.referralStructure}</h2>
+            <div className="mt-4 grid gap-6 sm:grid-cols-2">
+              <SettingsField label={ui.fields.referralDepthMax}>
+                <input
+                  type="number"
+                  min={1}
+                  max={4}
+                  step={1}
+                  className="app-input"
+                  value={form.referralDepthMax}
+                  onChange={(e) => setNumber("referralDepthMax", e.target.value)}
+                />
+              </SettingsField>
+              <SettingsField label={ui.fields.missingAncestorPolicy}>
+                <select
+                  className="app-input"
+                  value={form.missingAncestorPolicy}
+                  onChange={(e) =>
+                    setForm((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            missingAncestorPolicy: e.target.value as ConfigState["missingAncestorPolicy"],
+                          }
+                        : prev,
+                    )
+                  }
+                >
+                  <option value="KEEP_BY_PLATFORM">{ui.hints.missingAncestorKeep}</option>
+                  <option value="REDISTRIBUTE_TO_EXISTING_LEVELS">
+                    {ui.hints.missingAncestorRedistribute}
+                  </option>
+                </select>
+              </SettingsField>
+            </div>
           </section>
 
           <section className="rounded-xl border border-[var(--border)] p-6">

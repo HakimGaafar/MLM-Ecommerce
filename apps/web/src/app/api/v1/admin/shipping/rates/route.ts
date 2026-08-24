@@ -1,6 +1,6 @@
 import { listShippingRates, updateShippingRateAmount } from "@mlm/domain";
+import { AdminShippingRateUpdateSchema, getMarketId, isMarketCode } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { requireAdminSession } from "@/lib/require-admin-session";
 
 export async function GET(request: NextRequest) {
@@ -8,16 +8,12 @@ export async function GET(request: NextRequest) {
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!auth.authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const rates = await listShippingRates();
+  const marketCode = request.nextUrl.searchParams.get("marketCode")?.trim().toUpperCase();
+  const marketId =
+    marketCode && isMarketCode(marketCode) ? getMarketId(marketCode) : undefined;
+  const rates = await listShippingRates(marketId ? { marketId } : undefined);
   return NextResponse.json({ rates }, { headers: { "Cache-Control": "no-store" } });
 }
-
-const PatchSchema = z.object({
-  code: z.string().trim().min(3).max(64),
-  amount: z.coerce.number().min(0).max(1_000_000),
-  perUnit: z.boolean().optional(),
-  isActive: z.boolean().optional(),
-});
 
 export async function PATCH(request: NextRequest) {
   const auth = await requireAdminSession(request);
@@ -25,13 +21,26 @@ export async function PATCH(request: NextRequest) {
   if (!auth.authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const raw = await request.json().catch(() => null);
-  const parsed = PatchSchema.safeParse(raw);
+  const parsed = AdminShippingRateUpdateSchema.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Validation failed" }, { status: 400 });
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Validation failed" },
+      { status: 400 },
+    );
+  }
+
+  if (!isMarketCode(parsed.data.marketCode)) {
+    return NextResponse.json({ error: "Invalid market code" }, { status: 400 });
   }
 
   try {
-    const rate = await updateShippingRateAmount(parsed.data);
+    const rate = await updateShippingRateAmount({
+      marketId: getMarketId(parsed.data.marketCode),
+      code: parsed.data.code,
+      amount: parsed.data.amount,
+      perUnit: parsed.data.perUnit,
+      isActive: parsed.data.isActive,
+    });
     return NextResponse.json({ rate }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Rate not found" }, { status: 404 });

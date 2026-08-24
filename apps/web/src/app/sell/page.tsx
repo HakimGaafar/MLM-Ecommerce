@@ -9,7 +9,12 @@ import { getServerSession } from "@/lib/server-session";
 import { firstAllowedVendorHrefForUser } from "@/lib/vendor-access";
 import { resolveVendorAccessForUser } from "@mlm/domain";
 
-export default async function SellPage() {
+export default async function SellPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string }>;
+}) {
+  const { ref } = await searchParams;
   const locale = await getAppLocale();
   const ui = locale === "ar" ? ar.sellOnboarding : en.sellOnboarding;
   const internationalVendorUi =
@@ -38,6 +43,7 @@ export default async function SellPage() {
         locale={locale}
         ui={ui}
         mode={mode}
+        initialReferralCode={ref ?? ""}
         internationalNotice={market.code === "GLOBAL" ? internationalVendorUi : null}
       />
     </PageShell>

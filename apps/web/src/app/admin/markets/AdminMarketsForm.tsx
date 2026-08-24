@@ -13,7 +13,9 @@ type MarketRow = {
   nameEn: string;
   nameAr: string;
   defaultCurrency: string;
+  geoCountryCodes: string[];
   isActive: boolean;
+  sortOrder: number;
   canDisable: boolean;
 };
 
@@ -34,6 +36,20 @@ type Ui = {
   disable: string;
   cannotDisableDefault: string;
   lastActiveError: string;
+  sortOrder: string;
+  nameEn: string;
+  nameAr: string;
+  geoCountries: string;
+  geoHint: string;
+  saveDetails: string;
+  editDetails: string;
+};
+
+type EditDraft = {
+  nameEn: string;
+  nameAr: string;
+  sortOrder: string;
+  geoCountryCodes: string;
 };
 
 export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: Ui }) {
@@ -41,6 +57,8 @@ export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: U
   const [markets, setMarkets] = useState<MarketRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingCode, setSavingCode] = useState<MarketCode | null>(null);
+  const [editingCode, setEditingCode] = useState<MarketCode | null>(null);
+  const [drafts, setDrafts] = useState<Partial<Record<MarketCode, EditDraft>>>({});
 
   const loadMarkets = useCallback(async () => {
     setLoading(true);
@@ -59,6 +77,53 @@ export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: U
   useEffect(() => {
     void loadMarkets();
   }, [loadMarkets]);
+
+  function openEdit(market: MarketRow) {
+    setEditingCode(market.code);
+    setDrafts((prev) => ({
+      ...prev,
+      [market.code]: {
+        nameEn: market.nameEn,
+        nameAr: market.nameAr,
+        sortOrder: String(market.sortOrder),
+        geoCountryCodes: market.geoCountryCodes.join(", "),
+      },
+    }));
+  }
+
+  async function saveDetails(market: MarketRow) {
+    const draft = drafts[market.code];
+    if (!draft) return;
+    setSavingCode(market.code);
+    try {
+      const geoCountryCodes = draft.geoCountryCodes
+        .split(/[,\s]+/)
+        .map((c) => c.trim().toUpperCase())
+        .filter((c) => c.length === 2);
+      const res = await fetch(`/api/v1/admin/markets?marketCode=${market.code}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nameEn: draft.nameEn,
+          nameAr: draft.nameAr,
+          sortOrder: Number(draft.sortOrder),
+          geoCountryCodes,
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as { market?: MarketRow; error?: string } | null;
+      if (!res.ok) throw new Error(data?.error ?? ui.saveError);
+      if (data?.market) {
+        setMarkets((prev) => prev.map((row) => (row.code === data.market!.code ? data.market! : row)));
+      }
+      setEditingCode(null);
+      toast.success(ui.saved);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : ui.saveError);
+    } finally {
+      setSavingCode(null);
+    }
+  }
 
   async function toggleMarket(market: MarketRow, nextActive: boolean) {
     if (!nextActive && !market.canDisable) {
@@ -103,63 +168,96 @@ export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: U
   return (
     <div className="mt-8 space-y-4">
       <p className="text-sm text-[var(--muted)]">{ui.defaultMarketNote}</p>
-      <div className="overflow-hidden rounded-xl border border-[var(--border)]">
-        <table className="w-full text-sm">
-          <thead className="bg-[var(--surface-elevated)] text-left">
-            <tr>
-              <th className="px-4 py-3 font-medium">{ui.marketColumn}</th>
-              <th className="px-4 py-3 font-medium">{ui.subdomain}</th>
-              <th className="px-4 py-3 font-medium">{ui.currency}</th>
-              <th className="px-4 py-3 font-medium">{ui.statusColumn}</th>
-              <th className="px-4 py-3 font-medium" />
-            </tr>
-          </thead>
-          <tbody>
-            {markets.map((market) => {
-              const label = locale === "ar" ? market.nameAr : market.nameEn;
-              const busy = savingCode === market.code;
-              return (
-                <tr key={market.code} className="border-t border-[var(--border)]">
-                  <td className="px-4 py-3 font-medium">{label}</td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{market.subdomain}</td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{market.defaultCurrency}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={
-                        market.isActive
-                          ? "rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300"
-                          : "rounded-full bg-zinc-500/15 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:text-zinc-300"
-                      }
+      <div className="space-y-4">
+        {markets.map((market) => {
+          const label = locale === "ar" ? market.nameAr : market.nameEn;
+          const busy = savingCode === market.code;
+          const editing = editingCode === market.code;
+          const draft = drafts[market.code];
+          return (
+            <div key={market.code} className="rounded-xl border border-[var(--border)] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="font-medium">{label}</div>
+                  <div className="mt-1 text-xs text-[var(--muted)]">
+                    {market.code} · {ui.subdomain}: {market.subdomain} · {ui.currency}: {market.defaultCurrency}
+                  </div>
+                  <div className="mt-1 text-xs text-[var(--muted)]">
+                    {ui.sortOrder}: {market.sortOrder} · {ui.geoCountries}: {market.geoCountryCodes.join(", ") || "—"}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={
+                      market.isActive
+                        ? "rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300"
+                        : "rounded-full bg-zinc-500/15 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:text-zinc-300"
+                    }
+                  >
+                    {market.isActive ? ui.active : ui.inactive}
+                  </span>
+                  <button
+                    type="button"
+                    className="text-sm text-link"
+                    disabled={busy}
+                    onClick={() => (editing ? setEditingCode(null) : openEdit(market))}
+                  >
+                    {editing ? ui.saving : ui.editDetails}
+                  </button>
+                  {market.isActive ? (
+                    <button
+                      type="button"
+                      className="text-sm text-red-600 disabled:opacity-50"
+                      disabled={busy || !market.canDisable}
+                      onClick={() => void toggleMarket(market, false)}
                     >
-                      {market.isActive ? ui.active : ui.inactive}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {market.isActive ? (
-                      <button
-                        type="button"
-                        className="btn-press cursor-pointer rounded-md px-2.5 py-1 text-sm font-medium text-red-600 transition-colors hover:bg-red-500/10 hover:text-red-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-red-600 disabled:hover:no-underline dark:text-red-400 dark:hover:bg-red-500/15 dark:hover:text-red-300"
-                        disabled={busy || !market.canDisable}
-                        onClick={() => void toggleMarket(market, false)}
-                      >
-                        {busy ? ui.saving : ui.disable}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn-press cursor-pointer rounded-md px-2.5 py-1 text-sm font-medium text-link transition-colors hover:bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
-                        disabled={busy}
-                        onClick={() => void toggleMarket(market, true)}
-                      >
-                        {busy ? ui.saving : ui.enable}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                      {ui.disable}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="text-sm text-link disabled:opacity-50"
+                      disabled={busy}
+                      onClick={() => void toggleMarket(market, true)}
+                    >
+                      {ui.enable}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {editing && draft ? (
+                <div className="mt-4 grid gap-3 border-t border-[var(--border)] pt-4 sm:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-[var(--muted)]">{ui.nameEn}</span>
+                    <input className="app-input" value={draft.nameEn} onChange={(e) => setDrafts((prev) => ({ ...prev, [market.code]: { ...draft, nameEn: e.target.value } }))} />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-[var(--muted)]">{ui.nameAr}</span>
+                    <input className="app-input" value={draft.nameAr} onChange={(e) => setDrafts((prev) => ({ ...prev, [market.code]: { ...draft, nameAr: e.target.value } }))} />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-[var(--muted)]">{ui.sortOrder}</span>
+                    <input className="app-input" type="number" min={0} value={draft.sortOrder} onChange={(e) => setDrafts((prev) => ({ ...prev, [market.code]: { ...draft, sortOrder: e.target.value } }))} />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+                    <span className="text-[var(--muted)]">{ui.geoCountries}</span>
+                    <input className="app-input" value={draft.geoCountryCodes} placeholder="SA, AE" onChange={(e) => setDrafts((prev) => ({ ...prev, [market.code]: { ...draft, geoCountryCodes: e.target.value } }))} />
+                    <span className="text-xs text-[var(--muted)]">{ui.geoHint}</span>
+                  </label>
+                  <button
+                    type="button"
+                    className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm text-[var(--primary-foreground)] disabled:opacity-60 sm:col-span-2 sm:w-fit"
+                    disabled={busy}
+                    onClick={() => void saveDetails(market)}
+                  >
+                    {busy ? ui.saving : ui.saveDetails}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

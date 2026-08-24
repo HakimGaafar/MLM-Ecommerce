@@ -5,6 +5,7 @@ import { getPublicStoreBySlug } from "@mlm/domain";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import StoreProductsGrid from "@/components/catalog/StoreProductsGrid";
+import { resolveRequestCatalogDelivery } from "@/lib/catalog-delivery-context";
 import { getAppLocale } from "@/lib/ui-locale";
 import { getActiveMarket } from "@/lib/market-server";
 
@@ -16,7 +17,8 @@ export async function generateMetadata({
   const { slug } = await params;
   const locale = await getAppLocale();
   const market = await getActiveMarket();
-  const store = await getPublicStoreBySlug(slug, locale, market.id);
+  const delivery = await resolveRequestCatalogDelivery({ marketCode: market.code });
+  const store = await getPublicStoreBySlug(slug, locale, market.id, delivery);
   if (!store) {
     return { title: "Store not found" };
   }
@@ -40,7 +42,8 @@ export default async function PublicStorePage({
   const { slug } = await params;
   const locale = await getAppLocale();
   const market = await getActiveMarket();
-  const store = await getPublicStoreBySlug(slug, locale, market.id);
+  const delivery = await resolveRequestCatalogDelivery({ marketCode: market.code });
+  const store = await getPublicStoreBySlug(slug, locale, market.id, delivery);
   if (!store) notFound();
   const ui = locale === "ar" ? ar.publicStores : en.publicStores;
   const catalogUi = locale === "ar" ? ar.productCatalog : en.productCatalog;

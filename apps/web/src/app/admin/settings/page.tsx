@@ -34,9 +34,14 @@ export default async function AdminSettingsPage() {
           <h1 className="text-2xl font-semibold">{ui.title}</h1>
           <p className="mt-2 text-sm text-[var(--muted)]">{ui.subtitle}</p>
         </div>
-        <Link href="/dashboard" className="text-sm font-medium text-link">
-          {ui.backToDashboard}
-        </Link>
+        <div className="flex flex-wrap items-center gap-4">
+          <Link href="/admin/settings/audit" className="text-sm font-medium text-link">
+            {ui.viewAuditLog}
+          </Link>
+          <Link href="/dashboard" className="text-sm font-medium text-link">
+            {ui.backToDashboard}
+          </Link>
+        </div>
       </div>
       <AdminPlatformSettingsForm
         locale={locale}

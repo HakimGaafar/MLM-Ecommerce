@@ -30,6 +30,13 @@ export const SellerOnboardSchema = SellerStoreFieldsSchema.extend({
   password: z.string().min(10).max(128),
   confirmPassword: z.string().min(10).max(128),
   acceptPlan: z.literal(true),
+  referralCode: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{4,24}$/, "Referral code must be 4-24 letters or numbers")
+    .optional()
+    .or(z.literal("")),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],

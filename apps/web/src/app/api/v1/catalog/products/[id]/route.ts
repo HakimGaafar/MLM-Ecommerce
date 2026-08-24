@@ -1,5 +1,6 @@
 import { getPublicProductById } from "@mlm/domain";
 import { NextRequest, NextResponse } from "next/server";
+import { resolveRequestCatalogDelivery } from "@/lib/catalog-delivery-context";
 import { resolveRequestMarket } from "@/lib/request-market";
 import { resolveRequestLocale } from "@/lib/ui-locale";
 
@@ -14,7 +15,13 @@ export async function GET(
 
   const market = await resolveRequestMarket();
   const locale = await resolveRequestLocale(request);
-  const product = await getPublicProductById(id, locale, market.id);
+  const url = new URL(request.url);
+  const delivery = await resolveRequestCatalogDelivery({
+    marketCode: market.code,
+    deliveryCountryCode: url.searchParams.get("deliveryCountryCode"),
+    deliveryCity: url.searchParams.get("deliveryCity"),
+  });
+  const product = await getPublicProductById(id, locale, market.id, delivery);
   if (!product) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

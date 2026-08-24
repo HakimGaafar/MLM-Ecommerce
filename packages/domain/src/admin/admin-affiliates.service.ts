@@ -2,8 +2,8 @@ import { Prisma, prisma } from "@mlm/db";
 import {
   affiliateRankTitles,
   defaultAffiliateRankTitle,
-  week1BusinessRules,
 } from "../business-rules";
+import { getReferralDepthMax } from "../platform-config/platform-config.service";
 
 export type AdminAffiliateListItemDto = {
   userId: string;
@@ -286,8 +286,9 @@ export async function getAffiliateGenealogy(params: {
   maxDepth?: number;
   maxNodes?: number;
 }): Promise<{ root: GenealogyNodeDto | null; maxDepth: number; truncated: boolean }> {
+  const configuredDepth = await getReferralDepthMax();
   const maxDepth = Math.min(
-    week1BusinessRules.referralDepthMax,
+    configuredDepth,
     Math.max(1, params.maxDepth ?? 3),
   );
   const maxNodes = Math.min(100, Math.max(1, params.maxNodes ?? 40));

@@ -19,16 +19,23 @@ export {
   getMinWithdrawalAmountSar,
   getReturnWindowDays,
   getVatRate,
+  getSettlementWindowDays,
+  getReferralDepthMax,
+  getMissingAncestorPolicy,
+  listPlatformConfigChangeLogs,
   getDefaultPlatformConfigSnapshot,
   toPlatformConfigAdminDto,
   buildPlatformConfigSeedData,
   invalidatePlatformConfigCache,
   type PlatformConfigSnapshot,
   type PlatformConfigAdminDto,
+  type PlatformConfigChangeLogDto,
 } from "./platform-config/platform-config.service";
 export {
   getAdminPlatformConfig,
   updateAdminPlatformConfig,
+  getAdminPlatformConfigChangeLogs,
+  listAdminPlatformConfigAudit,
 } from "./platform-config/admin-platform-config.service";
 
 export const roleCapabilities: Record<RoleCode, string[]> = {
@@ -71,6 +78,7 @@ export * from "./customer/order-item-ratings.service";
 export * from "./customer/customer-addresses.service";
 export * from "./customer/shipping-profile";
 export * from "./catalog/public-catalog.service";
+export * from "./catalog/catalog-delivery-context.service";
 export * from "./catalog/market-banners.service";
 export * from "./catalog/product-categories.service";
 export * from "./catalog/product-questions.service";
@@ -126,9 +134,12 @@ export * from "./wallet/vendor-earning.service";
 export * from "./kyc/kyc-requirements";
 export * from "./kyc/kyc-expiry";
 export * from "./kyc/kyc-document.service";
+export * from "./kyc/vendor-kyc-context.service";
 export * from "./kyc/kyc-withdraw-gate";
 export * from "./admin/admin-kyc.service";
 export * from "./admin/admin-markets.service";
+export * from "./admin/admin-product-categories.service";
+export * from "./admin/admin-market-banners.service";
 export * from "./affiliate/affiliate-dashboard.service";
 export * from "./invoices/platform-entity";
 export * from "./invoices/invoice-calculation";
@@ -138,3 +149,5 @@ export * from "./referral/referral-bind.service";
 export * from "./contact/contact-inquiry.service";
 export * from "./auth/password-reset.service";
 export * from "./auth/otp-verification.service";
+export * from "./auth/phone-otp-verification.service";
+export * from "./wallet/merchant-referral-commission.service";

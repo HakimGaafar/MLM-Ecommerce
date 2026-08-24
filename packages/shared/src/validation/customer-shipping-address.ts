@@ -4,6 +4,10 @@ import {
   isAddressCountryCode,
   type AddressCountryCode,
 } from "../address-catalog";
+import {
+  isValidSaShortNationalAddress,
+  normalizeSaShortNationalAddress,
+} from "./sa-short-national-address";
 
 const phoneSchema = z
   .string()
@@ -35,7 +39,12 @@ const baseAddressFields = {
   city: z.string().trim().min(1).max(120),
   neighborhood: optionalText(120),
   building: optionalText(120),
-  postalCode: z.string().trim().min(1).max(20),
+  postalCode: z
+    .string()
+    .trim()
+    .max(20)
+    .optional()
+    .transform((v) => v ?? ""),
   addressLine1: z.string().trim().max(200).optional().transform((v) => v ?? ""),
   addressLine2: optionalText(200),
   fullAddress: optionalText(500),
@@ -91,10 +100,26 @@ function refineCountryAddress(
       ctx.addIssue({ code: "custom", message: "Building is required.", path: ["building"] });
     }
   }
+  if (country === "SA" && value.shortNationalAddress?.trim()) {
+    const normalized = normalizeSaShortNationalAddress(value.shortNationalAddress);
+    if (!isValidSaShortNationalAddress(normalized)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Short national address must be 4 letters followed by 4 digits (e.g. AREB1343).",
+        path: ["shortNationalAddress"],
+      });
+    }
+  }
 }
 
 export const CustomerShippingAddressCreateSchema = z
   .object(baseAddressFields)
+  .transform((value) => ({
+    ...value,
+    shortNationalAddress: value.shortNationalAddress
+      ? normalizeSaShortNationalAddress(value.shortNationalAddress)
+      : value.shortNationalAddress,
+  }))
   .transform((value) => {
     const cc = value.countryCode.toUpperCase();
     if (cc === "OM" && !value.addressLine1?.trim()) {

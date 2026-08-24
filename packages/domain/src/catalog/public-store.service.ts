@@ -1,6 +1,8 @@
 import type { PaginatedResult } from "@mlm/shared";
 import { buildPaginatedResult, normalizePagination } from "@mlm/shared";
 import { prisma } from "@mlm/db";
+import type { CatalogDeliveryContext } from "./catalog-delivery-context.service";
+import { publishedInMarketWhere } from "./public-catalog.service";
 
 export type PublicStoreListItemDto = {
   id: string;
@@ -87,6 +89,8 @@ export async function listPublicStoreProducts(params: {
   page?: number;
   pageSize?: number;
   locale?: "en" | "ar";
+  marketId?: string;
+  delivery?: CatalogDeliveryContext | null;
 }): Promise<PaginatedResult<PublicStoreProductDto>> {
   const locale = params.locale ?? "en";
   const { page, pageSize, skip, take } = normalizePagination(params);
@@ -97,7 +101,12 @@ export async function listPublicStoreProducts(params: {
   if (!vendorOk) {
     return buildPaginatedResult([], 0, page, pageSize);
   }
-  const where = { vendorId: params.vendorId, status: "PUBLISHED" as const };
+  const where = params.marketId
+    ? {
+        vendorId: params.vendorId,
+        ...publishedInMarketWhere(params.marketId, params.delivery),
+      }
+    : { vendorId: params.vendorId, status: "PUBLISHED" as const };
   const [rows, total] = await prisma.$transaction([
     prisma.product.findMany({
       where,
@@ -142,6 +151,7 @@ export async function getPublicStoreBySlug(
   slug: string,
   locale: "en" | "ar" = "en",
   marketId?: string,
+  delivery?: CatalogDeliveryContext | null,
 ): Promise<PublicStoreDetailDto | null> {
   const normalized = slug.trim().toLowerCase();
   const vendor = await prisma.vendor.findFirst({
@@ -150,9 +160,32 @@ export async function getPublicStoreBySlug(
       storeApprovalStatus: "APPROVED",
       ...(marketId ? { marketId } : {}),
     },
-    include: {
-      products: {
-        where: { status: "PUBLISHED" },
+    select: {
+      id: true,
+      storeName: true,
+      slug: true,
+      countryCode: true,
+      city: true,
+      state: true,
+      addressLine1: true,
+      addressLine2: true,
+      postalCode: true,
+      about: true,
+      logoUrl: true,
+      bannerUrl: true,
+      planCode: true,
+      metaTitle: true,
+      metaDescription: true,
+    },
+  });
+  if (!vendor) return null;
+
+  const products = marketId
+    ? await prisma.product.findMany({
+        where: {
+          vendorId: vendor.id,
+          ...publishedInMarketWhere(marketId, delivery),
+        },
         orderBy: { updatedAt: "desc" },
         select: {
           id: true,
@@ -166,10 +199,23 @@ export async function getPublicStoreBySlug(
             select: { url: true, isPrimary: true },
           },
         },
-      },
-    },
-  });
-  if (!vendor) return null;
+      })
+    : await prisma.product.findMany({
+        where: { vendorId: vendor.id, status: "PUBLISHED" },
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          currency: true,
+          categoryId: true,
+          category: { select: { nameEn: true, nameAr: true } },
+          images: {
+            orderBy: [{ isPrimary: "desc" as const }, { sortOrder: "asc" as const }],
+            select: { url: true, isPrimary: true },
+          },
+        },
+      });
 
   return {
     id: vendor.id,
@@ -187,7 +233,7 @@ export async function getPublicStoreBySlug(
     planCode: vendor.planCode,
     metaTitle: vendor.metaTitle,
     metaDescription: vendor.metaDescription,
-    products: vendor.products.map((p) => {
+    products: products.map((p) => {
       const primary = p.images.find((i) => i.isPrimary) ?? p.images[0];
       return {
         id: p.id,

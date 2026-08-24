@@ -4,7 +4,7 @@ import {
 } from "@mlm/domain";
 import Link from "next/link";
 import InternationalAgreementRecord from "@/components/international/InternationalAgreementRecord";
-import KycDocumentsPanel from "@/components/kyc/KycDocumentsPanel";
+import VendorKycWorkspace from "@/components/kyc/VendorKycWorkspace";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { getCustomerPreferredLocale } from "@/lib/customer-locale";
@@ -52,14 +52,14 @@ export default async function VendorKycPage() {
         </div>
       ) : null}
       <div className="mt-8">
-        <KycDocumentsPanel
-          apiBase="/api/v1/vendor/kyc"
+        <VendorKycWorkspace
           locale={locale}
-          ui={{
+          kycUi={{
             ...ui.panel,
             documentTypes: ui.documentTypes,
             statusLabels: ui.statusLabels,
           }}
+          physicalShopUi={ui.physicalShop}
         />
       </div>
     </main>

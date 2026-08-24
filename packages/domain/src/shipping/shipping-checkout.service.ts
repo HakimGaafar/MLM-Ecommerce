@@ -84,6 +84,7 @@ export function groupCartLinesForShipping(lines: CartLineForShipping[]): CartLin
 
 export async function resolveShippingForCheckout(
   lines: CartLineForShipping[],
+  marketId: string,
   db: Prisma.TransactionClient | typeof prisma = prisma,
 ): Promise<ResolvedVendorShippingLine[]> {
   const grouped = groupCartLinesForShipping(lines);
@@ -118,6 +119,7 @@ export async function resolveShippingForCheckout(
     });
     const pkgKey = packageKeyForLine(line);
     const fee = await resolveShippingRateAmount({
+      marketId,
       packageType: pkgType,
       fourcesMode,
       quantity: line.quantity ?? 1,

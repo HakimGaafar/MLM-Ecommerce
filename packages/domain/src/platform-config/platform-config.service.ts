@@ -4,6 +4,7 @@ import {
   returnWindowDays as defaultReturnWindowDays,
   week1BusinessRules,
   getMinWithdrawalAmountSarFromEnv,
+  type MissingAncestorPolicy,
 } from "../business-rules";
 
 const CACHE_TTL_MS = 30_000;
@@ -19,6 +20,9 @@ export type PlatformConfigSnapshot = {
   vatRate: number;
   minWithdrawalAmount: number;
   returnWindowDays: number;
+  settlementWindowDays: number;
+  referralDepthMax: number;
+  missingAncestorPolicy: MissingAncestorPolicy;
   termsUrl: string | null;
   termsText: string | null;
   privacyUrl: string | null;
@@ -32,6 +36,19 @@ export type PlatformConfigSnapshot = {
   updatedByUserId: string | null;
 };
 
+export type PlatformConfigChangeLogDto = {
+  id: string;
+  marketId: string;
+  marketCode: string;
+  marketNameEn: string;
+  marketNameAr: string;
+  actorUserId: string;
+  actorName: string | null;
+  summary: string;
+  changesJson: Record<string, { from: unknown; to: unknown }>;
+  createdAt: string;
+};
+
 export type PlatformConfigAdminDto = PlatformConfigSnapshot & {
   marketCode: string;
   currency: string;
@@ -41,6 +58,7 @@ export type PlatformConfigAdminDto = PlatformConfigSnapshot & {
   vendorPercent: number;
   platformPercent: number;
   vatPercent: number;
+  updatedByName?: string | null;
 };
 
 const cache = new Map<string, { data: PlatformConfigSnapshot; expiresAt: number }>();
@@ -66,6 +84,9 @@ export function getDefaultPlatformConfigSnapshot(marketId: string = DEFAULT_MARK
     vatRate: DEFAULT_VAT_RATE,
     minWithdrawalAmount: getMinWithdrawalAmountSarFromEnv(),
     returnWindowDays: defaultReturnWindowDays,
+    settlementWindowDays: week1BusinessRules.settlementWindowDays,
+    referralDepthMax: week1BusinessRules.referralDepthMax,
+    missingAncestorPolicy: week1BusinessRules.missingAncestorPolicy,
     termsUrl: null,
     termsText: null,
     privacyUrl: null,
@@ -93,6 +114,9 @@ function mapRow(row: {
   vatRate: { toString(): string };
   minWithdrawalAmount: { toString(): string };
   returnWindowDays: number;
+  settlementWindowDays: number;
+  referralDepthMax: number;
+  missingAncestorPolicy: MissingAncestorPolicy;
   termsUrl: string | null;
   termsText: string | null;
   privacyUrl: string | null;
@@ -120,6 +144,9 @@ function mapRow(row: {
     vatRate: Number(row.vatRate),
     minWithdrawalAmount: Number(row.minWithdrawalAmount),
     returnWindowDays: row.returnWindowDays,
+    settlementWindowDays: row.settlementWindowDays,
+    referralDepthMax: row.referralDepthMax,
+    missingAncestorPolicy: row.missingAncestorPolicy,
     termsUrl: row.termsUrl,
     termsText: row.termsText,
     privacyUrl: row.privacyUrl,
@@ -186,6 +213,63 @@ export async function getMinWithdrawalAmountSar(marketId: string = DEFAULT_MARKE
   return getMinWithdrawalAmount(marketId);
 }
 
+export async function getSettlementWindowDays(marketId: string = DEFAULT_MARKET_ID): Promise<number> {
+  const config = await getPlatformConfig(marketId);
+  return config.settlementWindowDays;
+}
+
+export async function getReferralDepthMax(marketId: string = DEFAULT_MARKET_ID): Promise<number> {
+  const config = await getPlatformConfig(marketId);
+  return Math.min(4, Math.max(1, config.referralDepthMax));
+}
+
+export async function getMissingAncestorPolicy(
+  marketId: string = DEFAULT_MARKET_ID,
+): Promise<MissingAncestorPolicy> {
+  const config = await getPlatformConfig(marketId);
+  return config.missingAncestorPolicy;
+}
+
+export async function listPlatformConfigChangeLogs(params: {
+  marketId: string;
+  limit?: number;
+}): Promise<PlatformConfigChangeLogDto[]> {
+  const limit = Math.min(50, Math.max(1, params.limit ?? 20));
+  const rows = await prisma.platformConfigChangeLog.findMany({
+    where: { marketId: params.marketId },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+  const market = await prisma.market.findUnique({
+    where: { id: params.marketId },
+    select: { id: true, code: true, nameEn: true, nameAr: true },
+  });
+  if (!market) return [];
+
+  const actorIds = [...new Set(rows.map((r) => r.actorUserId))];
+  const actors =
+    actorIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: actorIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+  const actorById = new Map(actors.map((a) => [a.id, a.name]));
+
+  return rows.map((row) => ({
+    id: row.id,
+    marketId: row.marketId,
+    marketCode: market.code,
+    marketNameEn: market.nameEn,
+    marketNameAr: market.nameAr,
+    actorUserId: row.actorUserId,
+    actorName: actorById.get(row.actorUserId) ?? null,
+    summary: row.summary,
+    changesJson: row.changesJson as Record<string, { from: unknown; to: unknown }>,
+    createdAt: row.createdAt.toISOString(),
+  }));
+}
+
 export async function getReturnWindowDays(marketId: string = DEFAULT_MARKET_ID): Promise<number> {
   const config = await getPlatformConfig(marketId);
   return config.returnWindowDays;
@@ -215,6 +299,9 @@ export function buildPlatformConfigSeedData(
     vatRate: overrides?.vatRate ?? defaults.vatRate,
     minWithdrawalAmount: overrides?.minWithdrawalAmount ?? defaults.minWithdrawalAmount,
     returnWindowDays: overrides?.returnWindowDays ?? defaults.returnWindowDays,
+    settlementWindowDays: overrides?.settlementWindowDays ?? defaults.settlementWindowDays,
+    referralDepthMax: overrides?.referralDepthMax ?? defaults.referralDepthMax,
+    missingAncestorPolicy: overrides?.missingAncestorPolicy ?? defaults.missingAncestorPolicy,
     termsUrl: overrides?.termsUrl ?? defaults.termsUrl,
     termsText: overrides?.termsText ?? defaults.termsText,
     privacyUrl: overrides?.privacyUrl ?? defaults.privacyUrl,

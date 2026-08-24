@@ -1,4 +1,4 @@
-import { settlementWindowDays, week1BusinessRules, getPlatformConfig } from "@mlm/domain";
+import { getPlatformConfig, getReferralDepthMax, getSettlementWindowDays } from "@mlm/domain";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import AffiliateView from "@/app/customer/affiliate/AffiliateView";
@@ -30,13 +30,17 @@ export default async function AffiliatePage() {
   const direction = locale === "ar" ? "rtl" : "ltr";
   const market = await getActiveMarket();
   const platformConfig = await getPlatformConfig(market.id);
+  const [referralDepth, settlementDays] = await Promise.all([
+    getReferralDepthMax(market.id),
+    getSettlementWindowDays(market.id),
+  ]);
   const programRules = {
     poolPercent: Math.round(platformConfig.affiliatePoolRate * 1000) / 10,
-    depth: week1BusinessRules.referralDepthMax,
+    depth: referralDepth,
     levelPercentsOfPool: platformConfig.affiliateLevelRates.map(
       (rate) => Math.round(rate * 1000) / 10,
     ),
-    settlementDays: settlementWindowDays,
+    settlementDays,
     currency: market.defaultCurrency,
   };
   return (

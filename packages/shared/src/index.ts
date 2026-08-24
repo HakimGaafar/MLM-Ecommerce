@@ -53,6 +53,7 @@ export * from "./validation/vendor-product-import";
 export * from "./validation/vendor-team";
 export * from "./csv-parse";
 export * from "./validation/customer-shipping-address";
+export * from "./validation/sa-short-national-address";
 export * from "./types/customer-profile";
 export * from "./types/customer-shipping-address";
 export * from "./checkout-pricing";

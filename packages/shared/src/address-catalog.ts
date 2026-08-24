@@ -119,7 +119,14 @@ export type AddressFieldKey =
 
 /** Required fields by country (street maps to addressLine1). */
 export const ADDRESS_REQUIRED_FIELDS: Record<AddressCountryCode, readonly AddressFieldKey[]> = {
-  SA: ["city", "neighborhood", "street", "postalCode"],
-  OM: ["governorate", "city", "neighborhood", "postalCode"],
+  SA: ["city"],
+  OM: ["city"],
   EG: ["governorate", "city", "neighborhood", "street", "building", "postalCode"],
 };
+
+export function isAddressFieldRequired(
+  countryCode: AddressCountryCode,
+  field: AddressFieldKey,
+): boolean {
+  return ADDRESS_REQUIRED_FIELDS[countryCode].includes(field);
+}

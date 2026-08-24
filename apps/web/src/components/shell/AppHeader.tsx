@@ -171,14 +171,14 @@ export default function AppHeader({
             />
             <span className="hidden truncate sm:inline">{appName}</span>
           </Link>
-          <nav className="hidden min-w-0 items-center gap-0.5 overflow-x-auto md:flex lg:gap-1">
+          <nav className="hidden min-w-0 max-w-[min(100%,42rem)] flex-1 items-center gap-0.5 overflow-x-auto md:flex lg:max-w-none lg:gap-1">
             {headerLinks.map((link) => {
               const isActive = isShellNavItemActive(pathname, link, headerLinks);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`btn-press whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium transition lg:px-3 ${
+                  className={`btn-press whitespace-nowrap rounded-lg px-2.5 py-2 text-xs font-medium transition sm:text-sm lg:px-3 ${
                     isActive
                       ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
                       : "text-[var(--muted)] hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] hover:text-[var(--foreground)]"
@@ -191,7 +191,7 @@ export default function AppHeader({
           </nav>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {marketSwitcher ? (
             <MarketSwitcher
               locale={locale}

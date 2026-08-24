@@ -1,0 +1,46 @@
+.address-map-picker {
+  position: relative;
+  margin-top: 0.75rem;
+}
+
+.address-map-picker__canvas {
+  z-index: 0;
+  height: 14rem;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 88%, var(--muted) 12%);
+}
+
+.address-map-picker__canvas:focus {
+  outline: 2px solid color-mix(in srgb, var(--primary) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.address-map-picker__canvas .leaflet-container {
+  height: 100%;
+  width: 100%;
+  font: inherit;
+}
+
+.address-map-picker__pin {
+  background: transparent;
+  border: none;
+}
+
+.address-map-picker__placeholder {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--surface) 92%, var(--muted) 8%);
+}
+
+.address-map-picker__placeholder-text {
+  font-size: 0.875rem;
+  color: var(--muted);
+}

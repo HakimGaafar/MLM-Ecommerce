@@ -1,11 +1,11 @@
 import { prisma } from "@mlm/db";
 
-function normalizeCity(city: string): string {
+export function normalizeDeliveryCity(city: string): string {
   return city.trim().replace(/\s+/g, " ");
 }
 
 function cityKey(city: string): string {
-  return normalizeCity(city).toLowerCase();
+  return normalizeDeliveryCity(city).toLowerCase();
 }
 
 export type VendorDeliveryCityDto = {
@@ -33,7 +33,7 @@ export async function replaceVendorDeliveryCities(params: {
   const cleaned = params.cities
     .map((c) => ({
       countryCode: c.countryCode.trim().toUpperCase(),
-      city: normalizeCity(c.city),
+      city: normalizeDeliveryCity(c.city),
     }))
     .filter((c) => c.countryCode.length === 2 && c.city.length >= 2);
 

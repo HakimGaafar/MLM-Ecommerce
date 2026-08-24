@@ -32,6 +32,7 @@ type Ui = {
   status: string;
   readiness: string;
   permissions: string;
+  shipping: string;
   approve: string;
   reject: string;
   suspend: string;
@@ -199,9 +200,14 @@ export default function AdminVendorsList({ locale, ui }: { locale: Locale; ui: U
                     {new Date(row.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3">
-                    <Link href={`/admin/vendors/${row.id}/permissions`} className="text-link font-medium">
-                      {ui.permissions}
-                    </Link>
+                    <div className="flex flex-col gap-1">
+                      <Link href={`/admin/vendors/${row.id}/permissions`} className="text-link font-medium">
+                        {ui.permissions}
+                      </Link>
+                      <Link href={`/admin/vendors/${row.id}/shipping`} className="text-link text-xs font-medium">
+                        {ui.shipping}
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

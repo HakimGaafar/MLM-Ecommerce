@@ -1,4 +1,5 @@
 import type { CustomerProfileDto, CustomerShippingAddressDto } from "@mlm/shared";
+import { ADDRESS_REQUIRED_FIELDS, isAddressCountryCode } from "@mlm/shared";
 
 export class ShippingProfileError extends Error {
   constructor(
@@ -12,26 +13,21 @@ export class ShippingProfileError extends Error {
 
 /** Saved delivery row has everything needed to ship an order. */
 export function isSavedShippingAddressComplete(addr: CustomerShippingAddressDto): boolean {
-  if (
-    !(
-      addr.recipientName?.trim() &&
-      addr.phone?.trim() &&
-      addr.countryCode?.trim().length === 2 &&
-      addr.city?.trim() &&
-      addr.postalCode?.trim() &&
-      addr.addressLine1?.trim()
-    )
-  ) {
+  if (!addr.recipientName?.trim() || !addr.phone?.trim() || !addr.countryCode?.trim()) {
     return false;
   }
-  const cc = addr.countryCode.trim().toUpperCase();
-  if (cc === "SA" || cc === "OM" || cc === "EG") {
-    if (!addr.neighborhood?.trim()) return false;
+  if (!isAddressCountryCode(addr.countryCode)) {
+    return Boolean(addr.city?.trim() && (addr.addressLine1?.trim() || addr.fullAddress?.trim()));
   }
-  if (cc === "OM" || cc === "EG") {
-    if (!addr.governorate?.trim()) return false;
+  const required = ADDRESS_REQUIRED_FIELDS[addr.countryCode];
+  for (const key of required) {
+    if (key === "street" && !addr.addressLine1?.trim()) return false;
+    if (key === "city" && !addr.city?.trim()) return false;
+    if (key === "postalCode" && !addr.postalCode?.trim()) return false;
+    if (key === "governorate" && !addr.governorate?.trim()) return false;
+    if (key === "neighborhood" && !addr.neighborhood?.trim()) return false;
+    if (key === "building" && !addr.building?.trim()) return false;
   }
-  if (cc === "EG" && !addr.building?.trim()) return false;
   return true;
 }
 

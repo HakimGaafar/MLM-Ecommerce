@@ -213,7 +213,8 @@ enum ProductStockLocation {
 /// Stage 4 — platform shipping rate list (merchant cannot set checkout fees).
 model ShippingRate {
   id          String                        @id @default(cuid())
-  code        String                        @unique @db.VarChar(64)
+  marketId    String                        @map("market_id")
+  code        String                        @db.VarChar(64)
   packageType ShippingPackageType           @map("package_type")
   fourcesMode VendorIndirectFulfillment?    @map("fources_mode")
   amount      Decimal                       @db.Decimal(18, 2)
@@ -222,8 +223,10 @@ model ShippingRate {
   isActive    Boolean                       @default(true) @map("is_active")
   createdAt   DateTime                      @default(now()) @map("created_at")
   updatedAt   DateTime                      @updatedAt @map("updated_at")
+  market      Market                        @relation(fields: [marketId], references: [id], onDelete: Cascade)
 
-  @@index([packageType, fourcesMode, isActive])
+  @@unique([marketId, code])
+  @@index([marketId, packageType, fourcesMode, isActive])
   @@map("shipping_rates")
 }
 
@@ -287,6 +290,7 @@ enum OrderReturnStatus {
 
 enum OtpChallengePurpose {
   ACCOUNT_VERIFICATION
+  PHONE_VERIFICATION
 }
 
 model User {
@@ -556,6 +560,7 @@ model Vendor {
   invoiceLogoUrl        String?            @map("invoice_logo_url") @db.VarChar(500)
   internationalSalesConsentAt      DateTime? @map("international_sales_consent_at")
   internationalSalesConsentVersion String?   @map("international_sales_consent_version") @db.VarChar(32)
+  hasPhysicalShop                  Boolean   @default(false) @map("has_physical_shop")
   createdAt      DateTime           @default(now()) @map("created_at")
   updatedAt      DateTime           @updatedAt @map("updated_at")
   owner          User               @relation("VendorOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
@@ -1102,6 +1107,7 @@ model CustomerProfile {
   shippingPostalCode      String?  @map("shipping_postal_code")
   shippingCountryCode     String?  @map("shipping_country_code")
   preferredLanguage       String   @default("en") @map("preferred_language")
+  phoneVerifiedAt         DateTime? @map("phone_verified_at")
   internationalShoppingNoticeAcceptedAt DateTime? @map("international_shopping_notice_accepted_at")
   internationalShoppingNoticeVersion String? @map("international_shopping_notice_version") @db.VarChar(32)
   createdAt               DateTime @default(now()) @map("created_at")
@@ -1259,6 +1265,7 @@ model Market {
   categories      ProductCategory[]
   carts           Cart[]
   platformConfigs PlatformConfig[]
+  shippingRates   ShippingRate[]
   wallets         Wallet[]
   banners         MarketBanner[]
   contactInquiries ContactInquiry[]
@@ -1287,35 +1294,57 @@ model MarketBanner {
   @@map("market_banners")
 }
 
+enum MissingAncestorPolicy {
+  KEEP_BY_PLATFORM
+  REDISTRIBUTE_TO_EXISTING_LEVELS
+}
+
 /// Per-market platform business rules (Phase X4). One row per market.
 model PlatformConfig {
-  id                  String   @id @default(cuid())
-  marketId            String   @unique @map("market_id")
-  cashbackRate        Decimal  @map("cashback_rate") @db.Decimal(8, 6)
-  affiliatePoolRate   Decimal  @map("affiliate_pool_rate") @db.Decimal(8, 6)
-  affiliateLevel1Rate Decimal  @map("affiliate_level1_rate") @db.Decimal(8, 6)
-  affiliateLevel2Rate Decimal  @map("affiliate_level2_rate") @db.Decimal(8, 6)
-  affiliateLevel3Rate Decimal  @map("affiliate_level3_rate") @db.Decimal(8, 6)
-  affiliateLevel4Rate Decimal  @map("affiliate_level4_rate") @db.Decimal(8, 6)
-  vendorRate          Decimal  @map("vendor_rate") @db.Decimal(8, 6)
-  platformRate        Decimal  @map("platform_rate") @db.Decimal(8, 6)
-  vatRate             Decimal  @map("vat_rate") @db.Decimal(8, 6)
-  minWithdrawalAmount Decimal  @map("min_withdrawal_amount") @db.Decimal(18, 2)
-  returnWindowDays    Int      @map("return_window_days")
-  termsUrl            String?  @map("terms_url") @db.VarChar(500)
-  termsText           String?  @map("terms_text") @db.Text
-  privacyUrl          String?  @map("privacy_url") @db.VarChar(500)
-  privacyText         String?  @map("privacy_text") @db.Text
-  returnPolicyUrl     String?  @map("return_policy_url") @db.VarChar(500)
-  returnPolicyText    String?  @map("return_policy_text") @db.Text
-  showTapGateway      Boolean  @default(true) @map("show_tap_gateway")
-  showHyperPayGateway Boolean  @default(true) @map("show_hyperpay_gateway")
-  showMyFatoorahGateway Boolean @default(true) @map("show_myfatoorah_gateway")
-  updatedAt           DateTime @updatedAt @map("updated_at")
-  updatedByUserId     String?  @map("updated_by_user_id")
-  market              Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  id                    String                @id @default(cuid())
+  marketId              String                @unique @map("market_id")
+  cashbackRate          Decimal               @map("cashback_rate") @db.Decimal(8, 6)
+  affiliatePoolRate     Decimal               @map("affiliate_pool_rate") @db.Decimal(8, 6)
+  affiliateLevel1Rate   Decimal               @map("affiliate_level1_rate") @db.Decimal(8, 6)
+  affiliateLevel2Rate   Decimal               @map("affiliate_level2_rate") @db.Decimal(8, 6)
+  affiliateLevel3Rate   Decimal               @map("affiliate_level3_rate") @db.Decimal(8, 6)
+  affiliateLevel4Rate   Decimal               @map("affiliate_level4_rate") @db.Decimal(8, 6)
+  vendorRate            Decimal               @map("vendor_rate") @db.Decimal(8, 6)
+  platformRate          Decimal               @map("platform_rate") @db.Decimal(8, 6)
+  vatRate               Decimal               @map("vat_rate") @db.Decimal(8, 6)
+  minWithdrawalAmount   Decimal               @map("min_withdrawal_amount") @db.Decimal(18, 2)
+  returnWindowDays      Int                   @map("return_window_days")
+  settlementWindowDays  Int                   @default(7) @map("settlement_window_days")
+  referralDepthMax      Int                   @default(4) @map("referral_depth_max")
+  missingAncestorPolicy MissingAncestorPolicy @default(KEEP_BY_PLATFORM) @map("missing_ancestor_policy")
+  termsUrl              String?               @map("terms_url") @db.VarChar(500)
+  termsText             String?               @map("terms_text") @db.Text
+  privacyUrl            String?               @map("privacy_url") @db.VarChar(500)
+  privacyText           String?               @map("privacy_text") @db.Text
+  returnPolicyUrl       String?               @map("return_policy_url") @db.VarChar(500)
+  returnPolicyText      String?               @map("return_policy_text") @db.Text
+  showTapGateway        Boolean               @default(true) @map("show_tap_gateway")
+  showHyperPayGateway   Boolean               @default(true) @map("show_hyperpay_gateway")
+  showMyFatoorahGateway Boolean               @default(true) @map("show_myfatoorah_gateway")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+  updatedByUserId       String?               @map("updated_by_user_id")
+  market                Market                @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  changeLogs            PlatformConfigChangeLog[]
 
   @@map("platform_config")
+}
+
+model PlatformConfigChangeLog {
+  id          String   @id @default(cuid())
+  marketId    String   @map("market_id")
+  actorUserId String   @map("actor_user_id")
+  summary     String   @db.VarChar(500)
+  changesJson Json     @map("changes_json")
+  createdAt   DateTime @default(now()) @map("created_at")
+  config      PlatformConfig @relation(fields: [marketId], references: [marketId], onDelete: Cascade)
+
+  @@index([marketId, createdAt])
+  @@map("platform_config_change_logs")
 }
 
 model StripeWebhookEvent {

@@ -1,4 +1,4 @@
-import { onboardNewSeller, SellerOnboardError } from "@mlm/domain";
+import { onboardNewSeller, ReferralBindError, SellerOnboardError } from "@mlm/domain";
 import { SellerOnboardSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { consumeRateLimit, getClientIp, isStrongPassword } from "@/lib/security";
@@ -33,6 +33,9 @@ export async function POST(request: NextRequest) {
     const result = await onboardNewSeller(parsed.data, market.id);
     return NextResponse.json(result, { status: 201 });
   } catch (e) {
+    if (e instanceof ReferralBindError) {
+      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status: 400 });
+    }
     if (e instanceof SellerOnboardError) {
       const status =
         e.code === "EMAIL_IN_USE" || e.code === "SLUG_TAKEN" || e.code === "USERNAME_IN_USE"

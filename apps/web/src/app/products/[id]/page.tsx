@@ -5,6 +5,7 @@ import { getPublicProductById } from "@mlm/domain";
 import ProductImageGallery from "@/components/catalog/ProductImageGallery";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
+import { resolveRequestCatalogDelivery } from "@/lib/catalog-delivery-context";
 import { getAppLocale } from "@/lib/ui-locale";
 import { getServerSession } from "@/lib/server-session";
 import { getActiveMarket } from "@/lib/market-server";
@@ -20,7 +21,8 @@ export async function generateMetadata({
   const { id } = await params;
   const locale = await getAppLocale();
   const market = await getActiveMarket();
-  const product = await getPublicProductById(id, locale, market.id);
+  const delivery = await resolveRequestCatalogDelivery({ marketCode: market.code });
+  const product = await getPublicProductById(id, locale, market.id, delivery);
   if (!product) {
     return { title: "Product not found" };
   }
@@ -42,7 +44,8 @@ export default async function ProductDetailPage({
   const { id } = await params;
   const locale = await getAppLocale();
   const market = await getActiveMarket();
-  const product = await getPublicProductById(id, locale, market.id);
+  const delivery = await resolveRequestCatalogDelivery({ marketCode: market.code });
+  const product = await getPublicProductById(id, locale, market.id, delivery);
   if (!product) {
     notFound();
   }

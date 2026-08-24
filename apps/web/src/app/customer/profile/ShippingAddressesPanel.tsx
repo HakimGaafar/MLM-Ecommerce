@@ -5,9 +5,13 @@ import {
   ADDRESS_CITIES,
   ADDRESS_GOVERNORATES,
   isAddressCountryCode,
+  isAddressFieldRequired,
+  isValidSaShortNationalAddress,
+  normalizeSaShortNationalAddress,
   type AddressCountryCode,
 } from "@mlm/shared";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import Pagination from "@/components/Pagination";
 import { useToast } from "@/components/toast/ToastProvider";
 import { LIST_PAGE_SIZE } from "@/lib/list-page";
@@ -31,6 +35,7 @@ type Ui = {
   countryEG: string;
   governorate: string;
   city: string;
+  stateLabel: string;
   cityOther: string;
   neighborhood: string;
   building: string;
@@ -39,6 +44,8 @@ type Ui = {
   line2: string;
   fullAddress: string;
   shortNationalAddress: string;
+  shortNationalAddressHint: string;
+  shortNationalAddressInvalid: string;
   mapPin: string;
   mapPinHint: string;
   latitude: string;
@@ -95,6 +102,11 @@ const emptyForm: AddressFormState = {
 
 const inputClass =
   "mt-1 w-full rounded border border-[var(--border-strong)] px-2 py-1.5 dark:bg-[var(--surface)]";
+
+const AddressMapPicker = dynamic(() => import("@/components/address/AddressMapPicker"), {
+  ssr: false,
+  loading: () => <div className="mt-3 h-56 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]" />,
+});
 
 function resolveCity(form: AddressFormState): string {
   return form.city === "__other__" ? form.cityCustom.trim() : form.city.trim();
@@ -231,6 +243,14 @@ export default function ShippingAddressesPanel({ locale, ui }: { locale: Locale;
 
   async function submitForm(forEditId: string | null) {
     setError(null);
+    if (
+      form.countryCode === "SA" &&
+      form.shortNationalAddress.trim() &&
+      !isValidSaShortNationalAddress(normalizeSaShortNationalAddress(form.shortNationalAddress))
+    ) {
+      setError(ui.shortNationalAddressInvalid);
+      return;
+    }
     setSaving(true);
     try {
       const body = formToPayload(form);
@@ -436,7 +456,7 @@ function AddressFormFields({
   ui,
 }: {
   form: AddressFormState;
-  setForm: (v: AddressFormState) => void;
+  setForm: Dispatch<SetStateAction<AddressFormState>>;
   ui: Ui;
 }) {
   const cc = form.countryCode;
@@ -446,6 +466,29 @@ function AddressFormFields({
   const showBuilding = cc === "EG";
   const showGovernorate = cc === "OM" || cc === "EG";
   const showShortNational = cc === "SA";
+  const cityLabel = cc === "OM" ? ui.stateLabel : ui.city;
+  const requires = (field: Parameters<typeof isAddressFieldRequired>[1]) =>
+    isAddressFieldRequired(cc, field);
+
+  const handleMapChange = useCallback(
+    (lat: string, lng: string) => {
+      setForm((current) => ({ ...current, latitude: lat, longitude: lng }));
+    },
+    [setForm],
+  );
+
+  const commitMapCoordsFromFields = useCallback(() => {
+    setForm((current) => {
+      const lat = Number(current.latitude.trim());
+      const lng = Number(current.longitude.trim());
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return current;
+      if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return current;
+      const latitude = lat.toFixed(6);
+      const longitude = lng.toFixed(6);
+      if (latitude === current.latitude && longitude === current.longitude) return current;
+      return { ...current, latitude, longitude };
+    });
+  }, [setForm]);
 
   const mapHref = useMemo(() => {
     const q = encodeURIComponent(
@@ -489,6 +532,8 @@ function AddressFormFields({
               governorate: "",
               city: "",
               cityCustom: "",
+              latitude: "",
+              longitude: "",
             });
           }}
         >
@@ -504,7 +549,7 @@ function AddressFormFields({
             className={inputClass}
             value={form.governorate}
             onChange={(e) => setForm({ ...form, governorate: e.target.value })}
-            required
+            required={requires("governorate")}
           >
             <option value="">—</option>
             {governorates.map((g) => (
@@ -516,7 +561,7 @@ function AddressFormFields({
         </label>
       ) : null}
       <label className="block text-sm">
-        <span className="text-[var(--muted)]">{ui.city}</span>
+        <span className="text-[var(--muted)]">{cityLabel}</span>
         <select
           className={inputClass}
           value={form.city}
@@ -534,7 +579,7 @@ function AddressFormFields({
       </label>
       {form.city === "__other__" ? (
         <label className="block text-sm">
-          <span className="text-[var(--muted)]">{ui.city}</span>
+          <span className="text-[var(--muted)]">{cityLabel}</span>
           <input
             className={inputClass}
             value={form.cityCustom}
@@ -549,7 +594,7 @@ function AddressFormFields({
           className={inputClass}
           value={form.neighborhood}
           onChange={(e) => setForm({ ...form, neighborhood: e.target.value })}
-          required
+          required={requires("neighborhood")}
         />
       </label>
       {showBuilding ? (
@@ -559,7 +604,7 @@ function AddressFormFields({
             className={inputClass}
             value={form.building}
             onChange={(e) => setForm({ ...form, building: e.target.value })}
-            required
+            required={requires("building")}
           />
         </label>
       ) : null}
@@ -569,7 +614,7 @@ function AddressFormFields({
           className={inputClass}
           value={form.postalCode}
           onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
-          required
+          required={requires("postalCode")}
         />
       </label>
       {showStreet ? (
@@ -579,7 +624,7 @@ function AddressFormFields({
             className={inputClass}
             value={form.addressLine1}
             onChange={(e) => setForm({ ...form, addressLine1: e.target.value })}
-            required
+            required={requires("street")}
           />
         </label>
       ) : null}
@@ -589,7 +634,10 @@ function AddressFormFields({
           <input
             className={inputClass}
             value={form.shortNationalAddress}
-            onChange={(e) => setForm({ ...form, shortNationalAddress: e.target.value })}
+            onChange={(e) => setForm({ ...form, shortNationalAddress: e.target.value.toUpperCase() })}
+            placeholder={ui.shortNationalAddressHint}
+            maxLength={8}
+            dir="ltr"
           />
         </label>
       ) : null}
@@ -613,6 +661,12 @@ function AddressFormFields({
       <div className="sm:col-span-2 rounded-lg border border-dashed border-[var(--border)] p-3">
         <p className="text-sm font-medium text-[var(--foreground)]">{ui.mapPin}</p>
         <p className="mt-1 text-xs text-[var(--muted)]">{ui.mapPinHint}</p>
+        <AddressMapPicker
+          countryCode={cc}
+          latitude={form.latitude}
+          longitude={form.longitude}
+          onChange={handleMapChange}
+        />
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">
             <span className="text-[var(--muted)]">{ui.latitude}</span>
@@ -621,6 +675,7 @@ function AddressFormFields({
               inputMode="decimal"
               value={form.latitude}
               onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+              onBlur={commitMapCoordsFromFields}
               placeholder="24.7136"
             />
           </label>
@@ -631,6 +686,7 @@ function AddressFormFields({
               inputMode="decimal"
               value={form.longitude}
               onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+              onBlur={commitMapCoordsFromFields}
               placeholder="46.6753"
             />
           </label>

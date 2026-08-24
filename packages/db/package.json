@@ -15,6 +15,8 @@
     "prisma:migrate": "dotenv -e ../../.env -- prisma migrate dev",
     "prisma:migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
     "prisma:migrate:status": "dotenv -e ../../.env -- prisma migrate status",
+    "prisma:migrate:check": "dotenv -e ../../.env -- tsx scripts/check-migrations.ts",
+    "prisma:migrate:repair-checksums": "dotenv -e ../../.env -- tsx scripts/repair-migration-checksums.ts",
     "prisma:reset": "dotenv -e ../../.env -- prisma migrate reset",
     "prisma:seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
     "prisma:bootstrap": "dotenv -e ../../.env -- tsx prisma/bootstrap.ts"

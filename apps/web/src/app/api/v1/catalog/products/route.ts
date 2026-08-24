@@ -1,6 +1,7 @@
 import { searchPublicProducts } from "@mlm/domain";
 import { PublicProductListQuerySchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
+import { resolveRequestCatalogDelivery } from "@/lib/catalog-delivery-context";
 import { enforceIpRateLimit } from "@/lib/rate-limit-response";
 import { resolveRequestLocale } from "@/lib/ui-locale";
 import { resolveRequestMarket } from "@/lib/request-market";
@@ -22,6 +23,8 @@ export async function GET(request: NextRequest) {
     minPrice: url.searchParams.get("minPrice") ?? undefined,
     maxPrice: url.searchParams.get("maxPrice") ?? undefined,
     q: url.searchParams.get("q") ?? undefined,
+    deliveryCountryCode: url.searchParams.get("deliveryCountryCode") ?? undefined,
+    deliveryCity: url.searchParams.get("deliveryCity") ?? undefined,
   });
 
   if (!parsed.success) {
@@ -29,7 +32,18 @@ export async function GET(request: NextRequest) {
   }
 
   const market = await resolveRequestMarket();
-  const result = await searchPublicProducts({ ...parsed.data, locale, marketId: market.id });
+  const { deliveryCountryCode, deliveryCity, ...query } = parsed.data;
+  const delivery = await resolveRequestCatalogDelivery({
+    marketCode: market.code,
+    deliveryCountryCode,
+    deliveryCity,
+  });
+  const result = await searchPublicProducts({
+    ...query,
+    locale,
+    marketId: market.id,
+    delivery,
+  });
 
   return NextResponse.json(
     result,

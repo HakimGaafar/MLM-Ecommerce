@@ -4,11 +4,13 @@ import en from "@/i8n/en.json";
 import { getCustomerPreferredLocale } from "@/lib/customer-locale";
 import ProfileForm from "./ProfileForm";
 import ShippingAddressesPanel from "./ShippingAddressesPanel";
+import PhoneVerificationPanel from "@/components/auth/PhoneVerificationPanel";
 
 export default async function CustomerProfilePage() {
   const locale = await getCustomerPreferredLocale();
   const ui = locale === "ar" ? ar.customerProfile : en.customerProfile;
   const addrUi = locale === "ar" ? ar.customerShippingAddresses : en.customerShippingAddresses;
+  const phoneUi = locale === "ar" ? ar.phoneVerification : en.phoneVerification;
   const direction = locale === "ar" ? "rtl" : "ltr";
 
   return (
@@ -25,6 +27,7 @@ export default async function CustomerProfilePage() {
       </p>
 
       <ProfileForm />
+      <PhoneVerificationPanel ui={phoneUi} />
       <ShippingAddressesPanel locale={locale} ui={addrUi} />
     </main>
   );

@@ -405,6 +405,7 @@ export async function getCheckoutQuoteForUser(
         fourcesMode: line.fourcesMode,
         quantity: line.quantity,
       })),
+      marketId,
       prisma,
     );
     shippingBreakdown = shippingBreakdownToDto(shippingLines);
@@ -576,6 +577,7 @@ export async function createOrderFromCart(
         fourcesMode: line.fourcesMode,
         quantity: line.quantity,
       })),
+      marketId,
       tx,
     );
     const shippingFee = sumVendorShippingFees(shippingLines);
