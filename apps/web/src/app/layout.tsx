@@ -16,6 +16,7 @@ import { getBrandName } from "@/lib/brand";
 import { htmlLangAttr } from "@/lib/format-currency";
 import { getActiveMarket } from "@/lib/market-server";
 import { ACTIVE_ROLE_COOKIE, resolveActiveRole } from "@/lib/active-role";
+import { GUEST_DELIVERY_COOKIE } from "@/lib/guest-delivery-cookie";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getAppLocale();
@@ -62,6 +63,10 @@ export default async function RootLayout({
     ? await getInternationalShoppingNoticeStatus(session!.sub)
     : null;
   const showGlobalCustomsNotice = eligibleForNotice && !shoppingNotice?.accepted;
+
+  if (cookieStore.get(GUEST_DELIVERY_COOKIE)) {
+    cookieStore.delete(GUEST_DELIVERY_COOKIE);
+  }
 
   return (
     <html

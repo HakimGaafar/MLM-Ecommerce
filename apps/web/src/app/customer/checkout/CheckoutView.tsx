@@ -80,6 +80,13 @@ type QuotePayload = {
   walletAppliedAmount?: string;
   remainingAmount?: string;
   emailVerified?: boolean;
+  deliveryIssues?: Array<{
+    itemId: string;
+    productId: string;
+    productName: string;
+    cities: string[];
+    reason: "PRODUCT_SPECIFIC" | "VENDOR_SHIPPING";
+  }>;
 };
 
 type OrderDetail = {
@@ -155,6 +162,11 @@ type CheckoutUi = {
   deliveryMismatchBody: string;
   deliveryMismatchSwitch: string;
   deliveryMismatchSwitchError: string;
+  deliveryIssuesTitle: string;
+  deliveryIssueProduct: string;
+  deliveryIssueVendor: string;
+  deliveryIssuesCheckoutBlocked: string;
+  deliveryIssuesBackToCart: string;
 };
 
 export default function CheckoutView({
@@ -494,7 +506,9 @@ export default function CheckoutView({
   const addressOk = !hasSavedAddresses || Boolean(selectedShippingAddressId);
   const deliveryOk = !quote?.deliveryMismatchMarketCode;
   const verificationOk = emailVerified !== false;
-  const canSubmit = profileOk && addressOk && deliveryOk && verificationOk && !submitting && !applyingCoupon;
+  const cartDeliveryOk = (quote?.deliveryIssues?.length ?? 0) === 0;
+  const canSubmit =
+    profileOk && addressOk && deliveryOk && verificationOk && cartDeliveryOk && !submitting && !applyingCoupon;
 
   return (
     <div className="mt-6 space-y-6 animate-page-enter" dir={direction}>
@@ -781,6 +795,32 @@ export default function CheckoutView({
           <p className="mt-1 leading-6 text-[var(--muted)]">
             {internationalNotice.checkoutBody}
           </p>
+        </section>
+      ) : null}
+
+      {(quote?.deliveryIssues?.length ?? 0) > 0 ? (
+        <section className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-4 text-sm">
+          <h2 className="font-semibold text-[var(--foreground)]">{ui.deliveryIssuesTitle}</h2>
+          <ul className="mt-3 space-y-2">
+            {quote!.deliveryIssues!.map((issue) => (
+              <li key={issue.itemId} className="text-[var(--foreground)]">
+                <span className="font-medium">{issue.productName}</span>
+                <span className="text-[var(--muted)]">
+                  {" — "}
+                  {issue.reason === "PRODUCT_SPECIFIC"
+                    ? ui.deliveryIssueProduct.replace(
+                        "{cities}",
+                        issue.cities.length > 0 ? issue.cities.join(", ") : "—",
+                      )
+                    : ui.deliveryIssueVendor}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[var(--muted)]">{ui.deliveryIssuesCheckoutBlocked}</p>
+          <Link href="/cart" className="btn-secondary btn-press mt-3 inline-flex text-sm">
+            {ui.deliveryIssuesBackToCart}
+          </Link>
         </section>
       ) : null}
 

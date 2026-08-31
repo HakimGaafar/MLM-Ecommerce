@@ -94,28 +94,7 @@ function productSelectForMarket(marketId?: string) {
   };
 }
 
-export function publishedInMarketWhere(marketId: string, delivery?: CatalogDeliveryContext | null) {
-  const merchantStockBranch = delivery
-    ? {
-        marketOffers: {
-          some: { marketId, stockLocation: "MERCHANT" as const },
-        },
-        vendor: {
-          deliveryCities: {
-            some: {
-              countryCode: delivery.countryCode,
-              city: { equals: delivery.city, mode: "insensitive" as const },
-            },
-          },
-        },
-      }
-    : {
-        marketOffers: {
-          some: { marketId, stockLocation: "MERCHANT" as const },
-        },
-        vendor: { deliveryCities: { some: {} } },
-      };
-
+export function publishedInMarketWhere(marketId: string, _delivery?: CatalogDeliveryContext | null) {
   return {
     status: "PUBLISHED" as const,
     AND: [
@@ -127,7 +106,11 @@ export function publishedInMarketWhere(marketId: string, delivery?: CatalogDeliv
               some: { marketId, stockLocation: "FOURCES_WAREHOUSE" as const },
             },
           },
-          merchantStockBranch,
+          {
+            marketOffers: {
+              some: { marketId, stockLocation: "MERCHANT" as const },
+            },
+          },
           { marketId, marketOffers: { none: {} } },
         ],
       },

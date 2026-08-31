@@ -151,6 +151,8 @@ export async function importVendorProductsFromCsv(
           price: parsed.data.price,
           currency: "SAR",
           categoryId,
+          serviceAreaMode: "ALL",
+          serviceCities: [],
           images: [{ url: parsed.data.imageUrl, sortOrder: 0, isPrimary: true }],
         },
         locale,

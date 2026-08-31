@@ -16,6 +16,7 @@ export class SellerOnboardError extends Error {
   constructor(
     public readonly code:
       | "EMAIL_IN_USE"
+      | "CUSTOMER_EMAIL_EXISTS"
       | "USERNAME_IN_USE"
       | "SLUG_TAKEN"
       | "SLUG_RESERVED"
@@ -172,8 +173,21 @@ export async function onboardNewSeller(
     if (hasVendor) {
       throw new SellerOnboardError("ALREADY_VENDOR", "This email already has a merchant account.");
     }
-    if (existingByEmail.username) {
-      throw new SellerOnboardError("EMAIL_IN_USE", "Email already in use.");
+
+    const usernameTakenByOther = await prisma.user.findFirst({
+      where: { username, NOT: { id: existingByEmail.id } },
+      select: { id: true },
+    });
+    if (usernameTakenByOther) {
+      throw new SellerOnboardError("USERNAME_IN_USE", "Merchant username already in use.");
+    }
+
+    const isCustomer = existingByEmail.userRoles.some((row) => row.role.code === "CUSTOMER");
+    if (isCustomer && existingByEmail.username && existingByEmail.username !== username) {
+      throw new SellerOnboardError(
+        "CUSTOMER_EMAIL_EXISTS",
+        "This email is already registered as a customer. Log in to your customer account, then open Become a Seller to add your store.",
+      );
     }
 
     const passwordHash = await bcrypt.hash(input.password, 10);

@@ -25,6 +25,11 @@ import {
   assertMerchantDirectShippingReady,
   VendorCoverageError,
 } from "../shipping/vendor-delivery-coverage.service";
+import {
+  productServiceAreaInputFromPayload,
+  replaceProductServiceCities,
+  type ProductServiceCityDto,
+} from "../shipping/product-service-area.service";
 
 export class VendorProductError extends Error {
   constructor(
@@ -73,6 +78,8 @@ export type VendorProductDto = {
   pendingEditRequestedAt: string | null;
   latestEditRejectionReason: string | null;
   latestProductRejectionReason: string | null;
+  serviceAreaMode: "ALL" | "SPECIFIC";
+  serviceCities: ProductServiceCityDto[];
 };
 
 type ProductRow = {
@@ -84,6 +91,8 @@ type ProductRow = {
   isActive: boolean;
   categoryId: string;
   fulfillmentType: string;
+  serviceAreaMode: string;
+  serviceCities: { countryCode: string; city: string }[];
   metaTitle: string | null;
   metaDescription: string | null;
   category: { nameEn: string; nameAr: string };
@@ -145,6 +154,11 @@ function toDto(row: ProductRow, locale: "en" | "ar" = "en"): VendorProductDto {
     latestEditRejectionReason:
       row.editRequests.find((r) => r.status === "REJECTED")?.rejectionReason ?? null,
     latestProductRejectionReason: row.reviews[0]?.rejectionReason ?? null,
+    serviceAreaMode: (row.serviceAreaMode === "SPECIFIC" ? "SPECIFIC" : "ALL") as "ALL" | "SPECIFIC",
+    serviceCities: (row.serviceCities ?? []).map((c) => ({
+      countryCode: c.countryCode,
+      city: c.city,
+    })),
   };
 }
 
@@ -165,6 +179,10 @@ const productInclude = {
     orderBy: { createdAt: "desc" as const },
     take: 1,
     select: { rejectionReason: true },
+  },
+  serviceCities: {
+    orderBy: [{ countryCode: "asc" as const }, { city: "asc" as const }],
+    select: { countryCode: true, city: true },
   },
 };
 
@@ -306,6 +324,11 @@ export async function createVendorProduct(
             vendor.indirectFulfillment ?? undefined,
           ));
 
+    const serviceArea = productServiceAreaInputFromPayload({
+      serviceAreaMode: input.serviceAreaMode ?? "ALL",
+      serviceCities: input.serviceCities,
+    });
+
     const product = await tx.product.create({
       data: {
         marketId: vendor.marketId,
@@ -315,6 +338,7 @@ export async function createVendorProduct(
         price: home.price,
         currency: home.currency,
         fulfillmentType,
+        serviceAreaMode: serviceArea.serviceAreaMode,
         status: "DRAFT",
         isActive: false,
         ...seoFieldsToNullables({
@@ -325,6 +349,7 @@ export async function createVendorProduct(
       include: productInclude,
     });
     await replaceProductMarketOffers(tx, product.id, offers);
+    await replaceProductServiceCities(tx, product.id, serviceArea);
     const primaryIndex = resolvePrimaryImageIndex(input.images);
     await tx.productImage.createMany({
       data: input.images.map((img, index) => ({
@@ -392,6 +417,18 @@ export async function updateVendorProduct(
         "PENDING_EDIT_REQUEST_EXISTS",
         "A pending edit request already exists for this product.",
       );
+    }
+
+    if (input.serviceAreaMode !== undefined || input.serviceCities !== undefined) {
+      const serviceArea = productServiceAreaInputFromPayload({
+        serviceAreaMode: input.serviceAreaMode ?? (existing.serviceAreaMode as "ALL" | "SPECIFIC"),
+        serviceCities: input.serviceCities,
+      });
+      await tx.product.update({
+        where: { id: productId },
+        data: { serviceAreaMode: serviceArea.serviceAreaMode },
+      });
+      await replaceProductServiceCities(tx, productId, serviceArea);
     }
 
     if (existing.status === "PUBLISHED" || existing.status === "ON_HOLD") {

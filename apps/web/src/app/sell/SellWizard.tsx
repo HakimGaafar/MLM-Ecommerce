@@ -202,12 +202,16 @@ export default function SellWizard({
         }),
       });
       if (!res.ok) {
-        const p = (await res.json().catch(() => null)) as { error?: string } | null;
+        const p = (await res.json().catch(() => null)) as { error?: string; code?: string } | null;
         const raw = p?.error ?? "";
+        const code = p?.code ?? "";
         if (/password/i.test(raw)) throw new Error(ui.invalidPassword);
         if (/username/i.test(raw)) throw new Error(ui.invalidUsername);
         if (/referral/i.test(raw)) throw new Error(ui.invalidReferral);
-        if (/email/i.test(raw) && /use|exist|already/i.test(raw)) throw new Error(ui.invalidEmail);
+        if (code === "CUSTOMER_EMAIL_EXISTS" || code === "EMAIL_IN_USE" || /customer account/i.test(raw)) {
+          throw new Error(ui.emailRegisteredAsCustomer);
+        }
+        if (/email/i.test(raw) && /use|exist|already/i.test(raw)) throw new Error(ui.emailRegisteredAsCustomer);
         throw new Error(ui.errorGeneric);
       }
       setStep("done");

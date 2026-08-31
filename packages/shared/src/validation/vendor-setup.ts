@@ -60,12 +60,19 @@ export const VendorSetupShippingSchema = z
 
 export const VendorSetupPayoutSchema = z.object({
   payoutAccountHolder: z.string().trim().min(2).max(200),
-  payoutIban: z
-    .string()
-    .trim()
-    .min(15)
-    .max(34)
-    .regex(/^[A-Za-z0-9]+$/, "Invalid IBAN format"),
+  payoutIban: z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return undefined;
+      const trimmed = value.trim();
+      return trimmed === "" ? undefined : trimmed.toUpperCase();
+    },
+    z
+      .string()
+      .min(15)
+      .max(34)
+      .regex(/^[A-Z0-9]+$/, "Invalid IBAN format")
+      .optional(),
+  ),
 });
 
 export type VendorSetupBrandingInput = z.infer<typeof VendorSetupBrandingSchema>;

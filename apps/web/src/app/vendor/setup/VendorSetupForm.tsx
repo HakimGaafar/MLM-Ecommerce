@@ -165,7 +165,15 @@ export default function VendorSetupForm({ locale, ui }: { locale: Locale; ui: Ui
 
   async function onPayout(e: FormEvent) {
     e.preventDefault();
-    await saveStep("payout", { payoutAccountHolder, payoutIban });
+    const hasSavedIban = Boolean(setup?.payout.payoutIbanMasked);
+    if (!hasSavedIban && !payoutIban.trim()) {
+      setError(ui.payoutIbanRequired);
+      return;
+    }
+    await saveStep("payout", {
+      payoutAccountHolder,
+      ...(payoutIban.trim() ? { payoutIban } : {}),
+    });
   }
 
   if (loading) return <p className="mt-8 text-sm text-[var(--muted)]">{ui.loading ?? "…"}</p>;
@@ -425,7 +433,8 @@ export default function VendorSetupForm({ locale, ui }: { locale: Locale; ui: Ui
                 className="mt-1 w-full rounded border px-3 py-2 dark:bg-[var(--surface)]"
                 value={payoutIban}
                 onChange={(e) => setPayoutIban(e.target.value)}
-                required
+                required={!setup.payout.payoutIbanMasked}
+                placeholder={setup.payout.payoutIbanMasked ?? undefined}
               />
             </label>
             <div className="flex flex-wrap gap-2">

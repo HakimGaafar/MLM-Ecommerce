@@ -80,6 +80,7 @@ export default async function SiteShell({ children }: { children: React.ReactNod
       sidebarTitle=""
       menuLabel={menuLabel}
       menuItems={menuItems}
+      vendorDashboardLabel={dict.vendorDashboard.title}
       roleOptions={[]}
       activeRole={activeRole}
       logoutLabel={logoutLabel}

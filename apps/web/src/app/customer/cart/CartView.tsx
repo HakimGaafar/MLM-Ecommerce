@@ -23,6 +23,14 @@ type CartPayload = {
   items: CartLine[];
   subtotal: string;
   currency: string;
+  deliveryAddress?: { city: string; countryCode: string } | null;
+  deliveryIssues?: Array<{
+    itemId: string;
+    productId: string;
+    productName: string;
+    cities: string[];
+    reason: "PRODUCT_SPECIFIC" | "VENDOR_SHIPPING";
+  }>;
 };
 
 type CartUi = {
@@ -39,6 +47,12 @@ type CartUi = {
   subtotal: string;
   remove: string;
   update: string;
+  deliveryIssuesTitle: string;
+  deliveryIssueProduct: string;
+  deliveryIssueVendor: string;
+  deliveryIssueRemove: string;
+  deliveryIssuesCheckoutBlocked: string;
+  deliveryAddressLabel: string;
 };
 
 export default function CartView({ locale, ui }: { locale: Locale; ui: CartUi }) {
@@ -157,6 +171,48 @@ export default function CartView({ locale, ui }: { locale: Locale; ui: CartUi })
         </p>
       ) : null}
 
+      {data.deliveryAddress ? (
+        <p className="text-sm text-[var(--muted)]">
+          {ui.deliveryAddressLabel
+            .replace("{city}", data.deliveryAddress.city)
+            .replace("{country}", data.deliveryAddress.countryCode)}
+        </p>
+      ) : null}
+
+      {(data.deliveryIssues?.length ?? 0) > 0 ? (
+        <section className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-4 text-sm">
+          <h2 className="font-semibold text-[var(--foreground)]">{ui.deliveryIssuesTitle}</h2>
+          <ul className="mt-3 space-y-3">
+            {data.deliveryIssues!.map((issue) => (
+              <li
+                key={issue.itemId}
+                className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-amber-500/30 bg-[var(--surface)] p-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-[var(--foreground)]">{issue.productName}</p>
+                  <p className="mt-1 text-[var(--muted)]">
+                    {issue.reason === "PRODUCT_SPECIFIC"
+                      ? ui.deliveryIssueProduct.replace(
+                          "{cities}",
+                          issue.cities.length > 0 ? issue.cities.join(", ") : "—",
+                        )
+                      : ui.deliveryIssueVendor}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void removeLine(issue.itemId)}
+                  className="btn-secondary btn-press shrink-0 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300"
+                >
+                  {ui.deliveryIssueRemove}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[var(--muted)]">{ui.deliveryIssuesCheckoutBlocked}</p>
+        </section>
+      ) : null}
+
       <div className="app-card overflow-x-auto">
         <table className="w-full min-w-[32rem] text-start text-sm">
           <thead className="border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--foreground)_4%,var(--surface))]">
@@ -170,8 +226,13 @@ export default function CartView({ locale, ui }: { locale: Locale; ui: CartUi })
             </tr>
           </thead>
           <tbody>
-            {data.items.map((line) => (
-              <tr key={line.itemId} className="border-b border-[var(--border)]">
+            {data.items.map((line) => {
+              const incompatible = data.deliveryIssues?.some((issue) => issue.itemId === line.itemId);
+              return (
+              <tr
+                key={line.itemId}
+                className={`border-b border-[var(--border)] ${incompatible ? "bg-amber-500/10" : ""}`}
+              >
                 <td className="px-4 py-3 text-[var(--muted)]">{line.vendorName}</td>
                 <td className="px-4 py-3 font-medium text-[var(--foreground)]">
                   <Link href={`/products/${line.productId}`} className="text-link">
@@ -214,7 +275,8 @@ export default function CartView({ locale, ui }: { locale: Locale; ui: CartUi })
                   </button>
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>
@@ -224,9 +286,15 @@ export default function CartView({ locale, ui }: { locale: Locale; ui: CartUi })
       </p>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/checkout" className="btn-primary btn-press">
-          {ui.goToCheckout}
-        </Link>
+        {(data.deliveryIssues?.length ?? 0) > 0 ? (
+          <span className="btn-primary cursor-not-allowed opacity-50" aria-disabled="true">
+            {ui.goToCheckout}
+          </span>
+        ) : (
+          <Link href="/checkout" className="btn-primary btn-press">
+            {ui.goToCheckout}
+          </Link>
+        )}
         <Link href="/products" className="text-link text-sm font-medium">
           {ui.continueShopping}
         </Link>

@@ -210,6 +210,11 @@ enum ProductStockLocation {
   FOURCES_WAREHOUSE
 }
 
+enum ProductServiceAreaMode {
+  ALL
+  SPECIFIC
+}
+
 /// Stage 4 — platform shipping rate list (merchant cannot set checkout fees).
 model ShippingRate {
   id          String                        @id @default(cuid())
@@ -242,6 +247,20 @@ model VendorDeliveryCity {
   @@unique([vendorId, countryCode, city])
   @@index([vendorId, countryCode])
   @@map("vendor_delivery_cities")
+}
+
+/// Per-product service / delivery city scope (vendor sets when adding a product).
+model ProductServiceCity {
+  id          String   @id @default(cuid())
+  productId   String   @map("product_id")
+  countryCode String   @map("country_code") @db.Char(2)
+  city        String   @db.VarChar(120)
+  createdAt   DateTime @default(now()) @map("created_at")
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, countryCode, city])
+  @@index([productId, countryCode])
+  @@map("product_service_cities")
 }
 
 enum VendorShippingProfileStatus {
@@ -824,6 +843,7 @@ model Product {
   currency   String           @default("SAR")
   status          ProductStatus           @default(DRAFT)
   fulfillmentType ProductFulfillmentType  @default(DIRECT) @map("fulfillment_type")
+  serviceAreaMode ProductServiceAreaMode  @default(ALL) @map("service_area_mode")
   isActive        Boolean                 @default(false) @map("is_active")
   metaTitle       String?          @map("meta_title") @db.VarChar(70)
   metaDescription String?          @map("meta_description") @db.VarChar(160)
@@ -839,6 +859,7 @@ model Product {
   editRequests ProductEditRequest[]
   questions  ProductQuestion[]
   marketOffers ProductMarketOffer[]
+  serviceCities ProductServiceCity[]
 
   @@index([marketId])
   @@index([vendorId])

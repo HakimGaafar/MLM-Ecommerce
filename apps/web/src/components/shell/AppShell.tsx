@@ -27,6 +27,7 @@ export default function AppShell({
   sidebarTitle,
   menuLabel,
   menuItems,
+  vendorDashboardLabel,
   roleOptions,
   activeRole,
   logoutLabel,
@@ -52,6 +53,7 @@ export default function AppShell({
   sidebarTitle: string;
   menuLabel: string;
   menuItems: ShellNavItem[];
+  vendorDashboardLabel: string;
   roleOptions: { role: AppRole; label: string }[];
   activeRole: AppRole | null;
   logoutLabel?: string;
@@ -92,6 +94,10 @@ export default function AppShell({
         : sidebarTitle;
   const showSidebar = shouldShowAppSidebar(pathname, isLoggedIn) && sidebarLinks.length > 0;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const headerMenuItems =
+    sidebarRole === "VENDOR"
+      ? [{ href: "/vendor", label: vendorDashboardLabel }]
+      : menuItems;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -100,7 +106,7 @@ export default function AppShell({
         appName={appName}
         headerLinks={headerLinks}
         menuLabel={menuLabel}
-        menuItems={menuItems}
+        menuItems={headerMenuItems}
         roleOptions={roleOptions}
         activeRole={activeRole}
         logoutLabel={logoutLabel}

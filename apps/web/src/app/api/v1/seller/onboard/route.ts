@@ -38,12 +38,18 @@ export async function POST(request: NextRequest) {
     }
     if (e instanceof SellerOnboardError) {
       const status =
-        e.code === "EMAIL_IN_USE" || e.code === "SLUG_TAKEN" || e.code === "USERNAME_IN_USE"
+        e.code === "EMAIL_IN_USE" ||
+        e.code === "CUSTOMER_EMAIL_EXISTS" ||
+        e.code === "SLUG_TAKEN" ||
+        e.code === "USERNAME_IN_USE"
           ? 409
           : e.code === "SLUG_RESERVED"
             ? 400
             : 400;
-      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });
+      return NextResponse.json(
+        { error: publicErrorPayload(e, { context: "api", code: e.code }).error, code: e.code },
+        { status },
+      );
     }
     throw e;
   }

@@ -1,5 +1,12 @@
 import { prisma, raceSafeUpsert } from "@mlm/db";
-import { DEFAULT_MARKET_ID } from "@mlm/shared";
+import { DEFAULT_MARKET_ID, type MarketCode } from "@mlm/shared";
+import { listAllCustomerShippingAddressesForCheckout } from "./customer-addresses.service";
+import { pickShippingAddressForMarket } from "./delivery-market";
+import { getCustomerProfile } from "./profile.service";
+import {
+  computeServiceAreaWarnings,
+  type CartDeliveryIssueDto,
+} from "../shipping/product-service-area.service";
 
 export type CustomerCartLineDto = {
   itemId: string;
@@ -16,10 +23,87 @@ export type CustomerCartDto = {
   items: CustomerCartLineDto[];
   subtotal: string;
   currency: string;
+  deliveryAddress: { city: string; countryCode: string } | null;
+  deliveryIssues: CartDeliveryIssueDto[];
 };
 
 function round2(n: number): string {
   return (Math.round(n * 100) / 100).toFixed(2);
+}
+
+async function resolveCartDeliveryAddress(
+  userId: string,
+  marketId: string,
+  activeMarketCode: MarketCode,
+): Promise<{ city: string; countryCode: string } | null> {
+  const addresses = await listAllCustomerShippingAddressesForCheckout(userId);
+  const pick = pickShippingAddressForMarket({
+    addresses,
+    activeMarketCode,
+  });
+  if (pick.selectedAddressId) {
+    const addr = addresses.find((row) => row.id === pick.selectedAddressId);
+    if (addr?.city?.trim() && addr.countryCode?.trim()) {
+      return { city: addr.city.trim(), countryCode: addr.countryCode.trim().toUpperCase() };
+    }
+  }
+
+  const profile = await getCustomerProfile(userId);
+  const city = profile?.shippingCity?.trim() || profile?.city?.trim();
+  const countryCode =
+    profile?.shippingCountryCode?.trim().toUpperCase() ||
+    profile?.countryCode?.trim().toUpperCase();
+  if (city && countryCode) {
+    return { city, countryCode };
+  }
+
+  return null;
+}
+
+async function buildCartDeliveryIssues(params: {
+  userId: string;
+  marketId: string;
+  activeMarketCode: MarketCode;
+  lines: Array<{
+    itemId: string;
+    productId: string;
+    productName: string;
+    vendorId: string;
+    stockLocation?: string;
+  }>;
+}): Promise<{
+  deliveryAddress: { city: string; countryCode: string } | null;
+  deliveryIssues: CartDeliveryIssueDto[];
+}> {
+  const deliveryAddress = await resolveCartDeliveryAddress(
+    params.userId,
+    params.marketId,
+    params.activeMarketCode,
+  );
+  if (!deliveryAddress) {
+    return { deliveryAddress: null, deliveryIssues: [] };
+  }
+
+  const warnings = await computeServiceAreaWarnings({
+    lines: params.lines,
+    countryCode: deliveryAddress.countryCode,
+    city: deliveryAddress.city,
+  });
+
+  const itemIdByProduct = new Map<string, string>();
+  for (const line of params.lines) {
+    itemIdByProduct.set(line.productId, line.itemId);
+  }
+
+  const deliveryIssues: CartDeliveryIssueDto[] = warnings
+    .map((warning) => {
+      const itemId = warning.itemId ?? itemIdByProduct.get(warning.productId);
+      if (!itemId) return null;
+      return { ...warning, itemId };
+    })
+    .filter((row): row is CartDeliveryIssueDto => row !== null);
+
+  return { deliveryAddress, deliveryIssues };
 }
 
 async function ensureCart(userId: string, marketId: string = DEFAULT_MARKET_ID) {
@@ -48,13 +132,25 @@ export async function getCustomerCart(
   marketId: string,
   defaultCurrency = "SAR",
 ): Promise<CustomerCartDto> {
+  const market = await prisma.market.findUnique({
+    where: { id: marketId },
+    select: { code: true },
+  });
+  const activeMarketCode = (market?.code ?? "SA") as MarketCode;
+
   const cart = await prisma.cart.findUnique({
     where: { userId_marketId: { userId, marketId } },
     select: { id: true },
   });
 
   if (!cart) {
-    return { items: [], subtotal: "0.00", currency: defaultCurrency };
+    return {
+      items: [],
+      subtotal: "0.00",
+      currency: defaultCurrency,
+      deliveryAddress: null,
+      deliveryIssues: [],
+    };
   }
 
   await prisma.cartItem.deleteMany({
@@ -75,11 +171,12 @@ export async function getCustomerCart(
           price: true,
           currency: true,
           status: true,
+          vendorId: true,
           vendor: { select: { storeName: true } },
           marketOffers: {
             where: { marketId },
             take: 1,
-            select: { price: true, currency: true },
+            select: { price: true, currency: true, stockLocation: true },
           },
         },
       },
@@ -87,6 +184,13 @@ export async function getCustomerCart(
   });
 
   const items: CustomerCartLineDto[] = [];
+  const issueLines: Array<{
+    itemId: string;
+    productId: string;
+    productName: string;
+    vendorId: string;
+    stockLocation?: string;
+  }> = [];
   let subtotal = 0;
   let currency = defaultCurrency;
 
@@ -110,12 +214,28 @@ export async function getCustomerCart(
       quantity: row.quantity,
       lineTotal: round2(line),
     });
+    issueLines.push({
+      itemId: row.id,
+      productId: p.id,
+      productName: p.name,
+      vendorId: p.vendorId,
+      stockLocation: offer?.stockLocation,
+    });
   }
+
+  const { deliveryAddress, deliveryIssues } = await buildCartDeliveryIssues({
+    userId,
+    marketId,
+    activeMarketCode,
+    lines: issueLines,
+  });
 
   return {
     items,
     subtotal: round2(subtotal),
     currency,
+    deliveryAddress,
+    deliveryIssues,
   };
 }
 
@@ -148,25 +268,6 @@ export async function addCartItem(
   });
   if (!product) {
     throw new Error("PRODUCT_NOT_FOUND");
-  }
-
-  const offer = product.marketOffers[0];
-  if (offer?.stockLocation === "MERCHANT") {
-    const address = await prisma.customerShippingAddress.findFirst({
-      where: { userId, isDefault: true },
-      select: { city: true, countryCode: true },
-    });
-    if (address?.city && address.countryCode) {
-      const { vendorCoversCity } = await import("../shipping/vendor-delivery-coverage.service");
-      const covered = await vendorCoversCity({
-        vendorId: product.vendorId,
-        countryCode: address.countryCode,
-        city: address.city,
-      });
-      if (!covered) {
-        throw new Error("PRODUCT_OUTSIDE_COVERAGE");
-      }
-    }
   }
 
   const cart = await ensureCart(userId, marketId);

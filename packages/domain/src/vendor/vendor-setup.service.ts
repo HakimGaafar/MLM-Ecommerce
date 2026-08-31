@@ -165,11 +165,20 @@ export async function updateVendorSetupPayout(
   vendorId: string,
   input: VendorSetupPayoutInput,
 ): Promise<VendorSetupDto | null> {
+  const existing = await prisma.vendor.findUnique({
+    where: { id: vendorId },
+    select: { payoutIban: true },
+  });
+  const nextIban = input.payoutIban?.trim().toUpperCase() ?? existing?.payoutIban ?? null;
+  if (!nextIban) {
+    throw new Error("PAYOUT_IBAN_REQUIRED");
+  }
+
   await prisma.vendor.update({
     where: { id: vendorId },
     data: {
       payoutAccountHolder: input.payoutAccountHolder,
-      payoutIban: input.payoutIban.toUpperCase(),
+      payoutIban: nextIban,
       payoutSetupAt: new Date(),
     },
   });

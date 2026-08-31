@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAppLocale } from "@/components/providers/LocaleProvider";
 import { useToast } from "@/components/toast/ToastProvider";
@@ -10,15 +10,21 @@ import { getToastDict } from "@/lib/toast-messages";
 export default function FooterCustomerAccount({
   label,
   controlPanelLabel,
+  vendorDashboardLabel,
   logoutLabel,
   isLoggedIn,
+  isVendorContext,
 }: {
   label: string;
   controlPanelLabel: string;
+  vendorDashboardLabel: string;
   logoutLabel: string;
   isLoggedIn: boolean;
+  isVendorContext?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname() ?? "/";
+  const onVendorPages = isVendorContext ?? pathname.startsWith("/vendor");
   const locale = useAppLocale();
   const toast = useToast();
   const toastDict = getToastDict(locale);
@@ -67,13 +73,23 @@ export default function FooterCustomerAccount({
           style={locale === "ar" ? { left: 0 } : { right: 0 }}
           dir={direction}
         >
-          <Link
-            href="/dashboard"
-            className="block rounded-lg px-3 py-2 text-sm hover:bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]"
-            onClick={() => setOpen(false)}
-          >
-            {controlPanelLabel}
-          </Link>
+          {!onVendorPages ? (
+            <Link
+              href="/dashboard"
+              className="block rounded-lg px-3 py-2 text-sm hover:bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]"
+              onClick={() => setOpen(false)}
+            >
+              {controlPanelLabel}
+            </Link>
+          ) : (
+            <Link
+              href="/vendor"
+              className="block rounded-lg px-3 py-2 text-sm hover:bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]"
+              onClick={() => setOpen(false)}
+            >
+              {vendorDashboardLabel}
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => void handleLogout()}

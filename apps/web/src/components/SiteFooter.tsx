@@ -206,6 +206,7 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
                   <FooterCustomerAccount
                     label={item.label}
                     controlPanelLabel={dict.customerNav.controlPanel}
+                    vendorDashboardLabel={dict.vendorDashboard.title}
                     logoutLabel={dict.customerNav.logout}
                     isLoggedIn={Boolean(session)}
                   />

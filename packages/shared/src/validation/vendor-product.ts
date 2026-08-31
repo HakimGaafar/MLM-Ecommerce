@@ -8,6 +8,19 @@ import { SeoMetaDescriptionSchema, SeoMetaTitleSchema } from "./seo";
 
 const ProductFulfillmentTypeSchema = z.enum(PRODUCT_FULFILLMENT_TYPES);
 
+const ProductServiceAreaModeSchema = z.enum(["ALL", "SPECIFIC"]);
+
+const ProductServiceCitiesSchema = z
+  .array(
+    z.object({
+      countryCode: z.string().trim().length(2).toUpperCase(),
+      city: z.string().trim().min(2).max(120),
+    }),
+  )
+  .max(100)
+  .optional()
+  .default([]);
+
 export const VendorProductCreateSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
@@ -17,6 +30,8 @@ export const VendorProductCreateSchema = z
     categoryId: z.string().trim().min(1),
     fulfillmentType: ProductFulfillmentTypeSchema.optional(),
     offers: ProductMarketOffersSchema.optional(),
+    serviceAreaMode: ProductServiceAreaModeSchema.default("ALL"),
+    serviceCities: ProductServiceCitiesSchema,
     images: VendorProductImagesSchema.min(1, { message: "At least one product image is required" }),
     metaTitle: SeoMetaTitleSchema,
     metaDescription: SeoMetaDescriptionSchema,
@@ -29,6 +44,13 @@ export const VendorProductCreateSchema = z
         path: ["price"],
       });
     }
+    if (value.serviceAreaMode === "SPECIFIC" && (value.serviceCities?.length ?? 0) === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Add at least one city or choose All cities.",
+        path: ["serviceCities"],
+      });
+    }
   });
 
 export const VendorProductUpdateSchema = z
@@ -39,12 +61,25 @@ export const VendorProductUpdateSchema = z
     categoryId: z.string().trim().min(1).optional(),
     fulfillmentType: ProductFulfillmentTypeSchema.optional(),
     offers: ProductMarketOffersSchema.optional(),
+    serviceAreaMode: ProductServiceAreaModeSchema.optional(),
+    serviceCities: ProductServiceCitiesSchema.optional(),
     images: VendorProductImagesSchema.optional(),
     status: z.enum(PRODUCT_STATUSES).optional(),
     metaTitle: SeoMetaTitleSchema,
     metaDescription: SeoMetaDescriptionSchema,
   })
-  .refine((v) => Object.keys(v).length > 0, { message: "At least one field is required" });
+  .superRefine((value, ctx) => {
+    if (Object.keys(value).length === 0) {
+      ctx.addIssue({ code: "custom", message: "At least one field is required" });
+    }
+    if (value.serviceAreaMode === "SPECIFIC" && (value.serviceCities?.length ?? 0) === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Add at least one city or choose All cities.",
+        path: ["serviceCities"],
+      });
+    }
+  });
 
 export const VendorProductListQuerySchema = PaginationQuerySchema.extend({
   status: z.enum(PRODUCT_STATUSES).optional(),

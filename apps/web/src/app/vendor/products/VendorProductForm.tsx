@@ -16,6 +16,7 @@ import MarketOffersEditor, {
   draftsToOffersPayload,
   type OfferDraft,
 } from "./MarketOffersEditor";
+import ProductServiceAreaEditor, { type ServiceCityDraft } from "./ProductServiceAreaEditor";
 
 type Category = { id: string; name: string };
 
@@ -76,6 +77,8 @@ export default function VendorProductForm({ productId }: { productId?: string })
   const [latestProductRejectionReason, setLatestProductRejectionReason] = useState<string | null>(null);
   /** Per-thumbnail: Next/Image blocked URL or failed load — show placeholder instead of a blank tile. */
   const [imgLoadFailed, setImgLoadFailed] = useState<Record<string, boolean>>({});
+  const [serviceAreaMode, setServiceAreaMode] = useState<"ALL" | "SPECIFIC">("ALL");
+  const [serviceCities, setServiceCities] = useState<ServiceCityDraft[]>([]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -120,6 +123,8 @@ export default function VendorProductForm({ productId }: { productId?: string })
             pendingEditRequestId: string | null;
             latestEditRejectionReason: string | null;
             latestProductRejectionReason: string | null;
+            serviceAreaMode?: "ALL" | "SPECIFIC";
+            serviceCities?: ServiceCityDraft[];
             offers?: Array<{
               marketId: string;
               price: string;
@@ -174,6 +179,8 @@ export default function VendorProductForm({ productId }: { productId?: string })
         setLatestEditRejectionReason(data.product.latestEditRejectionReason ?? null);
         setProductStatus(data.product.status ?? null);
         setLatestProductRejectionReason(data.product.latestProductRejectionReason ?? null);
+        setServiceAreaMode(data.product.serviceAreaMode === "SPECIFIC" ? "SPECIFIC" : "ALL");
+        setServiceCities(data.product.serviceCities ?? []);
         setImgLoadFailed({});
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : ui.loadError);
@@ -282,6 +289,11 @@ export default function VendorProductForm({ productId }: { productId?: string })
       setSaving(false);
       return;
     }
+    if (serviceAreaMode === "SPECIFIC" && serviceCities.length === 0) {
+      setError(ui.formServiceAreaRequired);
+      setSaving(false);
+      return;
+    }
     try {
       const body = {
         name,
@@ -289,6 +301,8 @@ export default function VendorProductForm({ productId }: { productId?: string })
         currency: offers[0]!.currency,
         categoryId,
         offers,
+        serviceAreaMode,
+        serviceCities: serviceAreaMode === "SPECIFIC" ? serviceCities : [],
         images,
         metaTitle: metaTitle.trim(),
         metaDescription: metaDescription.trim(),
@@ -388,6 +402,27 @@ export default function VendorProductForm({ productId }: { productId?: string })
           fourcesStockAHint: ui.formOfferFourcesStockAHint,
           fourcesStockB: ui.formOfferFourcesStockB,
           fourcesStockBHint: ui.formOfferFourcesStockBHint,
+        }}
+      />
+
+      <ProductServiceAreaEditor
+        mode={serviceAreaMode}
+        cities={serviceCities}
+        onModeChange={setServiceAreaMode}
+        onCitiesChange={setServiceCities}
+        labels={{
+          title: ui.formServiceAreaTitle,
+          hint: ui.formServiceAreaHint,
+          modeAll: ui.formServiceAreaAll,
+          modeSpecific: ui.formServiceAreaSpecific,
+          country: ui.formServiceAreaCountry,
+          city: ui.formServiceAreaCity,
+          cityOther: ui.formServiceAreaCityOther,
+          addCity: ui.formServiceAreaAddCity,
+          removeCity: ui.formServiceAreaRemoveCity,
+          countrySA: ui.formServiceAreaCountrySA,
+          countryOM: ui.formServiceAreaCountryOM,
+          countryEG: ui.formServiceAreaCountryEG,
         }}
       />
 

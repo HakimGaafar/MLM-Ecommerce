@@ -39,7 +39,10 @@ import {
 import { computeWalletBalanceBuckets } from "../wallet/wallet.service";
 import { assertShippingCountryMatchesMarket, pickShippingAddressForMarket } from "./delivery-market";
 import type { MarketCode } from "@mlm/shared";
-import { vendorCoversCity } from "../shipping/vendor-delivery-coverage.service";
+import {
+  computeServiceAreaWarnings,
+  type CartDeliveryIssueDto,
+} from "../shipping/product-service-area.service";
 import { isUserEmailVerified } from "../auth/otp-verification.service";
 
 export class CheckoutError extends Error {
@@ -57,7 +60,8 @@ export class CheckoutError extends Error {
       | "INSUFFICIENT_WALLET_BALANCE"
       | "DELIVERY_MARKET_MISMATCH"
       | "EMAIL_VERIFICATION_REQUIRED"
-      | "PRODUCT_OUTSIDE_COVERAGE",
+      | "PRODUCT_OUTSIDE_COVERAGE"
+      | "CART_DELIVERY_MISMATCH",
     message?: string,
   ) {
     super(message ?? code);
@@ -73,6 +77,8 @@ export type PlaceOrderInput = {
   couponCodes?: string[] | null;
   useWalletBalance?: boolean;
 };
+
+export type CheckoutDeliveryIssueDto = CartDeliveryIssueDto;
 
 export type CheckoutQuoteCouponApplicationDto = {
   couponId: string;
@@ -357,6 +363,7 @@ export async function getCheckoutQuoteForUser(
   walletAppliedAmount: string;
   remainingAmount: string;
   emailVerified: boolean;
+  deliveryIssues: CheckoutDeliveryIssueDto[];
 }> {
   const market = await prisma.market.findUnique({
     where: { id: marketId },
@@ -443,6 +450,41 @@ export async function getCheckoutQuoteForUser(
     : new Prisma.Decimal(0);
   const remainingAmount = Prisma.Decimal.max(totalDec.sub(walletApplied), new Prisma.Decimal(0));
 
+  let deliveryIssues: CheckoutDeliveryIssueDto[] = [];
+  if (prepared.length > 0) {
+    const selectedAddr = addressPick.selectedAddressId
+      ? shippingAddresses.find((row) => row.id === addressPick.selectedAddressId)
+      : null;
+    const shipCity = selectedAddr?.city?.trim() ?? profile?.shippingCity?.trim() ?? profile?.city?.trim();
+    const shipCountry =
+      selectedAddr?.countryCode?.trim().toUpperCase() ??
+      profile?.shippingCountryCode?.trim().toUpperCase() ??
+      profile?.countryCode?.trim().toUpperCase() ??
+      addressPick.shippingCountryCode;
+    if (shipCity && shipCountry) {
+      const warnings = await computeServiceAreaWarnings({
+        lines: prepared.map((line) => ({
+          itemId: line.cartItemId,
+          productId: line.productId,
+          productName: line.name,
+          vendorId: line.vendorId,
+          stockLocation: line.stockLocation,
+        })),
+        countryCode: shipCountry,
+        city: shipCity,
+      });
+      deliveryIssues = warnings
+        .map((warning) => {
+          const itemId =
+            warning.itemId ??
+            prepared.find((line) => line.productId === warning.productId)?.cartItemId;
+          if (!itemId) return null;
+          return { ...warning, itemId };
+        })
+        .filter((row): row is CheckoutDeliveryIssueDto => row !== null);
+    }
+  }
+
   return {
     cart,
     shippingFee: totals.shippingFee,
@@ -468,6 +510,7 @@ export async function getCheckoutQuoteForUser(
     walletAppliedAmount: walletApplied.toFixed(2),
     remainingAmount: remainingAmount.toFixed(2),
     emailVerified,
+    deliveryIssues,
   };
 }
 
@@ -541,20 +584,23 @@ export async function createOrderFromCart(
     if (prepared.length === 0) throw new CheckoutError("EMPTY_CART");
     assertSingleCurrency(prepared);
 
-    for (const line of prepared) {
-      if (line.stockLocation === "MERCHANT") {
-        const covered = await vendorCoversCity({
-          vendorId: line.vendorId,
-          countryCode: shipping.shippingCountryCode,
-          city: shipping.shippingCity,
-        });
-        if (!covered) {
-          throw new CheckoutError(
-            "PRODUCT_OUTSIDE_COVERAGE",
-            `“${line.name}” is not available for delivery to ${shipping.shippingCity}.`,
-          );
-        }
-      }
+    const deliveryIssues = await computeServiceAreaWarnings({
+      lines: prepared.map((line) => ({
+        itemId: line.cartItemId,
+        productId: line.productId,
+        productName: line.name,
+        vendorId: line.vendorId,
+        stockLocation: line.stockLocation,
+      })),
+      countryCode: shipping.shippingCountryCode,
+      city: shipping.shippingCity,
+    });
+    if (deliveryIssues.length > 0) {
+      const names = deliveryIssues.map((issue) => issue.productName).join(", ");
+      throw new CheckoutError(
+        "CART_DELIVERY_MISMATCH",
+        `Remove items that cannot be delivered to your address before checkout: ${names}.`,
+      );
     }
 
     let subtotal = new Prisma.Decimal(0);
