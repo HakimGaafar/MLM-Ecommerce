@@ -230,6 +230,12 @@ export async function reviewPendingProduct(
         ...(editRequest.proposedFulfillment !== null ? { fulfillmentType: editRequest.proposedFulfillment } : {}),
         ...(editRequest.proposedMetaTitle !== null ? { metaTitle: editRequest.proposedMetaTitle } : {}),
         ...(editRequest.proposedMetaDesc !== null ? { metaDescription: editRequest.proposedMetaDesc } : {}),
+        ...(editRequest.proposedDescriptionEn !== null
+          ? { descriptionEn: editRequest.proposedDescriptionEn }
+          : {}),
+        ...(editRequest.proposedDescriptionAr !== null
+          ? { descriptionAr: editRequest.proposedDescriptionAr }
+          : {}),
       };
       await tx.product.update({
         where: { id: editRequest.productId },

@@ -21,6 +21,8 @@ const ProductServiceCitiesSchema = z
   .optional()
   .default([]);
 
+const ProductDescriptionSchema = z.string().trim().max(10_000).optional().nullable();
+
 export const VendorProductCreateSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
@@ -32,6 +34,8 @@ export const VendorProductCreateSchema = z
     offers: ProductMarketOffersSchema.optional(),
     serviceAreaMode: ProductServiceAreaModeSchema.default("ALL"),
     serviceCities: ProductServiceCitiesSchema,
+    descriptionEn: ProductDescriptionSchema,
+    descriptionAr: ProductDescriptionSchema,
     images: VendorProductImagesSchema.min(1, { message: "At least one product image is required" }),
     metaTitle: SeoMetaTitleSchema,
     metaDescription: SeoMetaDescriptionSchema,
@@ -63,6 +67,8 @@ export const VendorProductUpdateSchema = z
     offers: ProductMarketOffersSchema.optional(),
     serviceAreaMode: ProductServiceAreaModeSchema.optional(),
     serviceCities: ProductServiceCitiesSchema.optional(),
+    descriptionEn: ProductDescriptionSchema,
+    descriptionAr: ProductDescriptionSchema,
     images: VendorProductImagesSchema.optional(),
     status: z.enum(PRODUCT_STATUSES).optional(),
     metaTitle: SeoMetaTitleSchema,

@@ -120,6 +120,7 @@ export default function MarketOffersEditor({
                         lang="en"
                         value={draft.price}
                         onChange={(e) => update(draft.marketId, { price: e.target.value })}
+                        onWheel={(e) => e.currentTarget.blur()}
                       />
                     </label>
                     <label className="block space-y-1 text-sm">
@@ -133,6 +134,7 @@ export default function MarketOffersEditor({
                         lang="en"
                         value={draft.quantity}
                         onChange={(e) => update(draft.marketId, { quantity: e.target.value })}
+                        onWheel={(e) => e.currentTarget.blur()}
                       />
                     </label>
                   </div>

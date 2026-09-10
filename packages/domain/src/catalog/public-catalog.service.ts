@@ -19,6 +19,9 @@ export type PublicProductListItemDto = {
 
 export type PublicProductDetailDto = PublicProductListItemDto & {
   updatedAt: string;
+  description: string | null;
+  descriptionEn: string | null;
+  descriptionAr: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
   images: { id: string; url: string; isPrimary: boolean }[];
@@ -33,6 +36,8 @@ type ProductRow = {
   categoryId: string;
   metaTitle: string | null;
   metaDescription: string | null;
+  descriptionEn: string | null;
+  descriptionAr: string | null;
   vendor: { storeName: string };
   category: { slug: string; nameEn: string; nameAr: string };
   images: { id: string; url: string; isPrimary: boolean }[];
@@ -80,6 +85,8 @@ function productSelectForMarket(marketId?: string) {
     categoryId: true,
     metaTitle: true,
     metaDescription: true,
+    descriptionEn: true,
+    descriptionAr: true,
     vendor: { select: { storeName: true } },
     category: { select: { slug: true, nameEn: true, nameAr: true } },
     images: {
@@ -253,9 +260,17 @@ export async function getPublicProductById(
     },
   });
   if (!row) return null;
+  const description =
+    (locale === "ar" ? row.descriptionAr : row.descriptionEn)?.trim() ||
+    row.descriptionEn?.trim() ||
+    row.descriptionAr?.trim() ||
+    null;
   return {
     ...toListDto(row, locale),
     updatedAt: row.updatedAt.toISOString(),
+    description,
+    descriptionEn: row.descriptionEn,
+    descriptionAr: row.descriptionAr,
     metaTitle: row.metaTitle,
     metaDescription: row.metaDescription,
     images: row.images,

@@ -58,6 +58,8 @@ export default function VendorProductForm({ productId }: { productId?: string })
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [name, setName] = useState("");
+  const [descriptionEn, setDescriptionEn] = useState("");
+  const [descriptionAr, setDescriptionAr] = useState("");
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("SAR");
   const [offerDrafts, setOfferDrafts] = useState<OfferDraft[]>(() => createDefaultOfferDrafts());
@@ -116,6 +118,8 @@ export default function VendorProductForm({ productId }: { productId?: string })
             currency: string;
             categoryId: string;
             fulfillmentType: string;
+            descriptionEn: string | null;
+            descriptionAr: string | null;
             metaTitle: string | null;
             metaDescription: string | null;
             images: { id: string; url: string; isPrimary: boolean }[];
@@ -137,6 +141,8 @@ export default function VendorProductForm({ productId }: { productId?: string })
         };
         if (cancelled) return;
         setName(data.product.name);
+        setDescriptionEn(data.product.descriptionEn ?? "");
+        setDescriptionAr(data.product.descriptionAr ?? "");
         setPrice(data.product.price);
         setCurrency(data.product.currency);
         const drafts = createDefaultOfferDrafts();
@@ -297,6 +303,8 @@ export default function VendorProductForm({ productId }: { productId?: string })
     try {
       const body = {
         name,
+        descriptionEn,
+        descriptionAr,
         price: offers[0]!.price,
         currency: offers[0]!.currency,
         categoryId,
@@ -336,7 +344,7 @@ export default function VendorProductForm({ productId }: { productId?: string })
   const displayedItems = imageItems.filter((i) => isValidImageUrl(i.url));
 
   return (
-    <form className="app-card mt-6 max-w-2xl space-y-4 p-5" onSubmit={onSubmit} dir={direction}>
+    <form className="app-card mt-6 max-w-3xl space-y-6 p-5" onSubmit={onSubmit} dir={direction}>
       {error ? (
         <p className="app-alert-error">
           {error}
@@ -361,188 +369,232 @@ export default function VendorProductForm({ productId }: { productId?: string })
         </p>
       ) : null}
 
-      <label className="block space-y-1 text-sm">
-        <span className="font-medium">{ui.name}</span>
-        <input required maxLength={200} className="app-input" value={name} onChange={(ev) => setName(ev.target.value)} />
-      </label>
-
-      <label className="block space-y-1 text-sm">
-        <span className="font-medium">{ui.category}</span>
-        <select required className="app-input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-          <option value="">{ui.categoryPlaceholder}</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <MarketOffersEditor
-        drafts={offerDrafts}
-        onChange={setOfferDrafts}
-        labels={{
-          title: ui.formOffersTitle,
-          subtitle: ui.formOffersSubtitle,
-          marketSA: ui.formOfferMarketSA,
-          marketOM: ui.formOfferMarketOM,
-          marketEG: ui.formOfferMarketEG,
-          marketGLOBAL: ui.formOfferMarketGLOBAL,
-          price: ui.price,
-          currency: ui.currency,
-          quantity: ui.formOfferQuantity,
-          stockLocation: ui.formOfferStock,
-          stockMerchant: ui.formOfferStockMerchant,
-          stockMerchantHint: ui.formOfferStockMerchantHint,
-          stockFources: ui.formOfferStockFources,
-          stockFourcesHint: ui.formOfferStockFourcesHint,
-          stockFourcesUnavailable: ui.formOfferStockFourcesUnavailable,
-          fourcesMode: ui.formOfferFourcesMode,
-          fourcesStockA: ui.formOfferFourcesStockA,
-          fourcesStockAHint: ui.formOfferFourcesStockAHint,
-          fourcesStockB: ui.formOfferFourcesStockB,
-          fourcesStockBHint: ui.formOfferFourcesStockBHint,
-        }}
-      />
-
-      <ProductServiceAreaEditor
-        mode={serviceAreaMode}
-        cities={serviceCities}
-        onModeChange={setServiceAreaMode}
-        onCitiesChange={setServiceCities}
-        labels={{
-          title: ui.formServiceAreaTitle,
-          hint: ui.formServiceAreaHint,
-          modeAll: ui.formServiceAreaAll,
-          modeSpecific: ui.formServiceAreaSpecific,
-          country: ui.formServiceAreaCountry,
-          city: ui.formServiceAreaCity,
-          cityOther: ui.formServiceAreaCityOther,
-          addCity: ui.formServiceAreaAddCity,
-          removeCity: ui.formServiceAreaRemoveCity,
-          countrySA: ui.formServiceAreaCountrySA,
-          countryOM: ui.formServiceAreaCountryOM,
-          countryEG: ui.formServiceAreaCountryEG,
-        }}
-      />
-
-      <fieldset className="space-y-3 rounded-lg border border-[var(--border)] p-3">
-        <legend className="px-1 text-sm font-medium">{ui.seoSection}</legend>
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold tracking-wide text-[var(--muted)]">{ui.sectionBasics}</h2>
         <label className="block space-y-1 text-sm">
-          <span className="font-medium">{ui.metaTitle}</span>
-          <input
-            maxLength={70}
-            className="app-input"
-            value={metaTitle}
-            onChange={(ev) => setMetaTitle(ev.target.value)}
-          />
-          <span className="text-xs text-[var(--muted)]">{ui.metaTitleHint}</span>
+          <span className="font-medium">{ui.name}</span>
+          <input required maxLength={200} className="app-input" value={name} onChange={(ev) => setName(ev.target.value)} />
         </label>
+
         <label className="block space-y-1 text-sm">
-          <span className="font-medium">{ui.metaDescription}</span>
+          <span className="font-medium">{ui.category}</span>
+          <select required className="app-input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <option value="">{ui.categoryPlaceholder}</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
+
+      <section className="space-y-4 border-t border-[var(--border)] pt-5">
+        <div>
+          <h2 className="text-sm font-semibold tracking-wide text-[var(--muted)]">{ui.sectionDetails}</h2>
+          <p className="mt-1 text-xs text-[var(--muted)]">{ui.descriptionHint}</p>
+        </div>
+        <label className="block space-y-1 text-sm">
+          <span className="font-medium">{ui.descriptionEn}</span>
           <textarea
-            maxLength={160}
-            rows={3}
-            className="app-input min-h-[4.5rem] resize-y"
-            value={metaDescription}
-            onChange={(ev) => setMetaDescription(ev.target.value)}
+            rows={4}
+            maxLength={10000}
+            className="app-input min-h-[6rem] resize-y"
+            dir="ltr"
+            value={descriptionEn}
+            onChange={(ev) => setDescriptionEn(ev.target.value)}
           />
-          <span className="text-xs text-[var(--muted)]">{ui.metaDescriptionHint}</span>
         </label>
-      </fieldset>
+        <label className="block space-y-1 text-sm">
+          <span className="font-medium">{ui.descriptionAr}</span>
+          <textarea
+            rows={4}
+            maxLength={10000}
+            className="app-input min-h-[6rem] resize-y"
+            dir="rtl"
+            value={descriptionAr}
+            onChange={(ev) => setDescriptionAr(ev.target.value)}
+          />
+        </label>
+      </section>
 
-      <fieldset className="space-y-3 rounded-lg border border-[var(--border)] p-3">
-        <legend className="px-1 text-sm font-medium">{ui.images}</legend>
-        <p className="text-xs text-[var(--muted)]">{ui.imagesHint}</p>
+      <section className="space-y-3 border-t border-[var(--border)] pt-5">
+        <h2 className="text-sm font-semibold tracking-wide text-[var(--muted)]">{ui.sectionPricing}</h2>
+        <MarketOffersEditor
+          drafts={offerDrafts}
+          onChange={setOfferDrafts}
+          labels={{
+            title: ui.formOffersTitle,
+            subtitle: ui.formOffersSubtitle,
+            marketSA: ui.formOfferMarketSA,
+            marketOM: ui.formOfferMarketOM,
+            marketEG: ui.formOfferMarketEG,
+            marketGLOBAL: ui.formOfferMarketGLOBAL,
+            price: ui.price,
+            currency: ui.currency,
+            quantity: ui.formOfferQuantity,
+            stockLocation: ui.formOfferStock,
+            stockMerchant: ui.formOfferStockMerchant,
+            stockMerchantHint: ui.formOfferStockMerchantHint,
+            stockFources: ui.formOfferStockFources,
+            stockFourcesHint: ui.formOfferStockFourcesHint,
+            stockFourcesUnavailable: ui.formOfferStockFourcesUnavailable,
+            fourcesMode: ui.formOfferFourcesMode,
+            fourcesStockA: ui.formOfferFourcesStockA,
+            fourcesStockAHint: ui.formOfferFourcesStockAHint,
+            fourcesStockB: ui.formOfferFourcesStockB,
+            fourcesStockBHint: ui.formOfferFourcesStockBHint,
+          }}
+        />
+      </section>
 
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {displayedItems.map((item) => {
-            const isCover = item.clientId === primaryClientId;
-            const failed = imgLoadFailed[item.clientId] === true;
-            const useUnoptimized =
-              item.url.startsWith("/uploads/") || /^https?:\/\//i.test(item.url);
-            return (
-              <li key={item.clientId} className="relative aspect-square overflow-hidden rounded-lg border border-[var(--border)]">
-                {!failed ? (
-                  <Image
-                    src={item.url}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="120px"
-                    unoptimized={useUnoptimized}
-                    onError={() => setImgLoadFailed((m) => ({ ...m, [item.clientId]: true }))}
-                  />
-                ) : (
-                  <div
-                    className="absolute inset-0 flex items-center justify-center bg-[var(--table-head-bg)] text-3xl opacity-60"
-                    aria-hidden
-                  >
-                    🛒
-                  </div>
-                )}
-                {isCover ? (
-                  <span className="absolute start-1 top-1 rounded bg-[var(--primary)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--primary-foreground)]">
-                    {ui.coverBadge}
-                  </span>
-                ) : null}
-                <div className="absolute bottom-1 start-1 end-1 flex flex-wrap gap-1">
-                  {!isCover ? (
+      <section className="space-y-3 border-t border-[var(--border)] pt-5">
+        <h2 className="text-sm font-semibold tracking-wide text-[var(--muted)]">{ui.sectionDelivery}</h2>
+        <ProductServiceAreaEditor
+          mode={serviceAreaMode}
+          cities={serviceCities}
+          onModeChange={setServiceAreaMode}
+          onCitiesChange={setServiceCities}
+          labels={{
+            title: ui.formServiceAreaTitle,
+            hint: ui.formServiceAreaHint,
+            modeAll: ui.formServiceAreaAll,
+            modeSpecific: ui.formServiceAreaSpecific,
+            country: ui.formServiceAreaCountry,
+            city: ui.formServiceAreaCity,
+            cityPlaceholder: ui.formServiceAreaCityPlaceholder,
+            addCity: ui.formServiceAreaAddCity,
+            removeCity: ui.formServiceAreaRemoveCity,
+            countrySA: ui.formServiceAreaCountrySA,
+            countryOM: ui.formServiceAreaCountryOM,
+            countryEG: ui.formServiceAreaCountryEG,
+          }}
+        />
+      </section>
+
+      <section className="space-y-3 border-t border-[var(--border)] pt-5">
+        <h2 className="text-sm font-semibold tracking-wide text-[var(--muted)]">{ui.sectionMedia}</h2>
+        <fieldset className="space-y-3 rounded-lg border border-[var(--border)] p-3">
+          <legend className="px-1 text-sm font-medium">{ui.images}</legend>
+          <p className="text-xs text-[var(--muted)]">{ui.imagesHint}</p>
+
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {displayedItems.map((item) => {
+              const isCover = item.clientId === primaryClientId;
+              const failed = imgLoadFailed[item.clientId] === true;
+              const useUnoptimized =
+                item.url.startsWith("/uploads/") || /^https?:\/\//i.test(item.url);
+              return (
+                <li key={item.clientId} className="relative aspect-square overflow-hidden rounded-lg border border-[var(--border)]">
+                  {!failed ? (
+                    <Image
+                      src={item.url}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="120px"
+                      unoptimized={useUnoptimized}
+                      onError={() => setImgLoadFailed((m) => ({ ...m, [item.clientId]: true }))}
+                    />
+                  ) : (
+                    <div
+                      className="absolute inset-0 flex items-center justify-center bg-[var(--table-head-bg)] text-3xl opacity-60"
+                      aria-hidden
+                    >
+                      🛒
+                    </div>
+                  )}
+                  {isCover ? (
+                    <span className="absolute start-1 top-1 rounded bg-[var(--primary)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--primary-foreground)]">
+                      {ui.coverBadge}
+                    </span>
+                  ) : null}
+                  <div className="absolute bottom-1 start-1 end-1 flex flex-wrap gap-1">
+                    {!isCover ? (
+                      <button
+                        type="button"
+                        className="rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white hover:bg-black/85"
+                        onClick={() => setPrimaryClientId(item.clientId)}
+                      >
+                        {ui.setCover}
+                      </button>
+                    ) : null}
                     <button
                       type="button"
-                      className="rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white hover:bg-black/85"
-                      onClick={() => setPrimaryClientId(item.clientId)}
+                      className="ms-auto rounded bg-black/60 px-1.5 py-0.5 text-xs text-white hover:bg-black/75"
+                      onClick={() => removeImage(item.clientId)}
                     >
-                      {ui.setCover}
+                      {ui.removeImage}
                     </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="ms-auto rounded bg-black/60 px-1.5 py-0.5 text-xs text-white hover:bg-black/75"
-                    onClick={() => removeImage(item.clientId)}
-                  >
-                    {ui.removeImage}
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
 
-        <div className="flex flex-wrap gap-2">
-          <input
-            type="url"
-            className="app-input min-w-[12rem] flex-1"
-            placeholder={ui.imageUrl}
-            value={newUrl}
-            onChange={(e) => setNewUrl(e.target.value)}
-          />
-          <button type="button" className="btn-secondary btn-press" onClick={addUrl}>
-            {ui.addImage}
-          </button>
-          <button
-            type="button"
-            className="btn-secondary btn-press"
-            disabled={uploading}
-            onClick={() => fileRef.current?.click()}
-          >
-            {uploading ? ui.uploading : ui.uploadImages}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            multiple
-            className="sr-only"
-            aria-label={ui.uploadImages}
-            onChange={(e) => {
-              const files = Array.from(e.target.files ?? []);
-              e.target.value = "";
-              if (files.length) void uploadFiles(files);
-            }}
-          />
-        </div>
-      </fieldset>
+          <div className="flex flex-wrap gap-2">
+            <input
+              type="url"
+              className="app-input min-w-[12rem] flex-1"
+              placeholder={ui.imageUrl}
+              value={newUrl}
+              onChange={(e) => setNewUrl(e.target.value)}
+            />
+            <button type="button" className="btn-secondary btn-press" onClick={addUrl}>
+              {ui.addImage}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary btn-press"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+            >
+              {uploading ? ui.uploading : ui.uploadImages}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              multiple
+              className="sr-only"
+              aria-label={ui.uploadImages}
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                e.target.value = "";
+                if (files.length) void uploadFiles(files);
+              }}
+            />
+          </div>
+        </fieldset>
+      </section>
+
+      <section className="space-y-3 border-t border-[var(--border)] pt-5">
+        <h2 className="text-sm font-semibold tracking-wide text-[var(--muted)]">{ui.sectionSeo}</h2>
+        <fieldset className="space-y-3 rounded-lg border border-[var(--border)] p-3">
+          <legend className="px-1 text-sm font-medium">{ui.seoSection}</legend>
+          <label className="block space-y-1 text-sm">
+            <span className="font-medium">{ui.metaTitle}</span>
+            <input
+              maxLength={70}
+              className="app-input"
+              value={metaTitle}
+              onChange={(ev) => setMetaTitle(ev.target.value)}
+            />
+            <span className="text-xs text-[var(--muted)]">{ui.metaTitleHint}</span>
+          </label>
+          <label className="block space-y-1 text-sm">
+            <span className="font-medium">{ui.metaDescription}</span>
+            <textarea
+              maxLength={160}
+              rows={3}
+              className="app-input min-h-[4.5rem] resize-y"
+              value={metaDescription}
+              onChange={(ev) => setMetaDescription(ev.target.value)}
+            />
+            <span className="text-xs text-[var(--muted)]">{ui.metaDescriptionHint}</span>
+          </label>
+        </fieldset>
+      </section>
 
       <button type="submit" disabled={saving || uploading} className="btn-primary btn-press w-full">
         {saving ? ui.submitting : ui.submit}

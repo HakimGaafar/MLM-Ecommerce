@@ -852,6 +852,8 @@ model Product {
   fulfillmentType ProductFulfillmentType  @default(DIRECT) @map("fulfillment_type")
   serviceAreaMode ProductServiceAreaMode  @default(ALL) @map("service_area_mode")
   isActive        Boolean                 @default(false) @map("is_active")
+  descriptionEn   String?          @map("description_en") @db.Text
+  descriptionAr   String?          @map("description_ar") @db.Text
   metaTitle       String?          @map("meta_title") @db.VarChar(70)
   metaDescription String?          @map("meta_description") @db.VarChar(160)
   createdAt       DateTime         @default(now()) @map("created_at")
@@ -959,6 +961,8 @@ model ProductEditRequest {
   proposedFulfillment ProductFulfillmentType?  @map("proposed_fulfillment_type")
   proposedMetaTitle   String?                  @map("proposed_meta_title") @db.VarChar(70)
   proposedMetaDesc    String?                  @map("proposed_meta_description") @db.VarChar(160)
+  proposedDescriptionEn String?                @map("proposed_description_en") @db.Text
+  proposedDescriptionAr String?                @map("proposed_description_ar") @db.Text
   proposedImagesJson  Json?                    @map("proposed_images_json")
   proposedOffersJson  Json?                    @map("proposed_offers_json")
   rejectionReason     String?                  @map("rejection_reason") @db.Text

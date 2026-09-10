@@ -12,7 +12,7 @@ type Labels = {
   modeSpecific: string;
   country: string;
   city: string;
-  cityOther: string;
+  cityPlaceholder: string;
   addCity: string;
   removeCity: string;
   countrySA: string;
@@ -35,18 +35,16 @@ export default function ProductServiceAreaEditor({
 }) {
   const [countryCode, setCountryCode] = useState<AddressCountryCode>("SA");
   const [city, setCity] = useState("");
-  const [cityCustom, setCityCustom] = useState("");
 
   const cityOptions = useMemo(() => ADDRESS_CITIES[countryCode] ?? [], [countryCode]);
-  const resolvedCity = city === "__other__" ? cityCustom.trim() : city.trim();
 
   function addCity() {
+    const resolvedCity = city.trim();
     if (!resolvedCity) return;
     const key = `${countryCode}:${resolvedCity.toLowerCase()}`;
     if (cities.some((c) => `${c.countryCode}:${c.city.toLowerCase()}` === key)) return;
     onCitiesChange([...cities, { countryCode, city: resolvedCity }]);
     setCity("");
-    setCityCustom("");
   }
 
   return (
@@ -88,7 +86,6 @@ export default function ProductServiceAreaEditor({
                 onChange={(e) => {
                   setCountryCode(e.target.value as AddressCountryCode);
                   setCity("");
-                  setCityCustom("");
                 }}
               >
                 <option value="SA">{labels.countrySA}</option>
@@ -101,26 +98,16 @@ export default function ProductServiceAreaEditor({
               <select
                 className="app-input"
                 value={city}
-                onChange={(e) => {
-                  setCity(e.target.value);
-                  if (e.target.value !== "__other__") setCityCustom("");
-                }}
+                onChange={(e) => setCity(e.target.value)}
               >
-                <option value="">—</option>
+                <option value="">{labels.cityPlaceholder}</option>
                 {cityOptions.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
-                <option value="__other__">{labels.cityOther}</option>
               </select>
             </label>
-            {city === "__other__" ? (
-              <label className="block space-y-1 text-sm sm:col-span-2">
-                <span className="font-medium">{labels.city}</span>
-                <input className="app-input" value={cityCustom} onChange={(e) => setCityCustom(e.target.value)} />
-              </label>
-            ) : null}
           </div>
           <button type="button" className="btn-secondary rounded-lg px-3 py-1.5 text-xs" onClick={addCity}>
             {labels.addCity}

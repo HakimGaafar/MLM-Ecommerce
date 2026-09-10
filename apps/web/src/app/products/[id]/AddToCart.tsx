@@ -72,6 +72,7 @@ export default function AddToCart({
             max={99}
             value={quantity}
             onChange={(e) => setQuantity(Math.min(99, Math.max(1, Number.parseInt(e.target.value, 10) || 1)))}
+            onWheel={(e) => e.currentTarget.blur()}
             className="app-input w-20 tabular-nums"
           />
         </label>

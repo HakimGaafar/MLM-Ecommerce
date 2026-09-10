@@ -28,7 +28,9 @@ export async function generateMetadata({
   }
   const title = product.metaTitle?.trim() || product.name;
   const description =
-    product.metaDescription?.trim() || `${product.name} — ${product.vendorName}`;
+    product.metaDescription?.trim() ||
+    product.description?.trim() ||
+    `${product.name} — ${product.vendorName}`;
   return {
     title,
     description,
@@ -90,6 +92,12 @@ export default async function ProductDetailPage({
         <p className="mt-6 text-lg font-semibold tabular-nums text-[var(--foreground)]">
           {ui.price}: {formatMoney(product.price, product.currency, locale)}
         </p>
+
+        {product.description ? (
+          <div className="mt-6 whitespace-pre-wrap text-sm leading-6 text-[var(--foreground)]">
+            {product.description}
+          </div>
+        ) : null}
 
         {canAddToCart ? (
           <>

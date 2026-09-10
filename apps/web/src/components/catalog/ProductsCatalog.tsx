@@ -33,6 +33,7 @@ type CatalogUi = {
   price: string;
   viewDetails: string;
   allCategories: string;
+  categoryFilter: string;
   filters: string;
   filtersTitle: string;
   sortLabel: string;
@@ -203,50 +204,23 @@ export default function ProductsCatalog({
 
   return (
     <div dir={direction}>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="relative min-w-0 flex-1">
-          <div
-            className="flex gap-2 overflow-x-auto pb-1 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            role="tablist"
-            aria-label="Categories"
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <label className="flex min-w-[12rem] flex-1 flex-col gap-1 text-sm sm:max-w-xs">
+          <span className="font-medium text-[var(--muted)]">{ui.categoryFilter}</span>
+          <select
+            className="app-input"
+            value={selectedCategoryId ?? ""}
+            onChange={(e) => selectCategory(e.target.value || null)}
+            aria-label={ui.categoryFilter}
           >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={selectedCategoryId === null}
-              onClick={() => selectCategory(null)}
-              className={`category-pill shrink-0 rounded-full border px-4 py-2 text-sm font-medium ${
-                selectedCategoryId === null
-                  ? "category-pill-active border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
-                  : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:border-[var(--primary)]"
-              }`}
-            >
-              {ui.allCategories}
-            </button>
-            {categories.map((cat) => {
-              const active = selectedCategoryId === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => selectCategory(cat.id)}
-                  className={`category-pill shrink-0 rounded-full border px-4 py-2 text-sm font-medium ${
-                    active
-                      ? "category-pill-active border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
-                      : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:border-[var(--primary)]"
-                  }`}
-                >
-                  {cat.name}
-                  <span className={`ms-1.5 text-xs ${active ? "opacity-90" : "text-[var(--muted)]"}`}>
-                    {cat.productCount}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+            <option value="">{ui.allCategories}</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name} ({cat.productCount})
+              </option>
+            ))}
+          </select>
+        </label>
 
         <button
           type="button"

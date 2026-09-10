@@ -68,6 +68,8 @@ export type VendorProductDto = {
   categoryId: string;
   categoryName: string;
   fulfillmentType: ProductFulfillmentTypeCode;
+  descriptionEn: string | null;
+  descriptionAr: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
   images: VendorProductImageDto[];
@@ -93,6 +95,8 @@ type ProductRow = {
   fulfillmentType: string;
   serviceAreaMode: string;
   serviceCities: { countryCode: string; city: string }[];
+  descriptionEn: string | null;
+  descriptionAr: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
   category: { nameEn: string; nameAr: string };
@@ -137,6 +141,8 @@ function toDto(row: ProductRow, locale: "en" | "ar" = "en"): VendorProductDto {
     categoryId: row.categoryId,
     categoryName: locale === "ar" ? row.category.nameAr : row.category.nameEn,
     fulfillmentType: row.fulfillmentType as ProductFulfillmentTypeCode,
+    descriptionEn: row.descriptionEn,
+    descriptionAr: row.descriptionAr,
     metaTitle: row.metaTitle,
     metaDescription: row.metaDescription,
     images: row.images.map((img) => ({
@@ -341,6 +347,8 @@ export async function createVendorProduct(
         serviceAreaMode: serviceArea.serviceAreaMode,
         status: "DRAFT",
         isActive: false,
+        descriptionEn: input.descriptionEn?.trim() || null,
+        descriptionAr: input.descriptionAr?.trim() || null,
         ...seoFieldsToNullables({
           metaTitle: input.metaTitle,
           metaDescription: input.metaDescription,
@@ -440,6 +448,8 @@ export async function updateVendorProduct(
         input.fulfillmentType !== undefined ||
         input.metaTitle !== undefined ||
         input.metaDescription !== undefined ||
+        input.descriptionEn !== undefined ||
+        input.descriptionAr !== undefined ||
         input.images !== undefined ||
         input.offers !== undefined;
       if (hasChangeFields) {
@@ -458,6 +468,10 @@ export async function updateVendorProduct(
               (proposedOffers ? fulfillmentTypeFromOffers(proposedOffers) : null),
             proposedMetaTitle: input.metaTitle ?? null,
             proposedMetaDesc: input.metaDescription ?? null,
+            proposedDescriptionEn:
+              input.descriptionEn !== undefined ? input.descriptionEn?.trim() || null : null,
+            proposedDescriptionAr:
+              input.descriptionAr !== undefined ? input.descriptionAr?.trim() || null : null,
             ...(input.images !== undefined ? { proposedImagesJson: input.images } : {}),
             ...(proposedOffers !== undefined ? { proposedOffersJson: proposedOffers } : {}),
           },
@@ -477,6 +491,12 @@ export async function updateVendorProduct(
         ...(input.currency !== undefined ? { currency: input.currency } : {}),
         ...(input.categoryId !== undefined ? { categoryId: input.categoryId } : {}),
         ...(input.fulfillmentType !== undefined ? { fulfillmentType: input.fulfillmentType } : {}),
+        ...(input.descriptionEn !== undefined
+          ? { descriptionEn: input.descriptionEn?.trim() || null }
+          : {}),
+        ...(input.descriptionAr !== undefined
+          ? { descriptionAr: input.descriptionAr?.trim() || null }
+          : {}),
         ...(input.status !== undefined
           ? { status: input.status, isActive: input.status === "PUBLISHED" }
           : {}),
