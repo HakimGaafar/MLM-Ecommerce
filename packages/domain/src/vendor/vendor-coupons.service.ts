@@ -9,6 +9,7 @@ import type {
 import { buildPaginatedResult, normalizePagination } from "@mlm/shared";
 import type { CouponDiscountType as DbDiscountType, CouponStatus as DbCouponStatus } from "@mlm/db";
 import { prisma } from "@mlm/db";
+import { assertMerchantCanSell, MerchantGateError } from "./vendor-merchant-gate.service";
 
 export type VendorCouponDto = {
   id: string;
@@ -29,7 +30,13 @@ export type VendorCouponDto = {
 
 export class VendorCouponError extends Error {
   constructor(
-    public readonly code: "NOT_FOUND" | "DUPLICATE_CODE" | "INVALID_STATUS_TRANSITION",
+    public readonly code:
+      | "NOT_FOUND"
+      | "DUPLICATE_CODE"
+      | "INVALID_STATUS_TRANSITION"
+      | "STORE_NOT_APPROVED"
+      | "SETUP_INCOMPLETE"
+      | "KYC_INCOMPLETE",
     message?: string,
   ) {
     super(message ?? code);
@@ -156,6 +163,18 @@ export async function createVendorCoupon(
   vendorId: string,
   input: VendorCouponCreateInput,
 ): Promise<VendorCouponDto> {
+  try {
+    await assertMerchantCanSell(vendorId);
+  } catch (e) {
+    if (e instanceof MerchantGateError) {
+      if (e.code === "VENDOR_NOT_FOUND") {
+        throw new VendorCouponError("NOT_FOUND", e.message);
+      }
+      throw new VendorCouponError(e.code, e.message);
+    }
+    throw e;
+  }
+
   const dup = await prisma.coupon.findFirst({
     where: { vendorId, code: input.code },
     select: { id: true },
@@ -192,6 +211,20 @@ export async function updateVendorCoupon(
 
   if (input.status) {
     assertStatusTransition(existing.status as CouponStatus, input.status);
+  }
+
+  if (input.status === "ACTIVE") {
+    try {
+      await assertMerchantCanSell(vendorId);
+    } catch (e) {
+      if (e instanceof MerchantGateError) {
+        if (e.code === "VENDOR_NOT_FOUND") {
+          throw new VendorCouponError("NOT_FOUND", e.message);
+        }
+        throw new VendorCouponError(e.code, e.message);
+      }
+      throw e;
+    }
   }
 
   // After activation, only status changes (suspend/terminate/reactivate) are allowed.

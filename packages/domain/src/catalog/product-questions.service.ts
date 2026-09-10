@@ -77,7 +77,11 @@ export async function createProductQuestion(
   input: ProductQuestionCreateInput,
 ): Promise<{ id: string; createdAt: string }> {
   const product = await prisma.product.findFirst({
-    where: { id: productId, status: "PUBLISHED" },
+    where: {
+      id: productId,
+      status: "PUBLISHED",
+      vendor: { storeApprovalStatus: "APPROVED" },
+    },
     select: { id: true },
   });
   if (!product) {

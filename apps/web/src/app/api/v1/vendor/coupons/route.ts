@@ -49,8 +49,18 @@ export async function POST(request: NextRequest) {
     const coupon = await createVendorCoupon(auth.vendorId, parsed.data);
     return NextResponse.json({ coupon }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (e) {
-    if (e instanceof VendorCouponError && e.code === "DUPLICATE_CODE") {
-      return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status: 409 });
+    if (e instanceof VendorCouponError) {
+      if (
+        e.code === "DUPLICATE_CODE" ||
+        e.code === "STORE_NOT_APPROVED" ||
+        e.code === "SETUP_INCOMPLETE" ||
+        e.code === "KYC_INCOMPLETE"
+      ) {
+        return NextResponse.json(
+          publicErrorPayload(e, { context: "api", code: e.code }),
+          { status: 409 },
+        );
+      }
     }
     throw e;
   }

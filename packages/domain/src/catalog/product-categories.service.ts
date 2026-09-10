@@ -23,7 +23,12 @@ export async function listPublicCategories(
       nameAr: true,
       _count: {
         select: {
-          products: { where: { status: "PUBLISHED" } },
+          products: {
+            where: {
+              status: "PUBLISHED",
+              vendor: { storeApprovalStatus: "APPROVED" },
+            },
+          },
         },
       },
     },
@@ -38,7 +43,9 @@ export async function listPublicCategories(
         pi.url AS url
       FROM products p
       INNER JOIN product_images pi ON pi.product_id = p.id
+      INNER JOIN vendors v ON v.id = p.vendor_id
       WHERE p.status = 'PUBLISHED'
+        AND v.store_approval_status = 'APPROVED'
         AND p.category_id IN (${Prisma.join(ids)})
       ORDER BY p.category_id, pi.is_primary DESC, pi.sort_order ASC, p.updated_at DESC
     `;

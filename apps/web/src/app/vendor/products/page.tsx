@@ -2,7 +2,9 @@ import Link from "next/link";
 import { vendorHasPermission } from "@mlm/shared";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
+import VendorMerchantGateNotice from "../VendorMerchantGateNotice";
 import { getCustomerPreferredLocale } from "@/lib/customer-locale";
+import { getCurrentVendorMerchantReadiness } from "@/lib/vendor-merchant-readiness";
 import { getVendorPermissionsForOwner } from "@/lib/vendor-access";
 import { getServerSession } from "@/lib/server-session";
 import VendorProductsList from "./VendorProductsList";
@@ -16,6 +18,8 @@ export default async function VendorProductsPage() {
   const permissions = session?.sub ? await getVendorPermissionsForOwner(session.sub) : [];
   const canDelete = vendorHasPermission(permissions, "vendor:products:delete");
   const canImport = vendorHasPermission(permissions, "vendor:products:write");
+  const readiness = await getCurrentVendorMerchantReadiness();
+  const canSell = readiness?.canSell === true;
 
   return (
     <main className="mx-auto w-full max-w-4xl p-8 animate-page-enter" dir={direction}>
@@ -28,9 +32,20 @@ export default async function VendorProductsPage() {
           {ui.backToDashboard}
         </Link>
       </div>
+      {!canSell ? (
+        <div className="mt-6">
+          <VendorMerchantGateNotice
+            copy={{
+              notActivatedTitle: ui.notActivatedTitle,
+              notActivatedBody: ui.notActivatedBody,
+              notActivatedCtaSetup: ui.notActivatedCtaSetup,
+              notActivatedCtaKyc: ui.notActivatedCtaKyc,
+              notActivatedCtaDashboard: ui.notActivatedCtaDashboard,
+            }}
+          />
+        </div>
+      ) : null}
       <VendorProductsList
-        canDelete={canDelete}
-        canImport={canImport}
         ui={{
           loading: ui.loading,
           loadError: ui.loadError,
@@ -71,6 +86,9 @@ export default async function VendorProductsPage() {
           deleteErrorPublished: ui.deleteErrorPublished,
           deleteErrorOrders: ui.deleteErrorOrders,
         }}
+        canDelete={canDelete}
+        canImport={canImport && canSell}
+        canCreate={canSell}
       />
     </main>
   );

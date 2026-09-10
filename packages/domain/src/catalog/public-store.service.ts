@@ -61,7 +61,16 @@ export async function listPublicStores(params: {
         slug: true,
         city: true,
         countryCode: true,
-        _count: { select: { products: { where: { status: "PUBLISHED" } } } },
+        _count: {
+          select: {
+            products: {
+              where: {
+                status: "PUBLISHED",
+                vendor: { storeApprovalStatus: "APPROVED" },
+              },
+            },
+          },
+        },
       },
     }),
     prisma.vendor.count({
@@ -106,7 +115,7 @@ export async function listPublicStoreProducts(params: {
         vendorId: params.vendorId,
         ...publishedInMarketWhere(params.marketId, params.delivery),
       }
-    : { vendorId: params.vendorId, status: "PUBLISHED" as const };
+    : { vendorId: params.vendorId, status: "PUBLISHED" as const, vendor: { storeApprovalStatus: "APPROVED" as const } };
   const [rows, total] = await prisma.$transaction([
     prisma.product.findMany({
       where,
@@ -201,7 +210,11 @@ export async function getPublicStoreBySlug(
         },
       })
     : await prisma.product.findMany({
-        where: { vendorId: vendor.id, status: "PUBLISHED" },
+        where: {
+          vendorId: vendor.id,
+          status: "PUBLISHED",
+          vendor: { storeApprovalStatus: "APPROVED" },
+        },
         orderBy: { updatedAt: "desc" },
         select: {
           id: true,

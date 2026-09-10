@@ -84,7 +84,15 @@ function statusLabel(status: CouponStatus, ui: Ui): string {
   }
 }
 
-export default function VendorCouponsList({ locale, ui }: { locale: Locale; ui: Ui }) {
+export default function VendorCouponsList({
+  locale,
+  ui,
+  canCreate = true,
+}: {
+  locale: Locale;
+  ui: Ui;
+  canCreate?: boolean;
+}) {
   const toast = useToast();
   const toastDict = getToastDict(locale);
   const direction = locale === "ar" ? "rtl" : "ltr";
@@ -252,15 +260,17 @@ export default function VendorCouponsList({ locale, ui }: { locale: Locale; ui: 
         ))}
       </div>
       <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          className="btn-primary btn-press"
-        >
-          {ui.createTitle}
-        </button>
+        {canCreate ? (
+          <button
+            type="button"
+            onClick={() => setShowForm((v) => !v)}
+            className="btn-primary btn-press"
+          >
+            {ui.createTitle}
+          </button>
+        ) : null}
       </div>
-      {showForm ? (
+      {canCreate && showForm ? (
         <form onSubmit={(e) => void createCoupon(e)} className="space-y-3 rounded-xl border border-[var(--border)] p-4">
           <h2 className="text-sm font-semibold">{ui.createTitle}</h2>
           <label className="block text-sm">

@@ -2,7 +2,9 @@ import Link from "next/link";
 import { vendorHasPermission } from "@mlm/shared";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
+import VendorMerchantGateNotice from "../../VendorMerchantGateNotice";
 import { getCustomerPreferredLocale } from "@/lib/customer-locale";
+import { getCurrentVendorMerchantReadiness } from "@/lib/vendor-merchant-readiness";
 import { getVendorPermissionsForOwner } from "@/lib/vendor-access";
 import { getServerSession } from "@/lib/server-session";
 import VendorProductImportForm from "./VendorProductImportForm";
@@ -16,6 +18,8 @@ export default async function VendorProductImportPage() {
   const session = await getServerSession();
   const permissions = session?.sub ? await getVendorPermissionsForOwner(session.sub) : [];
   const canImport = vendorHasPermission(permissions, "vendor:products:write");
+  const readiness = await getCurrentVendorMerchantReadiness();
+  const canSell = readiness?.canSell === true;
 
   return (
     <main className="mx-auto w-full max-w-4xl p-8 animate-page-enter" dir={direction}>
@@ -29,7 +33,17 @@ export default async function VendorProductImportPage() {
         </Link>
       </div>
       <div className="mt-8">
-        {canImport ? (
+        {!canSell ? (
+          <VendorMerchantGateNotice
+            copy={{
+              notActivatedTitle: productsUi.notActivatedTitle,
+              notActivatedBody: productsUi.notActivatedBody,
+              notActivatedCtaSetup: productsUi.notActivatedCtaSetup,
+              notActivatedCtaKyc: productsUi.notActivatedCtaKyc,
+              notActivatedCtaDashboard: productsUi.notActivatedCtaDashboard,
+            }}
+          />
+        ) : canImport ? (
           <VendorProductImportForm locale={locale} ui={ui} />
         ) : (
           <p className="app-callout-warning px-4 py-3 text-sm">

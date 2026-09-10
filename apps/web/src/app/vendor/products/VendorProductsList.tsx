@@ -114,10 +114,12 @@ export default function VendorProductsList({
   ui,
   canDelete,
   canImport,
+  canCreate = true,
 }: {
   ui: Ui;
   canDelete: boolean;
   canImport: boolean;
+  canCreate?: boolean;
 }) {
   const locale = useAppLocale();
   const direction = locale === "ar" ? "rtl" : "ltr";
@@ -277,9 +279,11 @@ export default function VendorProductsList({
             {ui.importCsv}
           </Link>
         ) : null}
-        <Link href="/vendor/products/new" className="btn-primary btn-press">
-          {ui.newProduct}
-        </Link>
+        {canCreate ? (
+          <Link href="/vendor/products/new" className="btn-primary btn-press">
+            {ui.newProduct}
+          </Link>
+        ) : null}
       </div>
       {loading ? (
         <p className="text-sm text-[var(--muted)]">{ui.loading}</p>
