@@ -34,6 +34,12 @@ type ConfigState = {
   privacyText: string;
   returnPolicyUrl: string;
   returnPolicyText: string;
+  footerTaglineEn: string;
+  footerTaglineAr: string;
+  contactLocationEn: string;
+  contactLocationAr: string;
+  publicContactEmail: string;
+  inquiryNotifyEmail: string;
   showTapGateway: boolean;
   showHyperPayGateway: boolean;
   showMyFatoorahGateway: boolean;
@@ -79,6 +85,7 @@ type Ui = {
     settlement: string;
     referralStructure: string;
     policies: string;
+    footerContact: string;
     paymentGateways: string;
   };
   fields: {
@@ -102,6 +109,12 @@ type Ui = {
     privacyText: string;
     returnPolicyUrl: string;
     returnPolicyText: string;
+    footerTaglineEn: string;
+    footerTaglineAr: string;
+    contactLocationEn: string;
+    contactLocationAr: string;
+    publicContactEmail: string;
+    inquiryNotifyEmail: string;
     showTapGateway: string;
     showHyperPayGateway: string;
     showMyFatoorahGateway: string;
@@ -118,6 +131,7 @@ type Ui = {
     vatExample: string;
     appliesToNewOrders: string;
     policiesOptional: string;
+    footerContact: string;
     paymentGateways: string;
     settlementWindow: string;
     missingAncestorKeep: string;
@@ -147,6 +161,12 @@ function toFormState(config: ApiConfigState): ConfigState {
     privacyText: config.privacyText ?? "",
     returnPolicyUrl: config.returnPolicyUrl ?? "",
     returnPolicyText: config.returnPolicyText ?? "",
+    footerTaglineEn: config.footerTaglineEn ?? "",
+    footerTaglineAr: config.footerTaglineAr ?? "",
+    contactLocationEn: config.contactLocationEn ?? "",
+    contactLocationAr: config.contactLocationAr ?? "",
+    publicContactEmail: config.publicContactEmail ?? "",
+    inquiryNotifyEmail: config.inquiryNotifyEmail ?? "",
   };
 }
 
@@ -600,6 +620,65 @@ export default function AdminPlatformSettingsForm({
                   className="app-input"
                   value={form.returnPolicyText}
                   onChange={(e) => setText("returnPolicyText", e.target.value)}
+                />
+              </SettingsField>
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-[var(--border)] p-6">
+            <h2 className="text-lg font-medium">{ui.sections.footerContact}</h2>
+            <p className="mt-1 text-xs text-[var(--muted)]">{ui.hints.footerContact}</p>
+            <div className="mt-4 grid gap-6">
+              <SettingsField label={ui.fields.footerTaglineEn}>
+                <textarea
+                  rows={2}
+                  className="app-input"
+                  dir="ltr"
+                  value={form.footerTaglineEn}
+                  onChange={(e) => setText("footerTaglineEn", e.target.value)}
+                />
+              </SettingsField>
+              <SettingsField label={ui.fields.footerTaglineAr}>
+                <textarea
+                  rows={2}
+                  className="app-input"
+                  dir="rtl"
+                  value={form.footerTaglineAr}
+                  onChange={(e) => setText("footerTaglineAr", e.target.value)}
+                />
+              </SettingsField>
+              <SettingsField label={ui.fields.contactLocationEn}>
+                <textarea
+                  rows={3}
+                  className="app-input"
+                  dir="ltr"
+                  value={form.contactLocationEn}
+                  onChange={(e) => setText("contactLocationEn", e.target.value)}
+                />
+              </SettingsField>
+              <SettingsField label={ui.fields.contactLocationAr}>
+                <textarea
+                  rows={3}
+                  className="app-input"
+                  dir="rtl"
+                  value={form.contactLocationAr}
+                  onChange={(e) => setText("contactLocationAr", e.target.value)}
+                />
+              </SettingsField>
+              <SettingsField label={ui.fields.publicContactEmail}>
+                <input
+                  type="email"
+                  className="app-input"
+                  value={form.publicContactEmail}
+                  onChange={(e) => setText("publicContactEmail", e.target.value)}
+                />
+              </SettingsField>
+              <SettingsField label={ui.fields.inquiryNotifyEmail}>
+                <input
+                  type="email"
+                  className="app-input"
+                  value={form.inquiryNotifyEmail}
+                  onChange={(e) => setText("inquiryNotifyEmail", e.target.value)}
                 />
               </SettingsField>
             </div>

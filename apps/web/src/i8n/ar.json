@@ -2436,6 +2436,7 @@
       "settlement": "فترة التسوية",
       "referralStructure": "هيكل الإحالة",
       "policies": "السياسات والشروط",
+      "footerContact": "تذييل الموقع ومعلومات التواصل",
       "paymentGateways": "خطة بوابات الدفع"
     },
     "fields": {
@@ -2459,6 +2460,12 @@
       "privacyText": "نص الخصوصية (اختياري)",
       "returnPolicyUrl": "رابط سياسة الإرجاع (اختياري)",
       "returnPolicyText": "نص سياسة الإرجاع (اختياري)",
+      "footerTaglineEn": "شعار التذييل (إنجليزي)",
+      "footerTaglineAr": "شعار التذييل (عربي)",
+      "contactLocationEn": "نص العنوان / المقر (إنجليزي)",
+      "contactLocationAr": "نص العنوان / المقر (عربي)",
+      "publicContactEmail": "بريد التواصل الظاهر للزوار",
+      "inquiryNotifyEmail": "بريد توجيه الرسائل (إشعار عند رسالة جديدة)",
       "showTapGateway": "إظهار Tap في الدفع",
       "showHyperPayGateway": "إظهار HyperPay في الدفع",
       "showMyFatoorahGateway": "إظهار MyFatoorah في الدفع"
@@ -2475,6 +2482,7 @@
       "vatExample": "مثال: منتج 100، عمولة المنصة 10% → عمولة 10؛ ضريبة 15% على العمولة → 1.5؛ فاتورة المنصة 11.5. تبقى حصة التاجر من البضاعة حسب نسبته (مثلاً 90 إذا كانت حصة التاجر 90%).",
       "appliesToNewOrders": "تُطبَّق التغييرات على الطلبات الجديدة والحسابات المستقبلية فقط — وليس على الطلبات السابقة أو قيود الدفتر المعلّقة.",
       "policiesOptional": "نصوص قانونية اختيارية لكل متجر. الرابط يُفضَّل عند تعبئة الرابط والنص معاً.",
+      "footerContact": "اترك الحقول فارغة للاحتفاظ بالنص الافتراضي في الموقع. بريد التوجيه يستلم إشعاراً عند إرسال نموذج التواصل (وتبقى الرسائل في صندوق الإدارة).",
       "paymentGateways": "تتحكم هذه الخيارات في إظهار أو إخفاء البوابات المخطط لها للعملاء. ستبقى معطلة حتى تركيب الربط الفعلي وبيانات الاعتماد.",
       "settlementWindow": "عدد الأيام بعد اكتمال الطلب قبل أن تصبح أرباح التاجر والمسوق مؤهلة للإفراج الإداري.",
       "missingAncestorKeep": "إبقاء حصة المستوى المفقود للمنصة",
@@ -2519,7 +2527,13 @@
       "missingAncestorPolicy": "سياسة الأسلاف المفقودين",
       "showTapGateway": "إظهار Tap",
       "showHyperPayGateway": "إظهار HyperPay",
-      "showMyFatoorahGateway": "إظهار MyFatoorah"
+      "showMyFatoorahGateway": "إظهار MyFatoorah",
+      "footerTaglineEn": "شعار التذييل (إنجليزي)",
+      "footerTaglineAr": "شعار التذييل (عربي)",
+      "contactLocationEn": "عنوان التواصل (إنجليزي)",
+      "contactLocationAr": "عنوان التواصل (عربي)",
+      "publicContactEmail": "بريد التواصل الظاهر",
+      "inquiryNotifyEmail": "بريد إشعار الرسائل"
     }
   },
   "adminMarkets": {

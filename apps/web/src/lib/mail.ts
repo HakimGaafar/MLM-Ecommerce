@@ -201,3 +201,29 @@ The ${APP_NAME} Team`;
 
   return sendMail({ to: input.to, subject, html, text });
 }
+
+export async function sendContactInquiryNotifyEmail(input: {
+  to: string;
+  marketCode: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  message: string;
+}): Promise<{ ok: boolean; mode: "resend" | "console"; error?: string }> {
+  const subject = `[${APP_NAME}] New contact inquiry (${input.marketCode})`;
+  const safeName = escapeHtml(`${input.firstName} ${input.lastName}`.trim());
+  const safeEmail = escapeHtml(input.email);
+  const safeMessage = escapeHtml(input.message).replace(/\n/g, "<br/>");
+  const text = `New contact inquiry (${input.marketCode})
+
+From: ${input.firstName} ${input.lastName} <${input.email}>
+
+${input.message}
+`;
+  const html = wrapEmail(
+    `<p>New contact inquiry for market <strong>${escapeHtml(input.marketCode)}</strong>.</p>
+     <p><strong>From:</strong> ${safeName} &lt;<a href="mailto:${safeEmail}">${safeEmail}</a>&gt;</p>
+     <p>${safeMessage}</p>`,
+  );
+  return sendMail({ to: input.to, subject, html, text });
+}

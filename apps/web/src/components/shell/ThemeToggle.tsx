@@ -11,9 +11,10 @@ export default function ThemeToggle({
   labels: { light: string; dark: string };
 }) {
   const router = useRouter();
+  const next: ThemePreference = theme === "dark" ? "light" : "dark";
+  const label = next === "dark" ? labels.dark : labels.light;
 
-  async function setTheme(next: ThemePreference) {
-    if (next === theme) return;
+  async function toggleTheme() {
     document.documentElement.classList.toggle("dark", next === "dark");
     await fetch("/api/v1/preferences", {
       method: "POST",
@@ -24,25 +25,14 @@ export default function ThemeToggle({
   }
 
   return (
-    <div dir="ltr" className="flex rounded-full bg-[var(--border)] p-0.5" role="group" aria-label="Theme">
-      <button
-        type="button"
-        onClick={() => void setTheme("light")}
-        className={`btn-press rounded-full px-2 py-0.5 text-xs font-semibold ${
-          theme === "light" ? "bg-[var(--primary)] text-white" : ""
-        }`}
-      >
-        {labels.light}
-      </button>
-      <button
-        type="button"
-        onClick={() => void setTheme("dark")}
-        className={`btn-press rounded-full px-2 py-0.5 text-xs font-semibold ${
-          theme === "dark" ? "bg-[var(--primary)] text-white" : ""
-        }`}
-      >
-        {labels.dark}
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={() => void toggleTheme()}
+      className="btn-press rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs font-semibold"
+      aria-label={label}
+      title={label}
+    >
+      {label}
+    </button>
   );
 }

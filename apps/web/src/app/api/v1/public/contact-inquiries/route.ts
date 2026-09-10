@@ -97,5 +97,25 @@ export async function POST(request: NextRequest) {
 
   const market = await resolveRequestMarket();
   await createContactInquiry(market.id, parsed.data);
+
+  try {
+    const { getPlatformConfig } = await import("@mlm/domain");
+    const { sendContactInquiryNotifyEmail } = await import("@/lib/mail");
+    const config = await getPlatformConfig(market.id);
+    const notifyTo = config.inquiryNotifyEmail?.trim();
+    if (notifyTo) {
+      await sendContactInquiryNotifyEmail({
+        to: notifyTo,
+        marketCode: market.code,
+        firstName: parsed.data.firstName,
+        lastName: parsed.data.lastName,
+        email: parsed.data.email,
+        message: parsed.data.message,
+      });
+    }
+  } catch (error) {
+    console.error("[contact-inquiry] notify email failed", error);
+  }
+
   return acceptedResponse();
 }

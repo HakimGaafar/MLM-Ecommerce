@@ -87,6 +87,9 @@ export default function AppHeader({
       pathname === "/register" ||
       pathname.startsWith("/account/customer"));
 
+  /** Logo already goes home — hide duplicate Home nav items. */
+  const navLinks = headerLinks.filter((link) => link.href !== "/");
+
   useEffect(() => {
     if (!isMenuOpen) return;
     function onPointerDown(e: MouseEvent) {
@@ -135,6 +138,115 @@ export default function AppHeader({
     router.refresh();
   }
 
+  const otherLocale: Locale = locale === "en" ? "ar" : "en";
+  const otherLocaleLabel =
+    otherLocale === "en"
+      ? languageSwitcher?.labels.shortEn
+      : languageSwitcher?.labels.shortAr;
+
+  const accountControl = (
+    <div className="relative" ref={menuRef}>
+      {guestLoginLabel && !hideGuestLogin ? (
+        <Link
+          href={guestLoginHref}
+          className="btn-press inline-flex rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium"
+        >
+          {guestLoginLabel}
+        </Link>
+      ) : logoutLabel ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen((v) => !v)}
+            className="btn-press rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium"
+          >
+            {menuLabel}
+          </button>
+          {isMenuOpen ? (
+            <div
+              className="absolute z-50 mt-2 min-w-48 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] p-1 shadow-lg"
+              style={locale === "ar" ? { left: 0 } : { right: 0 }}
+              dir={direction}
+            >
+              <div className="md:hidden">
+                {navLinks.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="block rounded-lg px-3 py-2 text-sm hover:bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                {showLanguage && languageSwitcher ? (
+                  <div className="border-t border-[var(--border)] px-3 py-2 sm:hidden">
+                    <span className="mb-1.5 block text-xs text-[var(--muted)]">
+                      {languageSwitcher.labels.label}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={langSaving}
+                      onClick={() => void applyLocale(otherLocale)}
+                      className="btn-press w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-semibold"
+                    >
+                      {otherLocaleLabel}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+              {menuItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="block rounded-lg px-3 py-2 text-sm hover:bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              ))}
+              {roleOptions.length > 1 ? (
+                <div className="border-t border-[var(--border)] px-3 py-2">
+                  <p className="mb-1.5 text-xs font-medium text-[var(--muted)]">{roleLabels.section}</p>
+                  <div className="flex flex-col gap-1">
+                    {roleOptions.map((opt) => (
+                      <button
+                        key={opt.role}
+                        type="button"
+                        onClick={() => void switchRole(opt.role)}
+                        className={`btn-press rounded-md px-2 py-1.5 text-start text-sm ${
+                          activeRole === opt.role
+                            ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
+                            : "hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void handleLogout()}
+                className="btn-press block w-full border-t border-[var(--border)] px-3 py-2 text-start text-sm text-red-600 dark:text-red-400"
+              >
+                {logoutLabel}
+              </button>
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <Link
+          href="/"
+          className="btn-press inline-flex rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium md:hidden"
+        >
+          {menuLabel}
+        </Link>
+      )}
+    </div>
+  );
+
   return (
     <header
       className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/90 backdrop-blur-md"
@@ -160,6 +272,7 @@ export default function AppHeader({
           <Link
             href="/"
             className="flex min-w-0 shrink-0 items-center gap-2 text-sm font-bold tracking-tight text-[var(--foreground)] sm:text-base"
+            aria-label={appName}
           >
             <Image
               src={BRAND_LOGO_PATH}
@@ -172,8 +285,8 @@ export default function AppHeader({
             <span className="hidden truncate sm:inline">{appName}</span>
           </Link>
           <nav className="hidden min-w-0 max-w-[min(100%,42rem)] flex-1 items-center gap-0.5 overflow-x-auto md:flex lg:max-w-none lg:gap-1">
-            {headerLinks.map((link) => {
-              const isActive = isShellNavItemActive(pathname, link, headerLinks);
+            {navLinks.map((link) => {
+              const isActive = isShellNavItemActive(pathname, link, navLinks);
               return (
                 <Link
                   key={link.href}
@@ -189,9 +302,27 @@ export default function AppHeader({
               );
             })}
           </nav>
+          {accountControl}
         </div>
 
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          {showLanguage && languageSwitcher ? (
+            <div className="hidden sm:block">
+              <button
+                type="button"
+                disabled={langSaving}
+                aria-label={otherLocaleLabel}
+                onClick={() => void applyLocale(otherLocale)}
+                className={`btn-press rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs font-semibold ${langSaving ? "opacity-60" : ""}`}
+              >
+                {otherLocaleLabel}
+              </button>
+              {langError ? <p className="sr-only">{langError}</p> : null}
+            </div>
+          ) : null}
+
+          <ThemeToggle theme={theme} labels={{ light: themeLabels.light, dark: themeLabels.dark }} />
+
           {marketSwitcher ? (
             <MarketSwitcher
               locale={locale}
@@ -201,148 +332,6 @@ export default function AppHeader({
               variant="header"
             />
           ) : null}
-
-          {showLanguage && languageSwitcher ? (
-            <div className="hidden sm:block">
-              <div
-                dir="ltr"
-                className={`flex rounded-full bg-[var(--border)] p-0.5 ${langSaving ? "opacity-60" : ""}`}
-              >
-                <button
-                  type="button"
-                  disabled={langSaving}
-                  aria-label={languageSwitcher.labels.shortEn}
-                  onClick={() => void applyLocale("en")}
-                  className={`rounded-full px-2 py-1.5 text-[11px] font-semibold leading-tight sm:text-xs ${locale === "en" ? "bg-[var(--primary)] text-white" : ""}`}
-                >
-                  {languageSwitcher.labels.shortEn}
-                </button>
-                <button
-                  type="button"
-                  disabled={langSaving}
-                  aria-label={languageSwitcher.labels.shortAr}
-                  onClick={() => void applyLocale("ar")}
-                  className={`rounded-full px-2 py-1.5 text-[11px] font-semibold leading-tight sm:text-xs ${locale === "ar" ? "bg-[var(--primary)] text-white" : ""}`}
-                >
-                  {languageSwitcher.labels.shortAr}
-                </button>
-              </div>
-              {langError ? <p className="sr-only">{langError}</p> : null}
-            </div>
-          ) : null}
-
-          <ThemeToggle theme={theme} labels={{ light: themeLabels.light, dark: themeLabels.dark }} />
-
-          <div className="relative" ref={menuRef}>
-            {guestLoginLabel && !hideGuestLogin ? (
-              <Link
-                href={guestLoginHref}
-                className="btn-press inline-flex rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium"
-              >
-                {guestLoginLabel}
-              </Link>
-            ) : logoutLabel ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setIsMenuOpen((v) => !v)}
-                  className="btn-press rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium"
-                >
-                  {menuLabel}
-                </button>
-                {isMenuOpen ? (
-                  <div
-                    className="absolute z-50 mt-2 min-w-48 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] p-1 shadow-lg"
-                    style={locale === "ar" ? { left: 0 } : { right: 0 }}
-                    dir={direction}
-                  >
-                    <div className="md:hidden">
-                      {headerLinks.map((item) => (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className="block rounded-lg px-3 py-2 text-sm hover:bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]"
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          {item.label}
-                        </Link>
-                      ))}
-                      {showLanguage && languageSwitcher ? (
-                        <div className="border-t border-[var(--border)] px-3 py-2 sm:hidden">
-                          <span className="mb-1.5 block text-xs text-[var(--muted)]">
-                            {languageSwitcher.labels.label}
-                          </span>
-                          <div dir="ltr" className="flex rounded-full bg-[var(--border)] p-0.5">
-                            <button
-                              type="button"
-                              disabled={langSaving}
-                              onClick={() => void applyLocale("en")}
-                              className={`min-w-0 flex-1 rounded-full px-2 py-1.5 text-xs font-semibold ${locale === "en" ? "bg-[var(--primary)] text-white" : ""}`}
-                            >
-                              {languageSwitcher.labels.shortEn}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={langSaving}
-                              onClick={() => void applyLocale("ar")}
-                              className={`min-w-0 flex-1 rounded-full px-2 py-1.5 text-xs font-semibold ${locale === "ar" ? "bg-[var(--primary)] text-white" : ""}`}
-                            >
-                              {languageSwitcher.labels.shortAr}
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                    {menuItems.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className="block rounded-lg px-3 py-2 text-sm hover:bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                    {roleOptions.length > 1 ? (
-                      <div className="border-t border-[var(--border)] px-3 py-2">
-                        <p className="mb-1.5 text-xs font-medium text-[var(--muted)]">{roleLabels.section}</p>
-                        <div className="flex flex-col gap-1">
-                          {roleOptions.map((opt) => (
-                            <button
-                              key={opt.role}
-                              type="button"
-                              onClick={() => void switchRole(opt.role)}
-                              className={`btn-press rounded-md px-2 py-1.5 text-start text-sm ${
-                                activeRole === opt.role
-                                  ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
-                                  : "hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]"
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={() => void handleLogout()}
-                      className="btn-press block w-full border-t border-[var(--border)] px-3 py-2 text-start text-sm text-red-600 dark:text-red-400"
-                    >
-                      {logoutLabel}
-                    </button>
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <Link
-                href="/"
-                className="btn-press inline-flex rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium md:hidden"
-              >
-                {menuLabel}
-              </Link>
-            )}
-          </div>
         </div>
       </div>
     </header>

@@ -61,6 +61,12 @@ function diffConfig(
     ["showTapGateway", before.showTapGateway, input.showTapGateway],
     ["showHyperPayGateway", before.showHyperPayGateway, input.showHyperPayGateway],
     ["showMyFatoorahGateway", before.showMyFatoorahGateway, input.showMyFatoorahGateway],
+    ["footerTaglineEn", before.footerTaglineEn, normalizeOptionalText(input.footerTaglineEn)],
+    ["footerTaglineAr", before.footerTaglineAr, normalizeOptionalText(input.footerTaglineAr)],
+    ["contactLocationEn", before.contactLocationEn, normalizeOptionalText(input.contactLocationEn)],
+    ["contactLocationAr", before.contactLocationAr, normalizeOptionalText(input.contactLocationAr)],
+    ["publicContactEmail", before.publicContactEmail, normalizeOptionalText(input.publicContactEmail)],
+    ["inquiryNotifyEmail", before.inquiryNotifyEmail, normalizeOptionalText(input.inquiryNotifyEmail)],
   ];
   for (const [key, from, to] of pairs) {
     if (JSON.stringify(from) !== JSON.stringify(to)) changes[key] = { from, to };
@@ -189,6 +195,12 @@ export async function updateAdminPlatformConfig(params: {
     privacyText: normalizeOptionalText(params.input.privacyText),
     returnPolicyUrl: normalizeOptionalText(params.input.returnPolicyUrl),
     returnPolicyText: normalizeOptionalText(params.input.returnPolicyText),
+    footerTaglineEn: normalizeOptionalText(params.input.footerTaglineEn),
+    footerTaglineAr: normalizeOptionalText(params.input.footerTaglineAr),
+    contactLocationEn: normalizeOptionalText(params.input.contactLocationEn),
+    contactLocationAr: normalizeOptionalText(params.input.contactLocationAr),
+    publicContactEmail: normalizeOptionalText(params.input.publicContactEmail),
+    inquiryNotifyEmail: normalizeOptionalText(params.input.inquiryNotifyEmail),
     showTapGateway: params.input.showTapGateway,
     showHyperPayGateway: params.input.showHyperPayGateway,
     showMyFatoorahGateway: params.input.showMyFatoorahGateway,

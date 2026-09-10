@@ -2436,6 +2436,7 @@
       "settlement": "Settlement window",
       "referralStructure": "Referral structure",
       "policies": "Legal & policies",
+      "footerContact": "Footer & contact CMS",
       "paymentGateways": "Payment gateway roadmap"
     },
     "fields": {
@@ -2459,6 +2460,12 @@
       "privacyText": "Privacy text (optional)",
       "returnPolicyUrl": "Return policy URL (optional)",
       "returnPolicyText": "Return policy text (optional)",
+      "footerTaglineEn": "Footer tagline (English)",
+      "footerTaglineAr": "Footer tagline (Arabic)",
+      "contactLocationEn": "Contact address / HQ text (English)",
+      "contactLocationAr": "Contact address / HQ text (Arabic)",
+      "publicContactEmail": "Public contact email (shown on site)",
+      "inquiryNotifyEmail": "Inquiry routing email (notify on new messages)",
       "showTapGateway": "Show Tap in checkout",
       "showHyperPayGateway": "Show HyperPay in checkout",
       "showMyFatoorahGateway": "Show MyFatoorah in checkout"
@@ -2475,6 +2482,7 @@
       "vatExample": "Example: product 100, platform commission 10% → commission 10; VAT 15% on that commission → 1.5; platform invoice 11.5. Merchant merchandise share stays their % of the eligible amount (e.g. 90 if merchant share is 90%).",
       "appliesToNewOrders": "Changes apply to new orders and future calculations only — not past orders or pending ledger rows.",
       "policiesOptional": "Optional per-market legal copy. URLs take precedence when both URL and text are set.",
+      "footerContact": "Leave blank to keep the default site copy. Inquiry routing email receives a notification when someone submits the contact form (messages are still stored in admin inbox).",
       "paymentGateways": "These controls show or hide planned gateways for customers. They remain disabled until their live adapters and credentials are installed.",
       "settlementWindow": "Days after order completion before vendor and affiliate earnings become eligible for admin release.",
       "missingAncestorKeep": "Keep missing level share with platform",
@@ -2519,7 +2527,13 @@
       "missingAncestorPolicy": "Missing ancestor policy",
       "showTapGateway": "Show Tap gateway",
       "showHyperPayGateway": "Show HyperPay gateway",
-      "showMyFatoorahGateway": "Show MyFatoorah gateway"
+      "showMyFatoorahGateway": "Show MyFatoorah gateway",
+      "footerTaglineEn": "Footer tagline (EN)",
+      "footerTaglineAr": "Footer tagline (AR)",
+      "contactLocationEn": "Contact address (EN)",
+      "contactLocationAr": "Contact address (AR)",
+      "publicContactEmail": "Public contact email",
+      "inquiryNotifyEmail": "Inquiry notify email"
     }
   },
   "adminMarkets": {

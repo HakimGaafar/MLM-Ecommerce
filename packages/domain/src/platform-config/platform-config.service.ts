@@ -29,6 +29,12 @@ export type PlatformConfigSnapshot = {
   privacyText: string | null;
   returnPolicyUrl: string | null;
   returnPolicyText: string | null;
+  footerTaglineEn: string | null;
+  footerTaglineAr: string | null;
+  contactLocationEn: string | null;
+  contactLocationAr: string | null;
+  publicContactEmail: string | null;
+  inquiryNotifyEmail: string | null;
   showTapGateway: boolean;
   showHyperPayGateway: boolean;
   showMyFatoorahGateway: boolean;
@@ -93,6 +99,12 @@ export function getDefaultPlatformConfigSnapshot(marketId: string = DEFAULT_MARK
     privacyText: null,
     returnPolicyUrl: null,
     returnPolicyText: null,
+    footerTaglineEn: null,
+    footerTaglineAr: null,
+    contactLocationEn: null,
+    contactLocationAr: null,
+    publicContactEmail: null,
+    inquiryNotifyEmail: null,
     showTapGateway: true,
     showHyperPayGateway: true,
     showMyFatoorahGateway: true,
@@ -123,6 +135,12 @@ function mapRow(row: {
   privacyText: string | null;
   returnPolicyUrl: string | null;
   returnPolicyText: string | null;
+  footerTaglineEn: string | null;
+  footerTaglineAr: string | null;
+  contactLocationEn: string | null;
+  contactLocationAr: string | null;
+  publicContactEmail: string | null;
+  inquiryNotifyEmail: string | null;
   showTapGateway: boolean;
   showHyperPayGateway: boolean;
   showMyFatoorahGateway: boolean;
@@ -153,6 +171,12 @@ function mapRow(row: {
     privacyText: row.privacyText,
     returnPolicyUrl: row.returnPolicyUrl,
     returnPolicyText: row.returnPolicyText,
+    footerTaglineEn: row.footerTaglineEn,
+    footerTaglineAr: row.footerTaglineAr,
+    contactLocationEn: row.contactLocationEn,
+    contactLocationAr: row.contactLocationAr,
+    publicContactEmail: row.publicContactEmail,
+    inquiryNotifyEmail: row.inquiryNotifyEmail,
     showTapGateway: row.showTapGateway,
     showHyperPayGateway: row.showHyperPayGateway,
     showMyFatoorahGateway: row.showMyFatoorahGateway,
@@ -308,6 +332,12 @@ export function buildPlatformConfigSeedData(
     privacyText: overrides?.privacyText ?? defaults.privacyText,
     returnPolicyUrl: overrides?.returnPolicyUrl ?? defaults.returnPolicyUrl,
     returnPolicyText: overrides?.returnPolicyText ?? defaults.returnPolicyText,
+    footerTaglineEn: overrides?.footerTaglineEn ?? defaults.footerTaglineEn,
+    footerTaglineAr: overrides?.footerTaglineAr ?? defaults.footerTaglineAr,
+    contactLocationEn: overrides?.contactLocationEn ?? defaults.contactLocationEn,
+    contactLocationAr: overrides?.contactLocationAr ?? defaults.contactLocationAr,
+    publicContactEmail: overrides?.publicContactEmail ?? defaults.publicContactEmail,
+    inquiryNotifyEmail: overrides?.inquiryNotifyEmail ?? defaults.inquiryNotifyEmail,
     showTapGateway: overrides?.showTapGateway ?? defaults.showTapGateway,
     showHyperPayGateway: overrides?.showHyperPayGateway ?? defaults.showHyperPayGateway,
     showMyFatoorahGateway:

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import { getPlatformConfig } from "@mlm/domain";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { SocialIcon } from "@/components/SiteFooter";
@@ -21,6 +22,12 @@ export default async function ContactPage() {
   const brandName = getBrandName(locale);
   const contact = getMarketContact(market.code);
   const marketCopy = ui.markets[market.code] ?? ui.markets.GLOBAL;
+  const platformConfig = await getPlatformConfig(market.id);
+  const locationText =
+    (locale === "ar"
+      ? platformConfig.contactLocationAr
+      : platformConfig.contactLocationEn)?.trim() || marketCopy.locationText;
+  const publicEmail = platformConfig.publicContactEmail?.trim() || "";
 
   const socialLinks = [
     { label: "Facebook", href: BRAND_LINKS.facebook, icon: "facebook" },
@@ -56,7 +63,15 @@ export default async function ContactPage() {
               {ui.headquarters}
             </p>
             <h2 className="mt-1 text-xl font-semibold">{marketCopy.name}</h2>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{marketCopy.locationText}</p>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{locationText}</p>
+            {publicEmail ? (
+              <a
+                href={`mailto:${publicEmail}`}
+                className="mt-3 inline-block text-sm font-medium text-[var(--primary)] hover:underline"
+              >
+                {publicEmail}
+              </a>
+            ) : null}
             <a
               href={contact.maps}
               target="_blank"

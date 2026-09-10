@@ -1355,6 +1355,12 @@ model PlatformConfig {
   privacyText           String?               @map("privacy_text") @db.Text
   returnPolicyUrl       String?               @map("return_policy_url") @db.VarChar(500)
   returnPolicyText      String?               @map("return_policy_text") @db.Text
+  footerTaglineEn       String?               @map("footer_tagline_en") @db.Text
+  footerTaglineAr       String?               @map("footer_tagline_ar") @db.Text
+  contactLocationEn     String?               @map("contact_location_en") @db.Text
+  contactLocationAr     String?               @map("contact_location_ar") @db.Text
+  publicContactEmail    String?               @map("public_contact_email") @db.VarChar(254)
+  inquiryNotifyEmail    String?               @map("inquiry_notify_email") @db.VarChar(254)
   showTapGateway        Boolean               @default(true) @map("show_tap_gateway")
   showHyperPayGateway   Boolean               @default(true) @map("show_hyperpay_gateway")
   showMyFatoorahGateway Boolean               @default(true) @map("show_myfatoorah_gateway")

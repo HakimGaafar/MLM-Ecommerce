@@ -9,6 +9,10 @@ const optionalText = z
   .union([z.string().max(20_000), z.literal(""), z.null()])
   .optional()
   .transform((v) => (v === "" || v === null ? undefined : v));
+const optionalEmail = z
+  .union([z.string().email().max(254), z.literal(""), z.null()])
+  .optional()
+  .transform((v) => (v === "" || v === null ? undefined : v));
 
 export const AdminPlatformConfigUpdateSchema = z
   .object({
@@ -32,6 +36,12 @@ export const AdminPlatformConfigUpdateSchema = z
     privacyText: optionalText,
     returnPolicyUrl: optionalUrl,
     returnPolicyText: optionalText,
+    footerTaglineEn: optionalText,
+    footerTaglineAr: optionalText,
+    contactLocationEn: optionalText,
+    contactLocationAr: optionalText,
+    publicContactEmail: optionalEmail,
+    inquiryNotifyEmail: optionalEmail,
     showTapGateway: z.boolean(),
     showHyperPayGateway: z.boolean(),
     showMyFatoorahGateway: z.boolean(),

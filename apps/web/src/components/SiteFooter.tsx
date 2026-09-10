@@ -1,14 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { MarketCode } from "@mlm/shared";
+import { getPlatformConfig } from "@mlm/domain";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { getAppLocale } from "@/lib/ui-locale";
 import { BRAND_LINKS, BRAND_LOGO_PATH, getBrandName, getMarketContact } from "@/lib/brand";
 import { getActiveMarket } from "@/lib/market-server";
-import { getServerSession } from "@/lib/server-session";
-import { homePathForRoles } from "@/lib/require-page-auth";
-import FooterCustomerAccount from "@/components/FooterCustomerAccount";
 
 /** Market-specific official verification badges (not shown on GLOBAL). */
 const MARKET_VERIFICATION: Partial<
@@ -111,9 +109,13 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
   const year = new Date().getFullYear();
   const appName = getBrandName(locale);
   const market = await getActiveMarket();
-  const session = await getServerSession();
   const verification = MARKET_VERIFICATION[market.code];
   const contact = getMarketContact(market.code);
+  const platformConfig = await getPlatformConfig(market.id);
+  const cmsTagline =
+    (locale === "ar" ? platformConfig.footerTaglineAr : platformConfig.footerTaglineEn)?.trim() ||
+    "";
+  const cmsEmail = platformConfig.publicContactEmail?.trim() || "";
 
   const socialUrl = (envKey: string, fallback: string) => {
     const fromEnv = process.env[envKey]?.trim();
@@ -137,11 +139,7 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
     { href: "/contact", label: f.contact },
   ];
 
-  const accountLinks = [
-    { href: "/account/customer", label: f.customerAccount },
-    { href: "/account/merchant", label: f.merchantAccount },
-    { href: "/account/marketer", label: f.marketerAccount },
-  ];
+  const accountLinks = [{ href: "/account/merchant", label: f.merchantAccount }];
 
 
   return (
@@ -165,10 +163,18 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
               <span className="font-semibold text-[var(--foreground)]">{appName}</span>
               {!compact ? (
                 <span className="text-xs font-normal text-[var(--muted)] lg:whitespace-nowrap">
-                  {f.tagline}
+                  {cmsTagline || f.tagline}
                 </span>
               ) : null}
             </div>
+            {cmsEmail ? (
+              <a
+                href={`mailto:${cmsEmail}`}
+                className="mt-1 inline-block text-xs text-[var(--muted)] hover:text-[var(--primary)]"
+              >
+                {cmsEmail}
+              </a>
+            ) : null}
           </div>
 
           <nav
@@ -196,31 +202,14 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
             className="flex flex-wrap items-center gap-x-1 gap-y-2 text-sm lg:flex-nowrap"
             aria-label={f.accountsTitle}
           >
-            {accountLinks.map((item, i) => (
-              <span key={item.href} className="inline-flex items-center">
-                {i > 0 ? (
-                  <span className="mx-1.5 hidden text-[var(--muted)] opacity-50 sm:inline" aria-hidden>
-                    ·
-                  </span>
-                ) : null}
-                {item.href === "/account/customer" ? (
-                  <FooterCustomerAccount
-                    label={item.label}
-                    controlPanelLabel={dict.customerNav.controlPanel}
-                    controlPanelHref={homePathForRoles(session?.roles ?? [])}
-                    vendorDashboardLabel={dict.vendorDashboard.title}
-                    logoutLabel={dict.customerNav.logout}
-                    isLoggedIn={Boolean(session)}
-                  />
-                ) : (
-                  <Link
-                    href={item.href}
-                    className="font-medium text-[var(--primary)] transition hover:underline"
-                  >
-                    {item.label}
-                  </Link>
-                )}
-              </span>
+            {accountLinks.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="font-medium text-[var(--primary)] transition hover:underline"
+              >
+                {item.label}
+              </Link>
             ))}
           </nav>
 
