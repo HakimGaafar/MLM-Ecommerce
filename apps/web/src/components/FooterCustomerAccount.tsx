@@ -10,6 +10,7 @@ import { getToastDict } from "@/lib/toast-messages";
 export default function FooterCustomerAccount({
   label,
   controlPanelLabel,
+  controlPanelHref = "/dashboard",
   vendorDashboardLabel,
   logoutLabel,
   isLoggedIn,
@@ -17,6 +18,7 @@ export default function FooterCustomerAccount({
 }: {
   label: string;
   controlPanelLabel: string;
+  controlPanelHref?: string;
   vendorDashboardLabel: string;
   logoutLabel: string;
   isLoggedIn: boolean;
@@ -75,7 +77,7 @@ export default function FooterCustomerAccount({
         >
           {!onVendorPages ? (
             <Link
-              href="/dashboard"
+              href={controlPanelHref}
               className="block rounded-lg px-3 py-2 text-sm hover:bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]"
               onClick={() => setOpen(false)}
             >

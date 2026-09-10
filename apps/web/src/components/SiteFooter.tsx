@@ -7,6 +7,7 @@ import { getAppLocale } from "@/lib/ui-locale";
 import { BRAND_LINKS, BRAND_LOGO_PATH, getBrandName, getMarketContact } from "@/lib/brand";
 import { getActiveMarket } from "@/lib/market-server";
 import { getServerSession } from "@/lib/server-session";
+import { homePathForRoles } from "@/lib/require-page-auth";
 import FooterCustomerAccount from "@/components/FooterCustomerAccount";
 
 /** Market-specific official verification badges (not shown on GLOBAL). */
@@ -206,6 +207,7 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
                   <FooterCustomerAccount
                     label={item.label}
                     controlPanelLabel={dict.customerNav.controlPanel}
+                    controlPanelHref={homePathForRoles(session?.roles ?? [])}
                     vendorDashboardLabel={dict.vendorDashboard.title}
                     logoutLabel={dict.customerNav.logout}
                     isLoggedIn={Boolean(session)}

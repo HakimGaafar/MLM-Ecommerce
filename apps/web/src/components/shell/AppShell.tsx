@@ -74,11 +74,17 @@ export default function AppShell({
   };
 }) {
   const pathname = usePathname() ?? "/";
-  const sidebarRole = pathname.startsWith("/vendor")
+  // Prefer URL section for /admin and /vendor; otherwise keep the user's active role
+  // so admins don't get customer chrome on /dashboard, /products, /stores, etc.
+  const sidebarRole: AppRole | "CUSTOMER" = pathname.startsWith("/vendor")
     ? "VENDOR"
     : pathname.startsWith("/admin")
       ? "ADMIN"
-      : "CUSTOMER";
+      : activeRole === "VENDOR"
+        ? "VENDOR"
+        : activeRole === "ADMIN"
+          ? "ADMIN"
+          : "CUSTOMER";
   const sidebarSections =
     sidebarRole === "VENDOR"
       ? vendorSidebarSections

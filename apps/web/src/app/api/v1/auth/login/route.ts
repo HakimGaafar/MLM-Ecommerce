@@ -2,8 +2,10 @@ import { prisma } from "@mlm/db";
 import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { ACTIVE_ROLE_COOKIE } from "@/lib/active-role";
 import { createAccessToken, createRefreshToken, setAuthCookies } from "@/lib/auth";
 import { setActiveRefreshJti } from "@/lib/refresh-session";
+import { resolvePrimaryRole } from "@/lib/server-session";
 import {
   consumeRateLimit,
   getClientIp,
@@ -12,7 +14,8 @@ import {
 
 const loginSchema = z.object({
   email: z.string().transform(normalizeEmail).pipe(z.email()),
-  password: z.string().min(10).max(128),
+  // Login only checks the stored hash; register/reset keep strong password rules.
+  password: z.string().min(1).max(128),
 });
 
 export async function POST(request: NextRequest) {
@@ -46,10 +49,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
   }
 
+  const roles = user.userRoles.map((item: (typeof user.userRoles)[number]) => item.role.code);
   const payload = {
     sub: user.id,
     email: user.email,
-    roles: user.userRoles.map((item: (typeof user.userRoles)[number]) => item.role.code),
+    roles,
   };
 
   const accessToken = await createAccessToken(payload);
@@ -59,6 +63,16 @@ export async function POST(request: NextRequest) {
   const response = NextResponse.json({ ok: true });
   response.headers.set("Cache-Control", "no-store");
   setAuthCookies(response, accessToken, refreshToken);
+
+  const primaryRole = resolvePrimaryRole(roles);
+  if (primaryRole) {
+    response.cookies.set(ACTIVE_ROLE_COOKIE, primaryRole, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+  }
 
   return response;
 }

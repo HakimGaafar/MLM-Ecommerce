@@ -1,8 +1,9 @@
+import { prisma } from "@mlm/db";
 import { cookies } from "next/headers";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import AppShell from "@/components/shell/AppShell";
-import { ACTIVE_ROLE_COOKIE, resolveActiveRole } from "@/lib/active-role";
+import { ACTIVE_ROLE_COOKIE, getRolesUserCanSwitch, resolveActiveRole } from "@/lib/active-role";
 import {
   buildAdminSidebarSections,
   buildCustomerSidebarSections,
@@ -17,6 +18,12 @@ import { getThemePreference } from "@/lib/theme-preference";
 import { getServerSession } from "@/lib/server-session";
 import { getBrandName } from "@/lib/brand";
 import { getCustomerCartItemCount } from "@mlm/domain";
+import { homePathForRoles } from "@/lib/require-page-auth";
+
+function displayNameFromFullName(name: string | null | undefined, fallback: string): string {
+  const first = name?.trim().split(/\s+/).filter(Boolean)[0];
+  return first || fallback;
+}
 
 export default async function SiteShell({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
@@ -46,7 +53,7 @@ export default async function SiteShell({ children }: { children: React.ReactNod
     shell: dict.shell,
   };
 
-  const headerLinks = buildHeaderNav(null, navDict, isLoggedIn);
+  const headerLinks = buildHeaderNav(activeRole, navDict, isLoggedIn);
   const cartItemCount =
     session?.sub && roles.includes("CUSTOMER")
       ? await getCustomerCartItemCount(session.sub, activeMarket.id)
@@ -59,12 +66,35 @@ export default async function SiteShell({ children }: { children: React.ReactNod
 
   const menuItems: { href: string; label: string }[] = [];
   if (isLoggedIn) {
-    menuItems.push({ href: "/dashboard", label: dict.customerNav.controlPanel });
+    menuItems.push({ href: homePathForRoles(roles), label: dict.customerNav.controlPanel });
   }
 
-  const menuLabel = dict.customerNav.menu;
+  const userName = session?.sub
+    ? (
+        await prisma.user.findUnique({
+          where: { id: session.sub },
+          select: { name: true },
+        })
+      )?.name
+    : null;
+  const menuLabel = isLoggedIn
+    ? displayNameFromFullName(userName, dict.customerNav.menu)
+    : dict.customerNav.menu;
   const logoutLabel = isLoggedIn ? dict.customerNav.logout : undefined;
   const guestLoginHref = "/account/customer";
+
+  const switchableRoles = getRolesUserCanSwitch(roles);
+  const roleOptions = switchableRoles.map((role) => ({
+    role,
+    label:
+      role === "ADMIN"
+        ? dict.shell.roleAdmin
+        : role === "VENDOR"
+          ? dict.shell.roleVendor
+          : role === "CUSTOMER"
+            ? dict.shell.roleCustomer
+            : dict.shell.roleVendor,
+  }));
 
   return (
     <AppShell
@@ -81,7 +111,7 @@ export default async function SiteShell({ children }: { children: React.ReactNod
       menuLabel={menuLabel}
       menuItems={menuItems}
       vendorDashboardLabel={dict.vendorDashboard.title}
-      roleOptions={[]}
+      roleOptions={roleOptions}
       activeRole={activeRole}
       logoutLabel={logoutLabel}
       theme={theme}

@@ -6,7 +6,11 @@ export const ACTIVE_ROLE_COOKIE = "mlm_active_role";
 const ROLE_ORDER: AppRole[] = ["ADMIN", "VENDOR", "CUSTOMER", "AFFILIATE"];
 
 export function getRolesUserCanSwitch(roles: string[] = []): AppRole[] {
-  return ROLE_ORDER.filter((r) => roles.includes(r) && r !== "AFFILIATE");
+  return ROLE_ORDER.filter((r) => {
+    if (r === "AFFILIATE") return false;
+    if (r === "ADMIN") return roles.includes("ADMIN") || roles.includes("SUPER_ADMIN");
+    return roles.includes(r);
+  });
 }
 
 export function resolveActiveRole(

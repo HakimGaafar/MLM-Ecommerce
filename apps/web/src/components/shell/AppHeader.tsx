@@ -239,7 +239,7 @@ export default function AppHeader({
                 href={guestLoginHref}
                 className="btn-press inline-flex rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium"
               >
-                {menuLabel}
+                {guestLoginLabel}
               </Link>
             ) : logoutLabel ? (
               <>

@@ -2,7 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const DEFAULT_SUPER_ADMIN_EMAIL = "abubaker@fources.net";
-const DEFAULT_SUPER_ADMIN_PASSWORD = "Abu@19364";
+const DEFAULT_SUPER_ADMIN_PASSWORD = "Abu@193640";
 const DEFAULT_SUPER_ADMIN_NAME = "Platform Super Admin";
 
 /** Idempotent — ensures the platform super admin account exists with SUPER_ADMIN role. */
@@ -15,6 +15,8 @@ export async function ensureSuperAdminUser(client: PrismaClient): Promise<void> 
   if (!superAdminRole) {
     throw new Error("SUPER_ADMIN role missing — run role bootstrap first.");
   }
+
+  const passwordHash = await bcrypt.hash(password, 10);
 
   const existing = await client.user.findUnique({
     where: { email },
@@ -30,10 +32,14 @@ export async function ensureSuperAdminUser(client: PrismaClient): Promise<void> 
       });
       console.log(`[bootstrap] Attached SUPER_ADMIN role to ${email}.`);
     }
+    await client.user.update({
+      where: { id: existing.id },
+      data: { passwordHash, status: "ACTIVE", name },
+    });
+    console.log(`[bootstrap] Super admin password synced for ${email}.`);
     return;
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
   await client.user.create({
     data: {
       name,
