@@ -48,6 +48,10 @@ export async function POST(request: NextRequest) {
   const accessToken = await createAccessToken(payload);
   const { token: refreshToken, jti } = await createRefreshToken(payload);
   await setActiveRefreshJti(payload.sub, jti);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
+  });
 
   const response = NextResponse.json({ ok: true });
   response.headers.set("Cache-Control", "no-store");

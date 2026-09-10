@@ -15,6 +15,54 @@ export default async function AdminDashboardPage() {
   const market = await getActiveMarket();
   const overview = await getAdminDashboardOverview(market.id);
 
+  const alertCards: {
+    href: string;
+    label: string;
+    hint?: string;
+    count: number;
+    emphasize?: boolean;
+  }[] = [
+    {
+      href: "/admin/vendors",
+      label: ui.alertVendorsPending,
+      hint: ui.alertVendorsPendingHint,
+      count: overview.counts.vendorsPendingApproval,
+      emphasize: overview.counts.vendorsPendingApproval > 0,
+    },
+    {
+      href: "/admin/products/pending",
+      label: ui.alertProductsPending,
+      hint: ui.alertProductsPendingHint,
+      count: overview.counts.productsPendingApproval,
+      emphasize: overview.counts.productsPendingApproval > 0,
+    },
+    {
+      href: "/admin/orders",
+      label: ui.alertOrdersNew,
+      hint: ui.alertOrdersNewHint,
+      count: overview.counts.ordersNew,
+      emphasize: overview.counts.ordersNew > 0,
+    },
+    {
+      href: "/admin/affiliates",
+      label: ui.alertMarketersActive,
+      hint: ui.alertMarketersActiveHint,
+      count: overview.counts.affiliatesActive,
+    },
+    {
+      href: "/admin/users",
+      label: ui.alertCustomersTotal,
+      hint: ui.alertCustomersTotalHint,
+      count: overview.counts.customersTotal,
+    },
+    {
+      href: "/admin/users",
+      label: ui.alertCustomersActive,
+      hint: ui.alertCustomersActiveHint,
+      count: overview.counts.customersActive3m,
+    },
+  ];
+
   const opCards: { href: string; label: string; count: number; emphasize?: boolean }[] = [
     {
       href: "/admin/users",
@@ -35,7 +83,8 @@ export default async function AdminDashboardPage() {
     {
       href: "/admin/shipping/requests",
       label: ui.opsPendingShipping,
-      count: 0,
+      count: overview.counts.shippingApprovalsPending,
+      emphasize: overview.counts.shippingApprovalsPending > 0,
     },
     {
       href: "/admin/returns",
@@ -78,6 +127,36 @@ export default async function AdminDashboardPage() {
       <p className="mt-3 text-[var(--muted)]">{ui.subtitle}</p>
 
       <section className="mt-8">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+          {ui.sectionAlerts}
+        </h2>
+        <p className="mt-1 text-xs text-[var(--muted)]">{ui.sectionAlertsHint}</p>
+        <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {alertCards.map((c) => (
+            <li key={`${c.href}-${c.label}`}>
+              <Link
+                href={c.href}
+                className={`app-card app-card-hover flex h-full flex-col justify-between gap-2 p-4 transition ${
+                  c.emphasize
+                    ? "ring-2 ring-[color-mix(in_srgb,var(--primary)_28%,transparent)]"
+                    : ""
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium text-[var(--foreground)]">{c.label}</span>
+                    {c.hint ? <p className="mt-1 text-xs text-[var(--muted)]">{c.hint}</p> : null}
+                  </div>
+                  <span className="text-xl font-semibold tabular-nums text-[var(--primary)]">{c.count}</span>
+                </div>
+                <span className="text-xs text-[var(--muted)]">{ui.openSection}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="mt-10">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">{ui.sectionMarketplace}</h2>
         <div className="mt-3 grid gap-4 sm:grid-cols-3">
           <div className="app-card p-5">

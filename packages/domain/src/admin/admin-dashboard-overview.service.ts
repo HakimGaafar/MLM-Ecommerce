@@ -15,6 +15,8 @@ const TERMINAL_RETURN_STATUSES: OrderReturnStatus[] = [
   "PROCESSING_REJECTED",
 ];
 
+const ACTIVE_CUSTOMER_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
+
 export type AdminDashboardOverviewDto = {
   generatedAt: string;
   currency: string;
@@ -27,13 +29,18 @@ export type AdminDashboardOverviewDto = {
   counts: {
     users: number;
     vendors: number;
+    vendorsPendingApproval: number;
     productsPendingApproval: number;
+    ordersNew: number;
+    customersTotal: number;
+    customersActive3m: number;
     returnsInProgress: number;
     withdrawalsPending: number;
     pendingSettlements: number;
     affiliatesActive: number;
     stuckFulfillmentGroups: number;
     kycPendingReview: number;
+    shippingApprovalsPending: number;
   };
 };
 
@@ -47,18 +54,26 @@ export async function getAdminDashboardOverview(marketId: string): Promise<Admin
   });
   const currency = market?.defaultCurrency ?? week1BusinessRules.currency;
   const generatedAt = new Date().toISOString();
+  const activeSince = new Date(Date.now() - ACTIVE_CUSTOMER_WINDOW_MS);
+
   const [
     orderAgg,
     statusGroups,
     users,
     vendors,
+    vendorsPendingApproval,
     pendingProducts,
+    pendingProductEdits,
+    ordersNew,
+    customersTotal,
+    customersActive3m,
     returnsInProgress,
     withdrawalsPending,
     pendingSettlements,
     affiliatesActive,
     stuckFulfillmentGroups,
     kycPendingReview,
+    shippingApprovalsPending,
   ] = await Promise.all([
     prisma.order.aggregate({
       where: { marketId, status: { not: EXCLUDED } },
@@ -72,7 +87,20 @@ export async function getAdminDashboardOverview(marketId: string): Promise<Admin
     }),
     prisma.user.count(),
     prisma.vendor.count({ where: { marketId } }),
+    prisma.vendor.count({ where: { marketId, storeApprovalStatus: "PENDING" } }),
     prisma.product.count({ where: { status: "PENDING", marketId } }),
+    prisma.productEditRequest.count({
+      where: { status: "PENDING", product: { marketId } },
+    }),
+    prisma.order.count({ where: { marketId, status: "NEW" } }),
+    prisma.userRole.count({ where: { role: { code: "CUSTOMER" } } }),
+    prisma.user.count({
+      where: {
+        status: "ACTIVE",
+        lastLoginAt: { gte: activeSince },
+        userRoles: { some: { role: { code: "CUSTOMER" } } },
+      },
+    }),
     prisma.orderReturn.count({
       where: {
         status: { notIn: TERMINAL_RETURN_STATUSES },
@@ -97,6 +125,9 @@ export async function getAdminDashboardOverview(marketId: string): Promise<Admin
     prisma.affiliateProfile.count({ where: { isActive: true } }),
     countStuckFulfillmentGroups(marketId),
     countPendingKycDocuments(),
+    prisma.vendorShippingChangeRequest.count({
+      where: { status: "PENDING", vendor: { marketId } },
+    }),
   ]);
 
   const totalOrders = orderAgg._count._all ?? 0;
@@ -118,13 +149,18 @@ export async function getAdminDashboardOverview(marketId: string): Promise<Admin
     counts: {
       users,
       vendors,
-      productsPendingApproval: pendingProducts,
+      vendorsPendingApproval,
+      productsPendingApproval: pendingProducts + pendingProductEdits,
+      ordersNew,
+      customersTotal,
+      customersActive3m,
       returnsInProgress,
       withdrawalsPending,
       pendingSettlements,
       affiliatesActive,
       stuckFulfillmentGroups,
       kycPendingReview,
+      shippingApprovalsPending,
     },
   };
 }

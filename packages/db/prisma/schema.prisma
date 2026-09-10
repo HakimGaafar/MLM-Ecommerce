@@ -319,6 +319,7 @@ model User {
   username         String?             @unique @db.VarChar(30)
   passwordHash     String              @map("password_hash")
   emailVerifiedAt  DateTime?           @map("email_verified_at")
+  lastLoginAt      DateTime?           @map("last_login_at")
   status           UserStatus          @default(ACTIVE)
   createdAt        DateTime            @default(now()) @map("created_at")
   updatedAt        DateTime            @updatedAt @map("updated_at")
@@ -351,6 +352,7 @@ model User {
   passwordResetAudits              PasswordResetAuditLog[]
   otpChallenges                    OtpChallenge[]
 
+  @@index([lastLoginAt])
   @@map("users")
 }
 
