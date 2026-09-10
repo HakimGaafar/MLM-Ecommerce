@@ -331,6 +331,7 @@ export async function buildCommissionInvoiceRender(
     orderSubtotal: Number(order.subtotal),
     orderDiscountTotal: Number(order.discountTotal),
     platformRate: platformConfig.platformRate,
+    vatRate: platformConfig.vatRate,
   });
   if (!totals) throw new OrderInvoiceError("NO_LINES", "No commission for this vendor on this order.");
 

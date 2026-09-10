@@ -6,7 +6,7 @@ function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-const VAT_RATE = Number.parseFloat(CHECKOUT_VAT_RATE);
+const DEFAULT_VAT_RATE = Number.parseFloat(CHECKOUT_VAT_RATE);
 
 export type VendorSaleInvoiceTotals = {
   subtotal: number;
@@ -46,12 +46,15 @@ export function calculateVendorSaleInvoiceTotals(params: {
   orderDiscountTotal: number;
   orderShippingFee: number;
   orderVatTotal: number;
+  /** Fraction 0–1. Defaults to checkout VAT constant when order has no VAT total. */
+  vatRate?: number;
 }): VendorSaleInvoiceTotals | null {
   const subtotal = vendorMerchandiseSubtotal(params.items, params.vendorId);
   if (subtotal <= 0) return null;
 
   const orderSubtotal = Math.max(params.orderSubtotal, 0);
   const ratio = orderSubtotal > 0 ? Math.min(1, subtotal / orderSubtotal) : 1;
+  const vatRate = params.vatRate ?? DEFAULT_VAT_RATE;
 
   const discountShare = roundMoney(params.orderDiscountTotal * ratio);
   const shippingShare = roundMoney(params.orderShippingFee * ratio);
@@ -59,7 +62,7 @@ export function calculateVendorSaleInvoiceTotals(params: {
   const vatTotal =
     params.orderVatTotal > 0 && orderSubtotal > 0
       ? roundMoney(params.orderVatTotal * ratio)
-      : roundMoney(taxable * VAT_RATE);
+      : roundMoney(taxable * vatRate);
   const totalAmount = roundMoney(taxable + vatTotal);
 
   return { subtotal, discountShare, shippingShare, vatTotal, totalAmount };
@@ -71,6 +74,8 @@ export function calculateCommissionInvoiceTotals(params: {
   orderSubtotal: number;
   orderDiscountTotal: number;
   platformRate: number;
+  /** Fraction 0–1 from platform settings (e.g. 0.15). */
+  vatRate?: number;
 }): CommissionInvoiceTotals | null {
   const vendorLineTotal = vendorMerchandiseSubtotal(params.items, params.vendorId);
   if (vendorLineTotal <= 0) return null;
@@ -84,7 +89,8 @@ export function calculateCommissionInvoiceTotals(params: {
   const commissionSubtotal = roundMoney(eligible * platformRate);
   if (commissionSubtotal <= 0) return null;
 
-  const vatTotal = roundMoney(commissionSubtotal * VAT_RATE);
+  const vatRate = params.vatRate ?? DEFAULT_VAT_RATE;
+  const vatTotal = roundMoney(commissionSubtotal * vatRate);
   const totalAmount = roundMoney(commissionSubtotal + vatTotal);
   return { commissionSubtotal, vatTotal, totalAmount };
 }

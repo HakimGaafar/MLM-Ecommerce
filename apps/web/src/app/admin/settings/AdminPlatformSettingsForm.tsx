@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { MarketCode } from "@mlm/shared";
 import { useToast } from "@/components/toast/ToastProvider";
@@ -63,6 +64,11 @@ type Ui = {
   save: string;
   marketLabel: string;
   currencyLabel: string;
+  relatedTitle: string;
+  relatedCategories: string;
+  relatedBanners: string;
+  relatedShipping: string;
+  relatedAffiliates: string;
   sections: {
     cashback: string;
     affiliate: string;
@@ -101,8 +107,15 @@ type Ui = {
     showMyFatoorahGateway: string;
   };
   hints: {
+    affiliateIntro: string;
     affiliateLevels: string;
+    commissionIntro: string;
     commissionSplit: string;
+    commissionSum: string;
+    commissionSumOk: string;
+    commissionSumBad: string;
+    vatIntro: string;
+    vatExample: string;
     appliesToNewOrders: string;
     policiesOptional: string;
     paymentGateways: string;
@@ -255,6 +268,10 @@ export default function AdminPlatformSettingsForm({
   };
 
   const minWithdrawalLabel = ui.fields.minWithdrawalAmount.replace("{currency}", form?.currency ?? "—");
+  const commissionSum = form
+    ? Math.round((form.vendorPercent + form.platformPercent) * 100) / 100
+    : 0;
+  const commissionOk = Math.abs(commissionSum - 100) < 0.011;
 
   return (
     <div className="mt-8 space-y-8" dir={direction}>
@@ -283,6 +300,23 @@ export default function AdminPlatformSettingsForm({
               value={form?.currency ?? "—"}
             />
           </label>
+        </div>
+        <div className="mt-4">
+          <p className="text-sm font-medium">{ui.relatedTitle}</p>
+          <div className="mt-2 flex flex-wrap gap-3 text-sm">
+            <Link href="/admin/catalog/categories" className="text-link font-medium">
+              {ui.relatedCategories}
+            </Link>
+            <Link href="/admin/catalog/banners" className="text-link font-medium">
+              {ui.relatedBanners}
+            </Link>
+            <Link href="/admin/shipping/rates" className="text-link font-medium">
+              {ui.relatedShipping}
+            </Link>
+            <Link href="/admin/affiliates" className="text-link font-medium">
+              {ui.relatedAffiliates}
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -340,13 +374,15 @@ export default function AdminPlatformSettingsForm({
                 className="app-input"
                 value={form.cashbackPercent}
                 onChange={(e) => setNumber("cashbackPercent", e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
               />
             </SettingsField>
           </section>
 
           <section className="rounded-xl border border-[var(--border)] p-6">
             <h2 className="text-lg font-medium">{ui.sections.affiliate}</h2>
-            <p className="mt-1 text-xs text-[var(--muted)]">{ui.hints.affiliateLevels}</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{ui.hints.affiliateIntro}</p>
+            <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{ui.hints.affiliateLevels}</p>
             <div className="mt-4 grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
               {(
                 [
@@ -366,6 +402,7 @@ export default function AdminPlatformSettingsForm({
                     className="app-input"
                     value={form[key]}
                     onChange={(e) => setNumber(key, e.target.value)}
+                    onWheel={(e) => e.currentTarget.blur()}
                   />
                 </SettingsField>
               ))}
@@ -374,7 +411,8 @@ export default function AdminPlatformSettingsForm({
 
           <section className="rounded-xl border border-[var(--border)] p-6">
             <h2 className="text-lg font-medium">{ui.sections.commission}</h2>
-            <p className="mt-1 text-xs text-[var(--muted)]">{ui.hints.commissionSplit}</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{ui.hints.commissionIntro}</p>
+            <p className="mt-2 text-xs text-[var(--muted)]">{ui.hints.commissionSplit}</p>
             <div className="mt-4 grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
               <SettingsField label={ui.fields.vendorPercent} alignLabelHeights>
                 <input
@@ -385,6 +423,7 @@ export default function AdminPlatformSettingsForm({
                   className="app-input"
                   value={form.vendorPercent}
                   onChange={(e) => setNumber("vendorPercent", e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
                 />
               </SettingsField>
               <SettingsField label={ui.fields.platformPercent} alignLabelHeights>
@@ -396,13 +435,24 @@ export default function AdminPlatformSettingsForm({
                   className="app-input"
                   value={form.platformPercent}
                   onChange={(e) => setNumber("platformPercent", e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
                 />
               </SettingsField>
             </div>
+            <p
+              className={`mt-3 text-sm font-medium ${
+                commissionOk ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+              }`}
+            >
+              {ui.hints.commissionSum.replace("{sum}", String(commissionSum))} —{" "}
+              {commissionOk ? ui.hints.commissionSumOk : ui.hints.commissionSumBad}
+            </p>
           </section>
 
           <section className="rounded-xl border border-[var(--border)] p-6">
             <h2 className="text-lg font-medium">{ui.sections.tax}</h2>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{ui.hints.vatIntro}</p>
+            <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{ui.hints.vatExample}</p>
             <SettingsField label={ui.fields.vatPercent} className="mt-4 max-w-xs">
               <input
                 type="number"
@@ -412,6 +462,7 @@ export default function AdminPlatformSettingsForm({
                 className="app-input"
                 value={form.vatPercent}
                 onChange={(e) => setNumber("vatPercent", e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
               />
             </SettingsField>
           </section>
@@ -562,7 +613,7 @@ export default function AdminPlatformSettingsForm({
 
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || !commissionOk}
             onClick={() => void onSave()}
             className="rounded-lg bg-[var(--primary)] px-5 py-2.5 text-sm font-medium text-[var(--primary-foreground)] disabled:opacity-60"
           >
