@@ -18,7 +18,11 @@ const indirectFulfillment = z.enum(["FORSEIZ_STOCK", "ON_ORDER"]);
 
 export const VendorSetupShippingSchema = z
   .object({
-    shippingNotes: z.string().trim().min(10).max(2000),
+    shippingNotes: z
+      .string()
+      .trim()
+      .min(10, "Shipping policy must be at least 10 characters.")
+      .max(2000, "Shipping policy is too long."),
     shippingMode: shippingMode.default("DIRECT"),
     indirectFulfillment: indirectFulfillment.optional().nullable(),
     /** Ignored for checkout pricing — platform rate list applies. Kept for profile approval workflow. */

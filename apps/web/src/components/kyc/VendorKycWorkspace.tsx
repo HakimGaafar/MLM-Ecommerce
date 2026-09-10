@@ -28,6 +28,7 @@ export default function VendorKycWorkspace({
         key={reloadKey}
         apiBase="/api/v1/vendor/kyc"
         locale={locale}
+        requireDescription
         ui={kycUi}
       />
     </div>

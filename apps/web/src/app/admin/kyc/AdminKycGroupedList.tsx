@@ -12,6 +12,7 @@ type DocRow = {
   documentType: string;
   status: string;
   originalFileName: string;
+  description?: string | null;
   documentExpiresAt: string | null;
   expiryWarning: string;
   submittedAt: string | null;
@@ -413,6 +414,9 @@ export default function AdminKycGroupedList({ locale, ui }: { locale: Locale; ui
                                 ) : null}
                               </div>
                               <p className="mt-1 text-xs text-[var(--muted)]">{doc.originalFileName}</p>
+                              {doc.description ? (
+                                <p className="mt-1 text-xs text-[var(--muted)]">{doc.description}</p>
+                              ) : null}
                               {doc.documentExpiresAt ? (
                                 <p className="mt-1 text-xs text-[var(--muted)]">
                                   {formatDate(doc.documentExpiresAt)}

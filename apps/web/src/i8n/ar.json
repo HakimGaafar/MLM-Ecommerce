@@ -1440,6 +1440,7 @@
     "stepShipping": "الشحن",
     "stepShippingHint": "اختر طريقة التنفيذ. الشحن المباشر يتطلب مدن تغطية. رسوم الدفع تُحسب من قائمة أسعار المنصة — لا يحددها التاجر.",
     "shippingNotes": "سياسة الشحن",
+    "shippingNotesHint": "اوصف سياسة الشحن بوضوح (١٠ أحرف على الأقل). تُراجع قبل اعتماد المتجر.",
     "shippingMode": "طريقة تنفيذ الطلب",
     "shippingModeDirect": "مباشر — أشحن من مخزوني",
     "shippingModeIndirect": "غير مباشر — عبر مستودع فورسيز",
@@ -2012,6 +2013,7 @@
     "shippingRequests": "طلبات الشحن",
     "categories": "التصنيفات",
     "banners": "بانرات المتجر",
+    "vendorFormLists": "قوائم نماذج التاجر",
     "contactInquiries": "استفسارات التواصل",
     "passwordResets": "إعادة تعيين كلمات المرور",
     "menu": "الحساب",
@@ -2629,6 +2631,28 @@
     "deleteConfirm": "حذف هذا البانر؟",
     "deleted": "تم حذف البانر."
   },
+  "adminVendorFormLists": {
+    "title": "قوائم نماذج التاجر",
+    "subtitle": "إدارة خيارات القوائم المنسدلة في نماذج توثيق التاجر (أنواع الرخص).",
+    "backToSettings": "العودة للإعدادات",
+    "listHint": "تعديل قائمة LICENSE_TYPE. تظهر هذه الخيارات عندما يختار التاجر أن لديه رخصة تجارية.",
+    "loading": "جاري التحميل…",
+    "loadError": "تعذّر تحميل خيارات القائمة.",
+    "saveError": "تعذّر حفظ الخيار.",
+    "saved": "تم حفظ الخيار.",
+    "saving": "جاري الحفظ…",
+    "addTitle": "إضافة نوع رخصة",
+    "add": "إضافة خيار",
+    "code": "الرمز",
+    "labelEn": "التسمية بالإنجليزية",
+    "labelAr": "التسمية بالعربية",
+    "sortOrder": "ترتيب العرض",
+    "activeYes": "مفعّل",
+    "activeNo": "معطّل",
+    "delete": "حذف",
+    "deleteConfirm": "حذف هذا الخيار؟",
+    "deleted": "تم حذف الخيار."
+  },
   "marketUnavailable": {
     "title": "السوق غير متاح",
     "description": "متجر {market} معطّل حالياً. اختر سوقاً آخر أو انتقل إلى السعودية.",
@@ -2850,11 +2874,16 @@
     "backToAffiliate": "العودة للمسوق",
     "backToPayout": "العودة للدفع",
     "physicalShop": {
-      "title": "هل لديك متجر فعلي؟",
-      "body": "أخبرنا إن كان بإمكان العملاء زيارة موقع فعلي. هذا يحدد ما إذا كان مطلوبًا رخصة المحل.",
-      "yes": "نعم، لدينا متجر فعلي",
-      "no": "لا، عبر الإنترنت فقط",
-      "licenseHint": "إذا كانت الإجابة نعم، ارفع رخصة المحل في قائمة المستندات أدناه.",
+      "title": "بيانات توثيق النشاط",
+      "body": "أجب عن هذه الأسئلة لمعرفة المستندات المطلوبة. الرخصة مطلوبة إذا كان لديك متجر فعلي أو رخصة تجارية.",
+      "yes": "نعم",
+      "no": "لا",
+      "licenseHint": "إذا كان لديك متجر فعلي أو رخصة تجارية، ارفع مستند الرخصة أدناه.",
+      "physicalShopLabel": "هل لديك متجر فعلي؟",
+      "commercialLicenseLabel": "هل لديك رخصة تجارية؟",
+      "licenseTypeLabel": "نوع الرخصة",
+      "licenseTypeOtherLabel": "صف نوع الرخصة",
+      "ecommerceOnLicenseLabel": "هل تسمح رخصتك بالتجارة الإلكترونية / البيع عبر الإنترنت؟",
       "saving": "جاري التحميل…",
       "loadError": "تعذر حفظ إجابتك."
     },
@@ -2915,7 +2944,10 @@
       "adminUpdateBannerTitle": "طلبت الإدارة تحديث مستندات",
       "adminUpdateBannerItem": "{document}: {message}",
       "expiryWarningMonth": "تنتهي خلال 30 يوماً",
-      "expiryWarningWeek": "تنتهي خلال 7 أيام"
+      "expiryWarningWeek": "تنتهي خلال 7 أيام",
+      "descriptionLabel": "وصف المستند",
+      "descriptionHint": "صف باختصار ما يظهره الملف (مطلوب).",
+      "descriptionRequired": "أضف وصفاً قصيراً للمستند قبل الرفع."
     }
   },
   "affiliateKycForm": {

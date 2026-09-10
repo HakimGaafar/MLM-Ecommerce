@@ -3,7 +3,17 @@ import { VendorSetupShippingSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { requireVendorSession } from "@/lib/require-vendor-session";
 import { requireVendorPermission } from "@/lib/require-vendor-permission";
-import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
+import { publicErrorPayload } from "@/lib/api-error-response";
+
+function firstZodMessage(error: {
+  flatten: () => { formErrors: string[]; fieldErrors: Record<string, string[] | undefined> };
+}): string {
+  const flat = error.flatten();
+  for (const messages of Object.values(flat.fieldErrors)) {
+    if (messages?.[0]) return messages[0];
+  }
+  return flat.formErrors[0] ?? "Validation failed";
+}
 
 export async function PATCH(request: NextRequest) {
   const auth = await requireVendorSession(request);
@@ -16,7 +26,10 @@ export async function PATCH(request: NextRequest) {
   const raw = await request.json().catch(() => null);
   const parsed = VendorSetupShippingSchema.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Validation failed", issues: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json(
+      { error: firstZodMessage(parsed.error), issues: parsed.error.flatten() },
+      { status: 400 },
+    );
   }
 
   try {

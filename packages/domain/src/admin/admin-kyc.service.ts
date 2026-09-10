@@ -24,6 +24,7 @@ export type AdminKycDocumentDto = {
   originalFileName: string;
   mimeType: string;
   fileSizeBytes: number;
+  description: string | null;
   documentExpiresAt: string | null;
   ibanNumber: string | null;
   rejectionReason: string | null;
@@ -204,6 +205,7 @@ function mapAdminRow(
     originalFileName: string;
     mimeType: string;
     fileSizeBytes: number;
+    description?: string | null;
     documentExpiresAt: Date | null;
     ibanNumber: string | null;
     rejectionReason: string | null;
@@ -229,6 +231,7 @@ function mapAdminRow(
     originalFileName: row.originalFileName,
     mimeType: row.mimeType,
     fileSizeBytes: row.fileSizeBytes,
+    description: row.description ?? null,
     documentExpiresAt: row.documentExpiresAt?.toISOString() ?? null,
     ibanNumber: row.ibanNumber,
     rejectionReason: row.rejectionReason,

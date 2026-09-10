@@ -140,6 +140,7 @@ export * from "./admin/admin-kyc.service";
 export * from "./admin/admin-markets.service";
 export * from "./admin/admin-product-categories.service";
 export * from "./admin/admin-market-banners.service";
+export * from "./admin/vendor-form-list-options.service";
 export * from "./affiliate/affiliate-dashboard.service";
 export * from "./invoices/platform-entity";
 export * from "./invoices/invoice-calculation";

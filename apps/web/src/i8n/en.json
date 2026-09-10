@@ -1440,6 +1440,7 @@
     "stepShipping": "Shipping",
     "stepShippingHint": "Choose how you fulfill. Direct shipping needs delivery cities. Checkout fees come from the platform rate list — merchants do not set them.",
     "shippingNotes": "Shipping policy",
+    "shippingNotesHint": "Describe your shipping policy clearly (at least 10 characters). This is reviewed before store approval.",
     "shippingMode": "Fulfillment mode",
     "shippingModeDirect": "Direct — I ship from my stock",
     "shippingModeIndirect": "Indirect — via Fources warehouse",
@@ -2012,6 +2013,7 @@
     "shippingRequests": "Shipping requests",
     "categories": "Categories",
     "banners": "Store banners",
+    "vendorFormLists": "Vendor form lists",
     "contactInquiries": "Contact inquiries",
     "passwordResets": "Password resets",
     "menu": "Account",
@@ -2629,6 +2631,28 @@
     "deleteConfirm": "Delete this banner?",
     "deleted": "Banner deleted."
   },
+  "adminVendorFormLists": {
+    "title": "Vendor form lists",
+    "subtitle": "Manage dropdown options used on vendor verification forms (license types).",
+    "backToSettings": "Back to settings",
+    "listHint": "Editing the LICENSE_TYPE list. These options appear when a vendor says they have a commercial license.",
+    "loading": "Loading…",
+    "loadError": "Could not load list options.",
+    "saveError": "Could not save option.",
+    "saved": "Option saved.",
+    "saving": "Saving…",
+    "addTitle": "Add license type",
+    "add": "Add option",
+    "code": "Code",
+    "labelEn": "English label",
+    "labelAr": "Arabic label",
+    "sortOrder": "Sort order",
+    "activeYes": "Active",
+    "activeNo": "Inactive",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this option?",
+    "deleted": "Option deleted."
+  },
   "marketUnavailable": {
     "title": "Marketplace unavailable",
     "description": "The {market} store is currently disabled. Choose another marketplace or visit Saudi Arabia.",
@@ -2850,11 +2874,16 @@
     "backToAffiliate": "Back to marketer",
     "backToPayout": "Back to payout",
     "physicalShop": {
-      "title": "Do you operate a physical shop?",
-      "body": "Tell us if customers can visit a brick-and-mortar location. This determines whether a business license is required.",
-      "yes": "Yes, we have a physical shop",
-      "no": "No, online only",
-      "licenseHint": "If yes, upload your shop license in the document list below.",
+      "title": "Business verification details",
+      "body": "Answer these questions so we know which documents you must upload. License is required if you have a physical shop or a commercial license.",
+      "yes": "Yes",
+      "no": "No",
+      "licenseHint": "If you have a physical shop or commercial license, upload the license document below.",
+      "physicalShopLabel": "Do you operate a physical shop?",
+      "commercialLicenseLabel": "Do you have a commercial license?",
+      "licenseTypeLabel": "License type",
+      "licenseTypeOtherLabel": "Describe the license type",
+      "ecommerceOnLicenseLabel": "Does your license allow ecommerce / online sales?",
       "saving": "Loading…",
       "loadError": "Could not save your answer."
     },
@@ -2915,7 +2944,10 @@
       "adminUpdateBannerTitle": "Admin requested document updates",
       "adminUpdateBannerItem": "{document}: {message}",
       "expiryWarningMonth": "Expires within 30 days",
-      "expiryWarningWeek": "Expires within 7 days"
+      "expiryWarningWeek": "Expires within 7 days",
+      "descriptionLabel": "Document description",
+      "descriptionHint": "Briefly describe what this file shows (required).",
+      "descriptionRequired": "Add a short description for this document before uploading."
     }
   },
   "affiliateKycForm": {

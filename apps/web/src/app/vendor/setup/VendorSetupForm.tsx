@@ -390,7 +390,13 @@ export default function VendorSetupForm({ locale, ui }: { locale: Locale; ui: Ui
                 value={shippingNotes}
                 onChange={(e) => setShippingNotes(e.target.value)}
                 required
+                minLength={10}
+                maxLength={2000}
               />
+              <span className="mt-1 block text-xs text-[var(--muted)]">
+                {ui.shippingNotesHint ??
+                  "Describe your shipping policy clearly (at least 10 characters). This is reviewed before store approval."}
+              </span>
             </label>
             <div className="flex flex-wrap gap-2">
               <button type="button" className="btn-neutral rounded-lg px-4 py-2 text-sm" onClick={() => setStepIndex(0)}>

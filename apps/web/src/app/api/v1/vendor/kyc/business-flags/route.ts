@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { updateVendorBusinessFlags, vendorHasPhysicalShop } from "@mlm/domain";
+import { getVendorBusinessFlags, updateVendorBusinessFlags } from "@mlm/domain";
 import { requireVendorSession } from "@/lib/require-vendor-session";
 import { requireVendorPermission } from "@/lib/require-vendor-permission";
 
 const PatchSchema = z.object({
-  hasPhysicalShop: z.boolean(),
+  hasPhysicalShop: z.boolean().optional(),
+  hasCommercialLicense: z.boolean().optional(),
+  licenseTypeCode: z.string().trim().max(64).nullable().optional(),
+  licenseTypeOther: z.string().trim().max(120).nullable().optional(),
+  ecommerceOnLicense: z.boolean().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -16,8 +20,8 @@ export async function GET(request: NextRequest) {
   const denied = await requireVendorPermission(auth, "vendor:wallet:read");
   if (denied) return denied;
 
-  const hasPhysicalShop = await vendorHasPhysicalShop(auth.vendorId);
-  return NextResponse.json({ hasPhysicalShop }, { headers: { "Cache-Control": "no-store" } });
+  const flags = await getVendorBusinessFlags(auth.vendorId);
+  return NextResponse.json(flags, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -36,7 +40,7 @@ export async function PATCH(request: NextRequest) {
 
   const result = await updateVendorBusinessFlags({
     vendorId: auth.vendorId,
-    hasPhysicalShop: parsed.data.hasPhysicalShop,
+    ...parsed.data,
   });
   return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
 }

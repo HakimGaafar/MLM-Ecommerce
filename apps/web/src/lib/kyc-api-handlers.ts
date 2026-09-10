@@ -72,6 +72,7 @@ export async function handleKycUpload(
       identityDocumentKind: parsed.identityDocumentKind,
       identityDocumentKindOther: parsed.identityDocumentKindOther,
       documentNumber: parsed.documentNumber,
+      description: parsed.description,
     });
     return NextResponse.json({ document }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {

@@ -21,6 +21,7 @@ export type KycDocumentDto = {
   originalFileName: string | null;
   mimeType: string | null;
   fileSizeBytes: number | null;
+  description: string | null;
   documentExpiresAt: string | null;
   ibanNumber: string | null;
   identityDocumentKind: string | null;
@@ -58,6 +59,7 @@ export class KycDocumentError extends Error {
       | "MISSING_IBAN"
       | "MISSING_DOCUMENT_NUMBER"
       | "MISSING_IDENTITY_KIND"
+      | "MISSING_DESCRIPTION"
       | "FORBIDDEN"
       | "ALREADY_PENDING",
     message?: string,
@@ -87,6 +89,7 @@ function mapRow(
     originalFileName: string;
     mimeType: string;
     fileSizeBytes: number;
+    description?: string | null;
     documentExpiresAt: Date | null;
     ibanNumber: string | null;
     identityDocumentKind: string | null;
@@ -112,6 +115,7 @@ function mapRow(
     originalFileName: row.originalFileName,
     mimeType: row.mimeType,
     fileSizeBytes: row.fileSizeBytes,
+    description: row.description ?? null,
     documentExpiresAt: row.documentExpiresAt?.toISOString() ?? null,
     ibanNumber: row.ibanNumber,
     identityDocumentKind: row.identityDocumentKind,
@@ -143,6 +147,7 @@ function emptyDocumentDto(
     originalFileName: null,
     mimeType: null,
     fileSizeBytes: null,
+    description: null,
     documentExpiresAt: null,
     ibanNumber: null,
     identityDocumentKind: null,
@@ -252,6 +257,7 @@ export async function upsertKycDocumentUpload(params: {
   originalFileName: string;
   mimeType: string;
   fileSizeBytes: number;
+  description?: string | null;
   documentExpiresAt?: Date | null;
   ibanNumber?: string | null;
   identityDocumentKind?: string | null;
@@ -312,6 +318,12 @@ export async function upsertKycDocumentUpload(params: {
     null;
   const documentNumber =
     params.documentNumber?.trim() || existing?.documentNumber?.trim() || null;
+  const description =
+    params.description?.trim() || existing?.description?.trim() || null;
+
+  if (params.subjectType === "VENDOR" && !description) {
+    throw new KycDocumentError("MISSING_DESCRIPTION", "Document description is required.");
+  }
 
   if (params.subjectType === "AFFILIATE" && params.documentType === "NATIONAL_ID") {
     if (!identityDocumentKind) {
@@ -347,6 +359,7 @@ export async function upsertKycDocumentUpload(params: {
           originalFileName: params.originalFileName,
           mimeType: params.mimeType,
           fileSizeBytes: params.fileSizeBytes,
+          description,
           documentExpiresAt,
           ibanNumber,
           identityDocumentKind: identityDocumentKind as AffiliateIdentityDocumentKind | null,
@@ -364,6 +377,7 @@ export async function upsertKycDocumentUpload(params: {
           originalFileName: params.originalFileName,
           mimeType: params.mimeType,
           fileSizeBytes: params.fileSizeBytes,
+          description,
           documentExpiresAt,
           ibanNumber,
           identityDocumentKind: identityDocumentKind as AffiliateIdentityDocumentKind | null,

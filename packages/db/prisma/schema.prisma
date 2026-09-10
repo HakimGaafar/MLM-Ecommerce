@@ -582,6 +582,10 @@ model Vendor {
   internationalSalesConsentAt      DateTime? @map("international_sales_consent_at")
   internationalSalesConsentVersion String?   @map("international_sales_consent_version") @db.VarChar(32)
   hasPhysicalShop                  Boolean   @default(false) @map("has_physical_shop")
+  hasCommercialLicense             Boolean   @default(false) @map("has_commercial_license")
+  licenseTypeCode                  String?   @map("license_type_code") @db.VarChar(64)
+  licenseTypeOther                 String?   @map("license_type_other") @db.VarChar(120)
+  ecommerceOnLicense               Boolean   @default(false) @map("ecommerce_on_license")
   createdAt      DateTime           @default(now()) @map("created_at")
   updatedAt      DateTime           @updatedAt @map("updated_at")
   owner          User               @relation("VendorOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
@@ -625,6 +629,7 @@ model KycDocument {
   originalFileName  String            @map("original_file_name") @db.VarChar(255)
   mimeType          String            @map("mime_type") @db.VarChar(100)
   fileSizeBytes     Int               @map("file_size_bytes")
+  description       String?           @db.Text
   documentExpiresAt DateTime?         @map("document_expires_at")
   ibanNumber        String?           @map("iban_number") @db.VarChar(34)
   identityDocumentKind      AffiliateIdentityDocumentKind? @map("identity_document_kind")
@@ -1395,4 +1400,21 @@ model ContactInquiry {
   @@index([marketId, createdAt])
   @@index([email])
   @@map("contact_inquiries")
+}
+
+/// Admin-managed dropdown options for vendor forms (license types, etc.).
+model VendorFormListOption {
+  id        String   @id @default(cuid())
+  listKey   String   @map("list_key") @db.VarChar(64)
+  code      String   @db.VarChar(64)
+  labelEn   String   @map("label_en") @db.VarChar(200)
+  labelAr   String   @map("label_ar") @db.VarChar(200)
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([listKey, code])
+  @@index([listKey, isActive, sortOrder])
+  @@map("vendor_form_list_options")
 }

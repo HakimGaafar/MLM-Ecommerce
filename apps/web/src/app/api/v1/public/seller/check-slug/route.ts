@@ -1,6 +1,7 @@
-import { isStoreSlugAvailable, suggestSlugFromStoreName } from "@mlm/domain";
+import { isStoreSlugAvailable, suggestSlugFromStoreName, resolveVendorAccessForUser } from "@mlm/domain";
 import { STORE_SLUG_REGEX } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
+import { getAccessTokenFromRequest, verifyAccessToken } from "@/lib/auth";
 import { resolveRequestMarket } from "@/lib/request-market";
 
 export async function GET(request: NextRequest) {
@@ -18,7 +19,18 @@ export async function GET(request: NextRequest) {
   }
 
   const market = await resolveRequestMarket();
-  const available = await isStoreSlugAvailable(slug, undefined, market.id);
+
+  let excludeVendorId: string | undefined;
+  const token = getAccessTokenFromRequest(request);
+  if (token) {
+    const session = await verifyAccessToken(token).catch(() => null);
+    if (session?.sub) {
+      const access = await resolveVendorAccessForUser(session.sub, market.id);
+      excludeVendorId = access?.vendorId;
+    }
+  }
+
+  const available = await isStoreSlugAvailable(slug, excludeVendorId, market.id);
   return NextResponse.json({
     available,
     suggestion: available ? slug : suggestSlugFromStoreName(slug),

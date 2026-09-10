@@ -87,20 +87,21 @@ async function createVendorForOwner(
   marketId: string,
 ) {
   const data = mapStoreFields(input);
+
+  const existingVendor = await tx.vendor.findFirst({
+    where: { ownerUserId, marketId },
+    select: { id: true, slug: true },
+  });
+  if (existingVendor) {
+    throw new SellerOnboardError("ALREADY_VENDOR", "You already have a store in this marketplace.");
+  }
+
   const taken = await tx.vendor.findFirst({
     where: { marketId, slug: data.slug },
     select: { id: true },
   });
   if (taken) {
     throw new SellerOnboardError("SLUG_TAKEN", "This store URL is already in use.");
-  }
-
-  const existingVendor = await tx.vendor.findFirst({
-    where: { ownerUserId, marketId },
-    select: { id: true },
-  });
-  if (existingVendor) {
-    throw new SellerOnboardError("ALREADY_VENDOR", "You already have a store in this marketplace.");
   }
 
   return tx.vendor.create({

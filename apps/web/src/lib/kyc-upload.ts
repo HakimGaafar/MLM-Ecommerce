@@ -23,6 +23,7 @@ export type ParsedKycUpload = {
   identityDocumentKind: string | null;
   identityDocumentKindOther: string | null;
   documentNumber: string | null;
+  description: string | null;
 };
 
 const DOCUMENT_TYPES = new Set<KycDocumentType>([
@@ -71,6 +72,7 @@ export async function parseKycUploadForm(
   const identityDocumentKind = String(form.get("identityDocumentKind") ?? "").trim() || null;
   const identityDocumentKindOther = String(form.get("identityDocumentKindOther") ?? "").trim() || null;
   const documentNumber = String(form.get("documentNumber") ?? "").trim() || null;
+  const description = String(form.get("description") ?? "").trim() || null;
   const buffer = Buffer.from(await file.arrayBuffer());
 
   if (!sniffMatchesDeclaredMime(buffer, file.type || "")) {
@@ -89,6 +91,7 @@ export async function parseKycUploadForm(
     identityDocumentKind,
     identityDocumentKindOther,
     documentNumber,
+    description,
   };
 }
 

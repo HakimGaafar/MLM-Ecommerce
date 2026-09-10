@@ -102,6 +102,7 @@ export type ShellNavDict = {
     shippingRequests: string;
     categories: string;
     banners: string;
+    vendorFormLists: string;
     contactInquiries: string;
     passwordResets: string;
   };
@@ -249,6 +250,7 @@ export function buildAdminSidebarSections(
         item("/admin/settings/audit", dict.adminNav.configAudit),
         item("/admin/catalog/categories", dict.adminNav.categories),
         item("/admin/catalog/banners", dict.adminNav.banners),
+        item("/admin/vendor-form-lists", dict.adminNav.vendorFormLists),
       ],
     });
   }

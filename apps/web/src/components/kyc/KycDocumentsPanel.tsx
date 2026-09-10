@@ -16,6 +16,7 @@ type KycDocumentRow = {
   status: string;
   required?: boolean;
   originalFileName: string | null;
+  description?: string | null;
   documentExpiresAt: string | null;
   ibanNumber: string | null;
   rejectionReason: string | null;
@@ -80,6 +81,9 @@ type Ui = {
   adminUpdateBannerItem: string;
   expiryWarningMonth: string;
   expiryWarningWeek: string;
+  descriptionLabel?: string;
+  descriptionHint?: string;
+  descriptionRequired?: string;
 };
 
 const ID_TYPES = new Set(["NATIONAL_ID", "REPRESENTATIVE_ID"]);
@@ -116,10 +120,12 @@ export default function KycDocumentsPanel({
   apiBase,
   locale,
   ui,
+  requireDescription = false,
 }: {
   apiBase: string;
   locale: Locale;
   ui: Ui;
+  requireDescription?: boolean;
 }) {
   const direction = locale === "ar" ? "rtl" : "ltr";
   const pathname = usePathname() ?? "";
@@ -133,6 +139,7 @@ export default function KycDocumentsPanel({
   const [files, setFiles] = useState<Record<string, File | null>>({});
   const [expiryDates, setExpiryDates] = useState<Record<string, string>>({});
   const [ibanValues, setIbanValues] = useState<Record<string, string>>({});
+  const [descriptions, setDescriptions] = useState<Record<string, string>>({});
   const [replaceConfirm, setReplaceConfirm] = useState<{
     documentType: string;
     documentLabel: string;
@@ -166,6 +173,7 @@ export default function KycDocumentsPanel({
     if (!summary) return;
     const nextExpiry: Record<string, string> = {};
     const nextIban: Record<string, string> = {};
+    const nextDescriptions: Record<string, string> = {};
     for (const doc of summary.documents) {
       if (doc.documentExpiresAt) {
         nextExpiry[doc.documentType] = doc.documentExpiresAt.slice(0, 10);
@@ -173,9 +181,13 @@ export default function KycDocumentsPanel({
       if (doc.ibanNumber) {
         nextIban[doc.documentType] = doc.ibanNumber;
       }
+      if (doc.description) {
+        nextDescriptions[doc.documentType] = doc.description;
+      }
     }
     setExpiryDates((prev) => ({ ...nextExpiry, ...prev }));
     setIbanValues((prev) => ({ ...nextIban, ...prev }));
+    setDescriptions((prev) => ({ ...nextDescriptions, ...prev }));
   }, [summary]);
 
   const formatDate = useMemo(
@@ -194,12 +206,18 @@ export default function KycDocumentsPanel({
       toast.error(ui.noFileChosen);
       return;
     }
+    const description = (descriptions[documentType] ?? "").trim();
+    if (requireDescription && !description) {
+      toast.error(ui.descriptionRequired ?? "Document description is required.");
+      return;
+    }
 
     setBusyType(`upload:${documentType}`);
     try {
       const form = new FormData();
       form.set("documentType", documentType);
       form.set("file", file);
+      if (description) form.set("description", description);
       if (ID_TYPES.has(documentType) && expiryDates[documentType]) {
         form.set("documentExpiresAt", expiryDates[documentType]);
       }
@@ -389,6 +407,13 @@ export default function KycDocumentsPanel({
               </p>
             ) : null}
 
+            {doc.description ? (
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                {ui.descriptionLabel ?? "Description"}:{" "}
+                <span className="text-[var(--foreground)]">{doc.description}</span>
+              </p>
+            ) : null}
+
             {doc.documentExpiresAt ? (
               <p className="mt-1 text-sm text-[var(--muted)]">
                 {ui.expiryLabel}: {formatDate(doc.documentExpiresAt)}
@@ -475,6 +500,24 @@ export default function KycDocumentsPanel({
                         setExpiryDates((prev) => ({ ...prev, [doc.documentType]: e.target.value }))
                       }
                       disabled={doc.status === "ACCEPTED"}
+                    />
+                  </label>
+                ) : null}
+
+                {requireDescription ? (
+                  <label className="block text-sm">
+                    <span className="text-[var(--muted)]">{ui.descriptionLabel ?? "Description"}</span>
+                    <textarea
+                      className="mt-1 w-full rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-sm"
+                      rows={2}
+                      value={descriptions[doc.documentType] ?? ""}
+                      onChange={(e) =>
+                        setDescriptions((prev) => ({
+                          ...prev,
+                          [doc.documentType]: e.target.value,
+                        }))
+                      }
+                      placeholder={ui.descriptionHint}
                     />
                   </label>
                 ) : null}
