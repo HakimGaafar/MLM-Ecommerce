@@ -10,13 +10,15 @@ import { LIST_PAGE_SIZE } from "@/lib/list-page";
 import { getPaginationLabels } from "@/lib/pagination-labels";
 import { catalogCategoriesUrl } from "@/lib/locale-shared";
 import CatalogProductThumb from "./CatalogProductThumb";
+import CatalogCategoryNav, { type CatalogCategoryNode } from "./CatalogCategoryNav";
 
 type Locale = "en" | "ar";
 
-type Category = { id: string; slug: string; name: string; productCount: number };
+type Category = CatalogCategoryNode;
 
 type Product = {
   id: string;
+  slug?: string;
   name: string;
   price: string;
   currency: string;
@@ -154,8 +156,24 @@ export default function ProductsCatalog({
           signal: ac.signal,
         });
         if (!res.ok) return;
-        const data = (await res.json()) as { items: Category[] };
-        setCategories(data.items);
+        const data = (await res.json()) as {
+          items: Array<{
+            id: string;
+            slug: string;
+            name: string;
+            parentId?: string | null;
+            productCount: number;
+          }>;
+        };
+        setCategories(
+          data.items.map((c) => ({
+            id: c.id,
+            slug: c.slug,
+            name: c.name,
+            parentId: c.parentId ?? null,
+            productCount: c.productCount,
+          })),
+        );
       } catch (e) {
         if (e instanceof Error && e.name === "AbortError") return;
         /* categories optional for render */
@@ -204,23 +222,21 @@ export default function ProductsCatalog({
 
   return (
     <div dir={direction}>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <label className="flex min-w-[12rem] flex-1 flex-col gap-1 text-sm sm:max-w-xs">
-          <span className="font-medium text-[var(--muted)]">{ui.categoryFilter}</span>
-          <select
-            className="app-input"
-            value={selectedCategoryId ?? ""}
-            onChange={(e) => selectCategory(e.target.value || null)}
-            aria-label={ui.categoryFilter}
-          >
-            <option value="">{ui.allCategories}</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name} ({cat.productCount})
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="mb-2 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <CatalogCategoryNav
+            categories={categories}
+            selectedId={selectedCategoryId}
+            onSelect={selectCategory}
+            locale={locale}
+            ui={{
+              allCategories: ui.allCategories,
+              categoryFilter: ui.categoryFilter,
+              expand: locale === "ar" ? "توسيع" : "Expand",
+              collapse: locale === "ar" ? "طي" : "Collapse",
+            }}
+          />
+        </div>
 
         <button
           type="button"
@@ -273,7 +289,7 @@ export default function ProductsCatalog({
               style={{ animationDelay: `${Math.min(index, 8) * 0.04}s` }}
             >
               <Link
-                href={`/products/${product.id}`}
+                href={`/products/${product.slug || product.id}`}
                 className="app-card app-card-hover flex h-full flex-col overflow-hidden"
               >
                 <div className="relative aspect-[4/3] bg-[color-mix(in_srgb,var(--primary)_8%,var(--surface))]">

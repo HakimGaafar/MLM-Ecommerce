@@ -22,6 +22,7 @@ export async function PATCH(
     parsed.data.action,
     parsed.data.rejectionReason,
     auth.userId,
+    parsed.data.changeRequestNote,
   );
   if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ product }, { headers: { "Cache-Control": "no-store" } });

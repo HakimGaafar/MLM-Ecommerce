@@ -10,6 +10,7 @@ type MarketOption = { code: MarketCode; label: string };
 
 type CategoryRow = {
   id: string;
+  parentId: string | null;
   slug: string;
   nameEn: string;
   nameAr: string;
@@ -51,6 +52,7 @@ export default function AdminCatalogCategoriesForm({
     nameEn: "",
     nameAr: "",
     sortOrder: "0",
+    parentId: "",
   });
 
   const load = useCallback(async () => {
@@ -86,12 +88,13 @@ export default function AdminCatalogCategoriesForm({
           nameEn: newRow.nameEn,
           nameAr: newRow.nameAr,
           sortOrder: Number(newRow.sortOrder),
+          parentId: newRow.parentId || null,
           isActive: true,
         }),
       });
       const payload = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) throw new Error(payload?.error ?? ui.saveError);
-      setNewRow({ slug: "", nameEn: "", nameAr: "", sortOrder: "0" });
+      setNewRow({ slug: "", nameEn: "", nameAr: "", sortOrder: "0", parentId: "" });
       toast.success(ui.saved ?? "Saved");
       await load();
     } catch (e) {
@@ -224,6 +227,21 @@ export default function AdminCatalogCategoriesForm({
             value={newRow.nameAr}
             onChange={(e) => setNewRow({ ...newRow, nameAr: e.target.value })}
           />
+          <label className="block text-sm sm:col-span-2">
+            <span className="text-[var(--muted)]">Parent category</span>
+            <select
+              className="app-input mt-1"
+              value={newRow.parentId}
+              onChange={(e) => setNewRow({ ...newRow, parentId: e.target.value })}
+            >
+              <option value="">Top level</option>
+              {rows.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.nameEn}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <button
           type="button"
@@ -243,6 +261,7 @@ export default function AdminCatalogCategoriesForm({
             <thead className="bg-[var(--surface-elevated)]">
               <tr>
                 <th className="px-3 py-2 text-left">{ui.slug}</th>
+                <th className="px-3 py-2 text-left">Parent</th>
                 <th className="px-3 py-2 text-left">{ui.nameEn}</th>
                 <th className="px-3 py-2 text-left">{ui.nameAr}</th>
                 <th className="px-3 py-2 text-left">{ui.sortOrder}</th>
@@ -266,6 +285,11 @@ export default function AdminCatalogCategoriesForm({
                       ) : (
                         <span className="font-mono text-xs">{row.slug}</span>
                       )}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-[var(--muted)]">
+                      {row.parentId
+                        ? rows.find((r) => r.id === row.parentId)?.nameEn ?? row.parentId
+                        : "—"}
                     </td>
                     <td className="px-3 py-2">
                       {editing ? (

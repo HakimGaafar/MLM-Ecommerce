@@ -45,9 +45,11 @@ type Ui = {
   reviewedBy: string;
   approve: string;
   reject: string;
+  requestChanges?: string;
   viewStore: string;
   toastApproved: string;
   toastRejected: string;
+  toastRequestChanges?: string;
   toastError: string;
   tabPending: string;
   tabEditPending: string;
@@ -126,18 +128,32 @@ export default function AdminPendingProductsList({ locale, ui }: { locale: Local
     void load();
   }, [load]);
 
-  async function submitReview(id: string, action: "approve" | "reject", rejectionReason?: string) {
+  async function submitReview(
+    id: string,
+    action: "approve" | "reject" | "request_changes",
+    note?: string,
+  ) {
     setBusyId(id);
     setError(null);
     try {
+      const body =
+        action === "request_changes"
+          ? { action, changeRequestNote: note }
+          : { action, rejectionReason: note };
       const res = await fetch(`/api/v1/admin/products/${id}/approval`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ action, rejectionReason }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(ui.loadError);
-      toast.success(action === "approve" ? ui.toastApproved : ui.toastRejected);
+      toast.success(
+        action === "approve"
+          ? ui.toastApproved
+          : action === "request_changes"
+            ? (ui.toastRequestChanges ?? "Changes requested")
+            : ui.toastRejected,
+      );
       if (action === "reject") setRejectTarget(null);
       await load();
     } catch (e) {
@@ -149,9 +165,15 @@ export default function AdminPendingProductsList({ locale, ui }: { locale: Local
     }
   }
 
-  function review(id: string, action: "approve" | "reject", productName?: string) {
+  function review(id: string, action: "approve" | "reject" | "request_changes", productName?: string) {
     if (action === "reject") {
       setRejectTarget({ id, name: productName ?? "" });
+      return;
+    }
+    if (action === "request_changes") {
+      const note = window.prompt(ui.requestChanges ?? "What should the vendor change?");
+      if (!note?.trim()) return;
+      void submitReview(id, action, note.trim());
       return;
     }
     void submitReview(id, action);
@@ -273,6 +295,14 @@ export default function AdminPendingProductsList({ locale, ui }: { locale: Local
                           className="me-2 inline-flex min-w-[84px] justify-center rounded px-3 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50"
                         >
                           {ui.approve}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busyId === row.id}
+                          onClick={() => review(row.reviewSubjectId, "request_changes", row.name)}
+                          className="me-2 inline-flex min-w-[84px] justify-center rounded border border-[var(--border-strong)] px-3 py-1 text-xs font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)] disabled:opacity-50"
+                        >
+                          {ui.requestChanges ?? "Request changes"}
                         </button>
                         <button
                           type="button"

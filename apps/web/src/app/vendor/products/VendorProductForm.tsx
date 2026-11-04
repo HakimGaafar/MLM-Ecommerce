@@ -16,7 +16,21 @@ import MarketOffersEditor, {
   draftsToOffersPayload,
   type OfferDraft,
 } from "./MarketOffersEditor";
+import VariantsEditor, {
+  draftsToVariantsPayload,
+  emptyVariantDraft,
+  syncVariantDraftsToMarkets,
+  type VariantDraft,
+  type VariantMarketColumn,
+} from "./VariantsEditor";
 import ProductServiceAreaEditor, { type ServiceCityDraft } from "./ProductServiceAreaEditor";
+
+const MARKET_LABELS: Record<string, { en: string; ar: string }> = {
+  market_sa: { en: "Saudi Arabia", ar: "السعودية" },
+  market_om: { en: "Oman", ar: "عُمان" },
+  market_eg: { en: "Egypt", ar: "مصر" },
+  market_global: { en: "International", ar: "دولي" },
+};
 
 type Category = { id: string; name: string };
 
@@ -58,11 +72,13 @@ export default function VendorProductForm({ productId }: { productId?: string })
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
   const [descriptionEn, setDescriptionEn] = useState("");
   const [descriptionAr, setDescriptionAr] = useState("");
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("SAR");
   const [offerDrafts, setOfferDrafts] = useState<OfferDraft[]>(() => createDefaultOfferDrafts());
+  const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [metaTitle, setMetaTitle] = useState("");
   const [metaDescription, setMetaDescription] = useState("");
@@ -81,6 +97,27 @@ export default function VendorProductForm({ productId }: { productId?: string })
   const [imgLoadFailed, setImgLoadFailed] = useState<Record<string, boolean>>({});
   const [serviceAreaMode, setServiceAreaMode] = useState<"ALL" | "SPECIFIC">("ALL");
   const [serviceCities, setServiceCities] = useState<ServiceCityDraft[]>([]);
+
+  const variantMarkets = useMemo<VariantMarketColumn[]>(
+    () =>
+      offerDrafts
+        .filter((d) => d.enabled)
+        .map((d) => ({
+          marketId: d.marketId,
+          label: MARKET_LABELS[d.marketId]?.[locale] ?? d.marketId,
+          price: d.price,
+          currency: d.currency,
+        })),
+    [offerDrafts, locale],
+  );
+
+  /** Keep variant market columns in sync when sell markets are toggled. */
+  useEffect(() => {
+    setVariantDrafts((prev) => {
+      if (prev.length === 0) return prev;
+      return syncVariantDraftsToMarkets(prev, variantMarkets);
+    });
+  }, [variantMarkets]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -114,6 +151,7 @@ export default function VendorProductForm({ productId }: { productId?: string })
         const data = (await res.json()) as {
           product: {
             name: string;
+            slug?: string;
             price: string;
             currency: string;
             categoryId: string;
@@ -129,6 +167,16 @@ export default function VendorProductForm({ productId }: { productId?: string })
             latestProductRejectionReason: string | null;
             serviceAreaMode?: "ALL" | "SPECIFIC";
             serviceCities?: ServiceCityDraft[];
+            variants?: Array<{
+              title: string;
+              sku: string | null;
+              offers: Array<{
+                marketId: string;
+                price: string;
+                currency: string;
+                quantity: number;
+              }>;
+            }>;
             offers?: Array<{
               marketId: string;
               price: string;
@@ -136,11 +184,14 @@ export default function VendorProductForm({ productId }: { productId?: string })
               stockLocation: "MERCHANT" | "FOURCES_WAREHOUSE";
               fourcesMode?: "FORSEIZ_STOCK" | "ON_ORDER" | null;
               quantity: number;
+              status?: "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
+              rejectionReason?: string | null;
             }>;
           };
         };
         if (cancelled) return;
         setName(data.product.name);
+        setSlug(data.product.slug ?? "");
         setDescriptionEn(data.product.descriptionEn ?? "");
         setDescriptionAr(data.product.descriptionAr ?? "");
         setPrice(data.product.price);
@@ -158,6 +209,8 @@ export default function VendorProductForm({ productId }: { productId?: string })
                 stockLocation: offer.stockLocation,
                 fourcesMode: offer.fourcesMode === "ON_ORDER" ? "ON_ORDER" : "FORSEIZ_STOCK",
                 quantity: String(offer.quantity ?? 0),
+                status: offer.status,
+                rejectionReason: offer.rejectionReason ?? null,
               };
             }
           }
@@ -168,6 +221,35 @@ export default function VendorProductForm({ productId }: { productId?: string })
           home.currency = data.product.currency;
         }
         setOfferDrafts(drafts);
+        const enabledMarkets: VariantMarketColumn[] = drafts
+          .filter((d) => d.enabled)
+          .map((d) => ({
+            marketId: d.marketId,
+            label: MARKET_LABELS[d.marketId]?.[locale] ?? d.marketId,
+            price: d.price,
+            currency: d.currency,
+          }));
+        setVariantDrafts(
+          (data.product.variants ?? []).map((v) => {
+            const base = emptyVariantDraft(enabledMarkets);
+            return {
+              ...base,
+              title: v.title,
+              sku: v.sku ?? "",
+              offers: base.offers.map((col) => {
+                const found = v.offers.find((o) => o.marketId === col.marketId);
+                return found
+                  ? {
+                      marketId: found.marketId,
+                      price: found.price,
+                      currency: found.currency,
+                      quantity: String(found.quantity ?? 0),
+                    }
+                  : col;
+              }),
+            };
+          }),
+        );
         setCategoryId(data.product.categoryId);
         setMetaTitle(data.product.metaTitle ?? "");
         setMetaDescription(data.product.metaDescription ?? "");
@@ -301,14 +383,19 @@ export default function VendorProductForm({ productId }: { productId?: string })
       return;
     }
     try {
+      const variants = draftsToVariantsPayload(
+        syncVariantDraftsToMarkets(variantDrafts, variantMarkets),
+      );
       const body = {
         name,
+        ...(slug.trim() ? { slug: slug.trim().toLowerCase() } : {}),
         descriptionEn,
         descriptionAr,
         price: offers[0]!.price,
         currency: offers[0]!.currency,
         categoryId,
         offers,
+        variants,
         serviceAreaMode,
         serviceCities: serviceAreaMode === "SPECIFIC" ? serviceCities : [],
         images,
@@ -374,6 +461,18 @@ export default function VendorProductForm({ productId }: { productId?: string })
         <label className="block space-y-1 text-sm">
           <span className="font-medium">{ui.name}</span>
           <input required maxLength={200} className="app-input" value={name} onChange={(ev) => setName(ev.target.value)} />
+        </label>
+
+        <label className="block space-y-1 text-sm">
+          <span className="font-medium">URL slug</span>
+          <input
+            maxLength={80}
+            className="app-input"
+            value={slug}
+            onChange={(ev) => setSlug(ev.target.value)}
+            placeholder="auto-from-name"
+          />
+          <span className="text-xs text-[var(--muted)]">Optional. Used in /products/your-slug</span>
         </label>
 
         <label className="block space-y-1 text-sm">
@@ -444,6 +543,27 @@ export default function VendorProductForm({ productId }: { productId?: string })
             fourcesStockAHint: ui.formOfferFourcesStockAHint,
             fourcesStockB: ui.formOfferFourcesStockB,
             fourcesStockBHint: ui.formOfferFourcesStockBHint,
+            statusDraft: ui.formOfferStatusDraft,
+            statusPending: ui.formOfferStatusPending,
+            statusApproved: ui.formOfferStatusApproved,
+            statusRejected: ui.formOfferStatusRejected,
+          }}
+        />
+        <VariantsEditor
+          drafts={variantDrafts}
+          onChange={setVariantDrafts}
+          markets={variantMarkets}
+          ui={{
+            title: "Variants / SKUs",
+            hint: "Optional. Set price and stock per market for each option. Leave empty for a simple single-SKU product.",
+            add: "Add variant",
+            remove: "Remove",
+            variantTitle: "Option label",
+            sku: "SKU",
+            quantity: "Qty",
+            price: "Price",
+            empty: "No variants — selling as a single SKU.",
+            enableMarketsFirst: "Enable at least one sell market above before adding variants.",
           }}
         />
       </section>

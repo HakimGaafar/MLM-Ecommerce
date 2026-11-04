@@ -1,8 +1,12 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ACTIVE_ROLE_COOKIE, resolveActiveRole } from "@/lib/active-role";
+import {
+  ACTIVE_ROLE_COOKIE,
+  homePathForActiveRole,
+  resolveActiveRole,
+} from "@/lib/active-role";
 import { getCustomerPreferredLocale } from "@/lib/customer-locale";
-import { homePathForRoles, requirePageAuth } from "@/lib/require-page-auth";
+import { requirePageAuth } from "@/lib/require-page-auth";
 
 /** Phase IX1: shared account canvas for customer portal routes. */
 export default async function PortalLayout({
@@ -14,8 +18,8 @@ export default async function PortalLayout({
 
   const cookieStore = await cookies();
   const role = resolveActiveRole(session.roles ?? [], cookieStore.get(ACTIVE_ROLE_COOKIE)?.value);
-  if (role !== "CUSTOMER") {
-    redirect(homePathForRoles(session.roles ?? []));
+  if (role !== "CUSTOMER" && role !== "AFFILIATE") {
+    redirect(homePathForActiveRole(role));
   }
 
   const locale = await getCustomerPreferredLocale();

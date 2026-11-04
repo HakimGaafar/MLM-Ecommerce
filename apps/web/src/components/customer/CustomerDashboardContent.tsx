@@ -59,7 +59,7 @@ function ProductRowList({
       {products.map((product) => (
         <li key={product.id}>
           <Link
-            href={`/products/${product.id}`}
+            href={`/products/${product.slug || product.id}`}
             className="app-card app-card-hover flex h-full flex-col overflow-hidden"
           >
             <div className="relative aspect-[4/3] bg-[color-mix(in_srgb,var(--primary)_8%,var(--surface))]">

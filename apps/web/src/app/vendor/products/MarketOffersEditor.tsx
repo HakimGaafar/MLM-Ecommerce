@@ -10,6 +10,8 @@ export type OfferDraft = {
   stockLocation: "MERCHANT" | "FOURCES_WAREHOUSE";
   fourcesMode: "FORSEIZ_STOCK" | "ON_ORDER";
   quantity: string;
+  status?: "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
+  rejectionReason?: string | null;
 };
 
 const MARKET_OPTIONS = [
@@ -52,6 +54,10 @@ type Labels = {
   fourcesStockAHint: string;
   fourcesStockB: string;
   fourcesStockBHint: string;
+  statusDraft?: string;
+  statusPending?: string;
+  statusApproved?: string;
+  statusRejected?: string;
 };
 
 export default function MarketOffersEditor({
@@ -101,10 +107,24 @@ export default function MarketOffersEditor({
                   className="h-4 w-4 accent-[var(--primary)]"
                 />
                 <span className="text-sm font-semibold">{nameFor(meta.code)}</span>
+                {draft.status ? (
+                  <span className="rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-bold tracking-wide text-[var(--muted)] dark:bg-white/10">
+                    {draft.status === "APPROVED"
+                      ? labels.statusApproved ?? "Approved"
+                      : draft.status === "PENDING"
+                        ? labels.statusPending ?? "Pending"
+                        : draft.status === "REJECTED"
+                          ? labels.statusRejected ?? "Rejected"
+                          : labels.statusDraft ?? "Draft"}
+                  </span>
+                ) : null}
                 <span className="ms-auto rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-bold tracking-wide text-[var(--muted)] dark:bg-white/10">
                   {draft.currency}
                 </span>
               </label>
+              {draft.status === "REJECTED" && draft.rejectionReason ? (
+                <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">{draft.rejectionReason}</p>
+              ) : null}
 
               {draft.enabled ? (
                 <div className="mt-3 space-y-3 border-t border-[var(--border)] pt-3">

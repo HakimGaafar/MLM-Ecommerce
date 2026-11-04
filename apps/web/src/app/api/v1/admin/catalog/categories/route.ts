@@ -49,6 +49,9 @@ export async function POST(request: NextRequest) {
     const category = await createAdminProductCategory({ marketId, input: parsed.data });
     return NextResponse.json({ category }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_PARENT") {
+      return NextResponse.json({ error: "Invalid parent category." }, { status: 400 });
+    }
     if (error instanceof Error && error.message.includes("Unique constraint")) {
       return NextResponse.json({ error: "Category slug already exists for this market." }, { status: 409 });
     }

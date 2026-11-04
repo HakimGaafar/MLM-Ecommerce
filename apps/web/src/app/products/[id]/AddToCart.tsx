@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { useToast } from "@/components/toast/ToastProvider";
 import { getToastDict } from "@/lib/toast-messages";
 import { useAppLocale } from "@/components/providers/LocaleProvider";
+import { formatMoney } from "@/lib/format-currency";
 
 type AddToCartText = {
   quantity: string;
@@ -13,6 +14,16 @@ type AddToCartText = {
   adding: string;
   error: string;
   success: string;
+  selectOption?: string;
+};
+
+type VariantOption = {
+  id: string;
+  title: string;
+  price: string;
+  currency: string;
+  quantity: number;
+  inStock: boolean;
 };
 
 export default function AddToCart({
@@ -20,22 +31,35 @@ export default function AddToCart({
   ui,
   viewCartLabel,
   toastAdded,
+  variants = [],
 }: {
   productId: string;
   ui: AddToCartText;
   viewCartLabel: string;
   toastAdded: string;
+  variants?: VariantOption[];
 }) {
   const router = useRouter();
   const locale = useAppLocale();
   const toast = useToast();
   const toastDict = getToastDict(locale);
   const [quantity, setQuantity] = useState(1);
+  const [variantId, setVariantId] = useState(variants.find((v) => v.inStock)?.id ?? variants[0]?.id ?? "");
   const [status, setStatus] = useState<"idle" | "adding" | "success" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
 
+  const selected = useMemo(
+    () => variants.find((v) => v.id === variantId) ?? null,
+    [variants, variantId],
+  );
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (variants.length > 0 && !variantId) {
+      setStatus("error");
+      setMessage(ui.selectOption ?? ui.error);
+      return;
+    }
     setStatus("adding");
     setMessage(null);
     try {
@@ -43,7 +67,11 @@ export default function AddToCart({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ productId, quantity }),
+        body: JSON.stringify({
+          productId,
+          quantity,
+          ...(variantId ? { variantId } : {}),
+        }),
       });
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -63,6 +91,30 @@ export default function AddToCart({
 
   return (
     <div className="mt-8 space-y-3 border-t border-[var(--border)] pt-6">
+      {variants.length > 0 ? (
+        <label className="block space-y-1 text-sm">
+          <span className="font-medium text-[var(--foreground)]">{ui.selectOption ?? "Option"}</span>
+          <select
+            className="app-input w-full max-w-md"
+            value={variantId}
+            onChange={(e) => setVariantId(e.target.value)}
+          >
+            {variants.map((v) => (
+              <option key={v.id} value={v.id} disabled={!v.inStock}>
+                {v.title}
+                {" — "}
+                {formatMoney(v.price, v.currency, locale)}
+                {!v.inStock ? " (out of stock)" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {selected ? (
+        <p className="text-sm tabular-nums text-[var(--muted)]">
+          {formatMoney(selected.price, selected.currency, locale)}
+        </p>
+      ) : null}
       <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-3">
         <label className="space-y-1 text-sm">
           <span className="font-medium text-[var(--foreground)]">{ui.quantity}</span>
@@ -81,15 +133,15 @@ export default function AddToCart({
         </button>
       </form>
       {message ? (
-        <p
-          className={`text-sm ${status === "error" ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}
-        >
+        <p className={`text-sm ${status === "error" ? "text-[var(--danger)]" : "text-[var(--muted)]"}`}>
           {message}
         </p>
       ) : null}
-      <Link href="/cart" className="inline-block text-sm font-medium text-[var(--primary)] underline-offset-2 hover:underline">
-        {viewCartLabel}
-      </Link>
+      {status === "success" ? (
+        <Link href="/cart" className="text-sm font-medium text-link">
+          {viewCartLabel}
+        </Link>
+      ) : null}
     </div>
   );
 }

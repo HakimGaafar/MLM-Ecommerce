@@ -12,6 +12,7 @@ type Locale = "en" | "ar";
 
 type Product = {
   id: string;
+  slug?: string | null;
   name: string;
   price: string;
   currency: string;
@@ -87,7 +88,7 @@ export default function StoreProductsGrid({
         {items.map((p) => (
           <li key={p.id}>
             <Link
-              href={`/products/${p.id}`}
+              href={`/products/${p.slug || p.id}`}
               className="app-card app-card-hover flex h-full flex-col overflow-hidden"
             >
               <div className="relative aspect-[4/3] bg-[color-mix(in_srgb,var(--primary)_8%,var(--surface))]">

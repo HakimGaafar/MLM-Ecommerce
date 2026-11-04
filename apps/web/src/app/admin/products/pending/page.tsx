@@ -11,6 +11,7 @@ export default async function AdminPendingProductsPage() {
     ...dict.adminProductApproval,
     toastApproved: dict.toast.approved,
     toastRejected: dict.toast.rejected,
+    toastRequestChanges: dict.adminProductApproval.toastRequestChanges,
     toastError: dict.toast.genericError,
   };
   const direction = locale === "ar" ? "rtl" : "ltr";
@@ -22,9 +23,14 @@ export default async function AdminPendingProductsPage() {
           <h1 className="text-2xl font-semibold">{ui.title}</h1>
           <p className="mt-2 text-sm text-[var(--muted)]">{ui.subtitle}</p>
         </div>
-        <Link href="/admin" className="text-sm font-medium text-link">
-          {ui.backToDashboard}
-        </Link>
+        <div className="flex flex-wrap gap-4">
+          <Link href="/admin/products/market-offers" className="text-sm font-medium text-link">
+            {dict.adminNav.marketOffers} →
+          </Link>
+          <Link href="/admin" className="text-sm font-medium text-link">
+            {ui.backToDashboard}
+          </Link>
+        </div>
       </div>
       <AdminPendingProductsList locale={locale} ui={ui} />
     </main>

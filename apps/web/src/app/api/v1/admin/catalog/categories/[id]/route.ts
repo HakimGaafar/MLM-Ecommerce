@@ -46,6 +46,9 @@ export async function PATCH(
     if (error instanceof Error && error.message === "NOT_FOUND") {
       return NextResponse.json({ error: "Category not found" }, { status: 404 });
     }
+    if (error instanceof Error && error.message === "INVALID_PARENT") {
+      return NextResponse.json({ error: "Invalid parent category." }, { status: 400 });
+    }
     throw error;
   }
 }
@@ -75,6 +78,12 @@ export async function DELETE(
     if (error.message === "HAS_PRODUCTS") {
       return NextResponse.json(
         { error: "Cannot delete a category that still has products." },
+        { status: 409 },
+      );
+    }
+    if (error.message === "HAS_CHILDREN") {
+      return NextResponse.json(
+        { error: "Cannot delete a category that still has child categories." },
         { status: 409 },
       );
     }
