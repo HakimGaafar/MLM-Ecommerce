@@ -15,17 +15,17 @@ type StockLine = {
   productName: string;
   quantity: number;
   variantId?: string | null;
-  fourcesMode?: string | null;
+  vandsoqMode?: string | null;
   stockLocation?: string | null;
 };
 
 /** ON_ORDER warehouse lines are made after purchase — skip hard stock check. */
 export function requiresStockReservation(line: {
-  fourcesMode?: string | null;
+  vandsoqMode?: string | null;
   stockLocation?: string | null;
   fulfillmentType?: string | null;
 }): boolean {
-  if (line.fourcesMode === "ON_ORDER" || line.fulfillmentType === "ON_ORDER") return false;
+  if (line.vandsoqMode === "ON_ORDER" || line.fulfillmentType === "ON_ORDER") return false;
   return true;
 }
 
@@ -62,7 +62,7 @@ export async function assertMarketOfferStock(
       }
       const marketOffer = await tx.productMarketOffer.findUnique({
         where: { productId_marketId: { productId: line.productId, marketId } },
-        select: { status: true, fourcesMode: true },
+        select: { status: true, vandsoqMode: true },
       });
       if (!marketOffer || marketOffer.status !== "APPROVED") {
         throw new InventoryError(
@@ -70,7 +70,7 @@ export async function assertMarketOfferStock(
           `Product "${line.productName}" is not available in this market.`,
         );
       }
-      if (marketOffer.fourcesMode === "ON_ORDER") continue;
+      if (marketOffer.vandsoqMode === "ON_ORDER") continue;
       if (variantOffer.quantity < line.quantity) {
         throw new InventoryError(
           "INSUFFICIENT_STOCK",
@@ -84,7 +84,7 @@ export async function assertMarketOfferStock(
       where: {
         productId_marketId: { productId: line.productId, marketId },
       },
-      select: { quantity: true, status: true, fourcesMode: true },
+      select: { quantity: true, status: true, vandsoqMode: true },
     });
     if (!offer || offer.status !== "APPROVED") {
       throw new InventoryError(
@@ -92,7 +92,7 @@ export async function assertMarketOfferStock(
         `Product "${line.productName}" is not available in this market.`,
       );
     }
-    if (offer.fourcesMode === "ON_ORDER") continue;
+    if (offer.vandsoqMode === "ON_ORDER") continue;
     if (offer.quantity < line.quantity) {
       throw new InventoryError(
         "INSUFFICIENT_STOCK",
@@ -124,7 +124,7 @@ export async function decrementMarketOfferStock(
       });
       const marketOffer = await tx.productMarketOffer.findUnique({
         where: { productId_marketId: { productId: line.productId, marketId } },
-        select: { id: true, fourcesMode: true, status: true },
+        select: { id: true, vandsoqMode: true, status: true },
       });
       if (
         !variantOffer ||
@@ -132,7 +132,7 @@ export async function decrementMarketOfferStock(
         variantOffer.variant.productId !== line.productId ||
         !marketOffer ||
         marketOffer.status !== "APPROVED" ||
-        marketOffer.fourcesMode === "ON_ORDER"
+        marketOffer.vandsoqMode === "ON_ORDER"
       ) {
         continue;
       }
@@ -157,9 +157,9 @@ export async function decrementMarketOfferStock(
       where: {
         productId_marketId: { productId: line.productId, marketId },
       },
-      select: { id: true, quantity: true, fourcesMode: true, status: true },
+      select: { id: true, quantity: true, vandsoqMode: true, status: true },
     });
-    if (!offer || offer.status !== "APPROVED" || offer.fourcesMode === "ON_ORDER") continue;
+    if (!offer || offer.status !== "APPROVED" || offer.vandsoqMode === "ON_ORDER") continue;
     if (offer.quantity < line.quantity) {
       throw new InventoryError(
         "INSUFFICIENT_STOCK",
@@ -177,17 +177,17 @@ export async function decrementMarketOfferStock(
 export async function restockMarketOfferStock(
   tx: Prisma.TransactionClient,
   marketId: string,
-  lines: { productId: string; quantity: number; fourcesMode?: string | null }[],
+  lines: { productId: string; quantity: number; vandsoqMode?: string | null }[],
 ): Promise<void> {
   for (const line of lines) {
-    if (line.fourcesMode === "ON_ORDER") continue;
+    if (line.vandsoqMode === "ON_ORDER") continue;
     if (!line.productId || line.quantity <= 0) continue;
     await tx.productMarketOffer.updateMany({
       where: {
         productId: line.productId,
         marketId,
         status: "APPROVED",
-        fourcesMode: { not: "ON_ORDER" },
+        vandsoqMode: { not: "ON_ORDER" },
       },
       data: { quantity: { increment: line.quantity } },
     });

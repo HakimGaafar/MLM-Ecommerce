@@ -19,7 +19,7 @@ type Row = {
   price: string;
   currency: string;
   stockLocation: string;
-  fourcesMode: string | null;
+  vandsoqMode: string | null;
   quantity: number;
   storeName: string;
   storeSlug: string;
@@ -49,7 +49,7 @@ type Ui = {
   rejectReasonRequired: string;
   rejectDialogCancel: string;
   stockMerchant: string;
-  stockFources: string;
+  stockVandsoq: string;
   viewStore: string;
 };
 
@@ -151,13 +151,13 @@ export default function AdminMarketOffersList({ locale, ui }: { locale: Locale; 
                   </td>
                   <td className="px-4 py-3">
                     <p>
-                      {row.stockLocation === "FOURCES_WAREHOUSE"
-                        ? ui.stockFources
+                      {row.stockLocation === "VANDSOQ_WAREHOUSE"
+                        ? ui.stockVandsoq
                         : ui.stockMerchant}
                     </p>
                     <p className="text-xs text-[var(--muted)]">
                       qty {row.quantity}
-                      {row.fourcesMode ? ` · ${row.fourcesMode}` : ""}
+                      {row.vandsoqMode ? ` · ${row.vandsoqMode}` : ""}
                     </p>
                   </td>
                   <td className="px-4 py-3">{row.vendorShippingProfileStatus}</td>

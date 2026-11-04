@@ -1,33 +1,33 @@
 import { MARKET_IDS, resolveMarketFromGeoCountry, type MarketCode } from "./market";
 
 export const SHIPPING_PACKAGE_TYPES = [
-  "FOURCES_DOMESTIC",
-  "FOURCES_INTERNATIONAL",
+  "VANDSOQ_DOMESTIC",
+  "VANDSOQ_INTERNATIONAL",
   "MERCHANT_DOMESTIC",
   "MERCHANT_INTERNATIONAL",
 ] as const;
 
 export type ShippingPackageTypeCode = (typeof SHIPPING_PACKAGE_TYPES)[number];
 
-export const PRODUCT_STOCK_LOCATIONS = ["MERCHANT", "FOURCES_WAREHOUSE"] as const;
+export const PRODUCT_STOCK_LOCATIONS = ["MERCHANT", "VANDSOQ_WAREHOUSE"] as const;
 
 export type ProductStockLocationCode = (typeof PRODUCT_STOCK_LOCATIONS)[number];
 
-/** Stable FOURCES warehouse IDs — kept in sync with Phase 0 migration seed. */
-export const FOURCES_WAREHOUSE_IDS = {
+/** Stable VANDSOQ warehouse IDs — kept in sync with Phase 0 migration seed. */
+export const VANDSOQ_WAREHOUSE_IDS = {
   SA: "warehouse_sa",
   OM: "warehouse_om",
   EG: "warehouse_eg",
 } as const satisfies Record<"SA" | "OM" | "EG", string>;
 
-export const FOURCES_WAREHOUSE_MARKET_CODES = ["SA", "OM", "EG"] as const;
+export const VANDSOQ_WAREHOUSE_MARKET_CODES = ["SA", "OM", "EG"] as const;
 
-export type FourcesWarehouseMarketCode = (typeof FOURCES_WAREHOUSE_MARKET_CODES)[number];
+export type VandsoqWarehouseMarketCode = (typeof VANDSOQ_WAREHOUSE_MARKET_CODES)[number];
 
-export function isFourcesWarehouseMarketCode(
+export function isVandsoqWarehouseMarketCode(
   code: string,
-): code is FourcesWarehouseMarketCode {
-  return (FOURCES_WAREHOUSE_MARKET_CODES as readonly string[]).includes(code);
+): code is VandsoqWarehouseMarketCode {
+  return (VANDSOQ_WAREHOUSE_MARKET_CODES as readonly string[]).includes(code);
 }
 
 /** Vendor home classification from country of residence/operation. */
@@ -62,11 +62,11 @@ export function inferShippingPackageType(input: {
   const merchant = normalizeCountry(input.merchantCountry);
   const warehouse = normalizeCountry(input.warehouseCountry);
 
-  if (input.stockLocation === "FOURCES_WAREHOUSE") {
+  if (input.stockLocation === "VANDSOQ_WAREHOUSE") {
     if (customer && warehouse && customer === warehouse) {
-      return "FOURCES_DOMESTIC";
+      return "VANDSOQ_DOMESTIC";
     }
-    return "FOURCES_INTERNATIONAL";
+    return "VANDSOQ_INTERNATIONAL";
   }
 
   if (customer && merchant && customer === merchant) {

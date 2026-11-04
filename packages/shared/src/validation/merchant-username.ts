@@ -12,7 +12,7 @@ const RESERVED_MERCHANT_USERNAMES = new Set([
   "affiliate",
   "api",
   "customer",
-  "fources",
+  "vandsoq",
   "help",
   "login",
   "mail",

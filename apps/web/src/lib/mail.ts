@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME?.trim() || "Fources";
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME?.trim() || "Vandsoq";
 
 function appBaseUrl(): string {
   const raw = process.env.APP_BASE_URL?.trim() || "http://localhost:3000";

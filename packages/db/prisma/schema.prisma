@@ -233,8 +233,8 @@ enum ProductFulfillmentType {
 
 /// Phase 0 — shipping package type inferred at checkout from stock location + geography.
 enum ShippingPackageType {
-  FOURCES_DOMESTIC
-  FOURCES_INTERNATIONAL
+  VANDSOQ_DOMESTIC
+  VANDSOQ_INTERNATIONAL
   MERCHANT_DOMESTIC
   MERCHANT_INTERNATIONAL
 }
@@ -242,7 +242,7 @@ enum ShippingPackageType {
 /// Phase 0 — where product stock sits for a sell-market offer.
 enum ProductStockLocation {
   MERCHANT
-  FOURCES_WAREHOUSE
+  VANDSOQ_WAREHOUSE
 }
 
 enum ProductServiceAreaMode {
@@ -256,7 +256,7 @@ model ShippingRate {
   marketId    String                        @map("market_id")
   code        String                        @db.VarChar(64)
   packageType ShippingPackageType           @map("package_type")
-  fourcesMode VendorIndirectFulfillment?    @map("fources_mode")
+  vandsoqMode VendorIndirectFulfillment?    @map("vandsoq_mode")
   amount      Decimal                       @db.Decimal(18, 2)
   currency    String                        @default("SAR") @db.Char(3)
   perUnit     Boolean                       @default(true) @map("per_unit")
@@ -266,7 +266,7 @@ model ShippingRate {
   market      Market                        @relation(fields: [marketId], references: [id], onDelete: Cascade)
 
   @@unique([marketId, code])
-  @@index([marketId, packageType, fourcesMode, isActive])
+  @@index([marketId, packageType, vandsoqMode, isActive])
   @@map("shipping_rates")
 }
 
@@ -1158,8 +1158,8 @@ model ProductMarketOffer {
   currency         String                   @db.Char(3)
   stockLocation    ProductStockLocation     @map("stock_location")
   warehouseId      String?                  @map("warehouse_id")
-  /// FOURCES A (pre-stocked) vs B (on-order). Null when stock is at merchant.
-  fourcesMode      VendorIndirectFulfillment? @map("fources_mode")
+  /// VANDSOQ A (pre-stocked) vs B (on-order). Null when stock is at merchant.
+  vandsoqMode      VendorIndirectFulfillment? @map("vandsoq_mode")
   quantity         Int                      @default(0)
   /// Phase 5 — listing live in this market only when APPROVED.
   status           ProductMarketOfferStatus @default(DRAFT)
@@ -1171,7 +1171,7 @@ model ProductMarketOffer {
   updatedAt        DateTime                 @updatedAt @map("updated_at")
   product          Product                  @relation(fields: [productId], references: [id], onDelete: Cascade)
   market           Market                   @relation(fields: [marketId], references: [id], onDelete: Restrict)
-  warehouse        FourcesWarehouse?        @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  warehouse        VandsoqWarehouse?        @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   reviewedBy       User?                    @relation("ProductMarketOfferReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
 
   @@unique([productId, marketId])
@@ -1181,8 +1181,8 @@ model ProductMarketOffer {
   @@map("product_market_offers")
 }
 
-/// Phase 0 — FOURCES warehouse per domestic market (SA / OM / EG). No GLOBAL warehouse.
-model FourcesWarehouse {
+/// Phase 0 — VANDSOQ warehouse per domestic market (SA / OM / EG). No GLOBAL warehouse.
+model VandsoqWarehouse {
   id          String               @id
   marketId    String               @unique @map("market_id")
   countryCode String               @map("country_code") @db.Char(2)
@@ -1194,7 +1194,7 @@ model FourcesWarehouse {
   offers      ProductMarketOffer[]
 
   @@index([countryCode])
-  @@map("fources_warehouses")
+  @@map("vandsoq_warehouses")
 }
 
 model ProductImage {
@@ -1590,7 +1590,7 @@ model Market {
   wallets         Wallet[]
   banners         MarketBanner[]
   contactInquiries ContactInquiry[]
-  warehouses      FourcesWarehouse[]
+  warehouses      VandsoqWarehouse[]
   invoiceIssuer   MarketInvoiceIssuer?
   platformCoupons PlatformCoupon[]
   wishlistItems   WishlistItem[]

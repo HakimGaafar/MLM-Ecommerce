@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     const res = await fetch(url.toString(), {
       headers: {
         Accept: "application/json",
-        "User-Agent": "FourcesMLM/1.0 (vendor-onboarding; contact=support@localhost)",
+        "User-Agent": "Vandsoq/1.0 (vendor-onboarding; https://vandsoq.com)",
       },
       signal: AbortSignal.timeout(10_000),
       cache: "no-store",

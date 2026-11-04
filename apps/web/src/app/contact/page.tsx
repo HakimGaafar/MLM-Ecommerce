@@ -11,7 +11,7 @@ import ContactForm from "./ContactForm";
 
 export const metadata: Metadata = {
   title: "Contact",
-  description: "Contact Fources customer support for your current market.",
+  description: "Contact Vandsoq customer support for your current market.",
 };
 
 export default async function ContactPage() {

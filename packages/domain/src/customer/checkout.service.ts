@@ -136,12 +136,12 @@ type PreparedCartLine = CartLineForCoupon & {
   fulfillmentType: ProductFulfillmentTypeCode;
   quantity: number;
   unitPrice: Prisma.Decimal;
-  stockLocation?: "MERCHANT" | "FOURCES_WAREHOUSE";
+  stockLocation?: "MERCHANT" | "VANDSOQ_WAREHOUSE";
   warehouseId?: string | null;
   warehouseCountry?: string | null;
   merchantCountry?: string | null;
   merchantCity?: string | null;
-  fourcesMode?: "FORSEIZ_STOCK" | "ON_ORDER" | null;
+  vandsoqMode?: "FORSEIZ_STOCK" | "ON_ORDER" | null;
 };
 
 function mapCouponCheckoutError(error: CouponCheckoutError): CheckoutError {
@@ -233,7 +233,7 @@ async function loadPreparedCartLines(
               currency: true,
               stockLocation: true,
               warehouseId: true,
-              fourcesMode: true,
+              vandsoqMode: true,
               warehouse: { select: { countryCode: true } },
             },
           },
@@ -263,9 +263,9 @@ async function loadPreparedCartLines(
       vendorId: p.vendorId,
       name: displayName,
       vendorName: p.vendor.storeName,
-      fulfillmentType: (offer?.fourcesMode === "ON_ORDER"
+      fulfillmentType: (offer?.vandsoqMode === "ON_ORDER"
         ? "ON_ORDER"
-        : offer?.stockLocation === "FOURCES_WAREHOUSE"
+        : offer?.stockLocation === "VANDSOQ_WAREHOUSE"
           ? "FORSEIZ_STOCK"
           : p.fulfillmentType) as ProductFulfillmentTypeCode,
       quantity: row.quantity,
@@ -277,14 +277,14 @@ async function loadPreparedCartLines(
       warehouseCountry: offer?.warehouse?.countryCode ?? null,
       merchantCountry: p.vendor.countryCode,
       merchantCity: p.vendor.city,
-      fourcesMode: offer?.fourcesMode ?? null,
+      vandsoqMode: offer?.vandsoqMode ?? null,
     });
   }
   return prepared;
 }
 
 function isDirectMerchantLine(line: PreparedCartLine): boolean {
-  if (line.stockLocation === "FOURCES_WAREHOUSE") return false;
+  if (line.stockLocation === "VANDSOQ_WAREHOUSE") return false;
   if (line.fulfillmentType === "FORSEIZ_STOCK" || line.fulfillmentType === "ON_ORDER") return false;
   return line.stockLocation === "MERCHANT" || line.fulfillmentType === "DIRECT";
 }
@@ -519,7 +519,7 @@ export async function getCheckoutQuoteForUser(
         warehouseCountry: line.warehouseCountry,
         merchantCountry: line.merchantCountry,
         customerCountry: addressPick.shippingCountryCode,
-        fourcesMode: line.fourcesMode,
+        vandsoqMode: line.vandsoqMode,
         quantity: line.quantity,
       })),
       marketId,
@@ -776,7 +776,7 @@ export async function createOrderFromCart(
       productName: line.name,
       quantity: line.quantity,
       variantId: line.variantId,
-      fourcesMode: line.fourcesMode,
+      vandsoqMode: line.vandsoqMode,
       stockLocation: line.stockLocation,
       fulfillmentType: line.fulfillmentType,
     }));
@@ -801,7 +801,7 @@ export async function createOrderFromCart(
         warehouseCountry: line.warehouseCountry,
         merchantCountry: line.merchantCountry,
         customerCountry: shipping.shippingCountryCode,
-        fourcesMode: line.fourcesMode,
+        vandsoqMode: line.vandsoqMode,
         quantity: line.quantity,
       })),
       marketId,

@@ -1,7 +1,7 @@
 import { prisma } from "@mlm/db";
 
-export async function listFourcesWarehouses(activeOnly = true) {
-  return prisma.fourcesWarehouse.findMany({
+export async function listVandsoqWarehouses(activeOnly = true) {
+  return prisma.vandsoqWarehouse.findMany({
     where: activeOnly ? { isActive: true } : undefined,
     orderBy: { countryCode: "asc" },
     select: {
@@ -14,8 +14,8 @@ export async function listFourcesWarehouses(activeOnly = true) {
   });
 }
 
-export async function getFourcesWarehouseByMarketId(marketId: string) {
-  return prisma.fourcesWarehouse.findUnique({
+export async function getVandsoqWarehouseByMarketId(marketId: string) {
+  return prisma.vandsoqWarehouse.findUnique({
     where: { marketId },
     select: {
       id: true,

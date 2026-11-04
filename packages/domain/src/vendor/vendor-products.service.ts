@@ -118,7 +118,7 @@ type ProductRow = {
     currency: string;
     stockLocation: string;
     warehouseId: string | null;
-    fourcesMode?: string | null;
+    vandsoqMode?: string | null;
     quantity: number;
     status: string;
     rejectionReason: string | null;
@@ -140,7 +140,7 @@ function toOffersDto(row: ProductRow): ProductMarketOfferDto[] {
     currency: offer.currency,
     stockLocation: offer.stockLocation as ProductMarketOfferDto["stockLocation"],
     warehouseId: offer.warehouseId,
-    fourcesMode: (offer.fourcesMode as ProductMarketOfferDto["fourcesMode"]) ?? null,
+    vandsoqMode: (offer.vandsoqMode as ProductMarketOfferDto["vandsoqMode"]) ?? null,
     quantity: offer.quantity,
     status: offer.status as ProductMarketOfferDto["status"],
     rejectionReason: offer.rejectionReason,
@@ -346,7 +346,7 @@ export async function createVendorProduct(
               currency: input.currency ?? vendor.market.defaultCurrency,
               stockLocation: "MERCHANT" as const,
               warehouseId: null,
-              fourcesMode: null,
+              vandsoqMode: null,
               quantity: 0,
             },
           ];

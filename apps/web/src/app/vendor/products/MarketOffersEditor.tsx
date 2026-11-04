@@ -1,23 +1,23 @@
 "use client";
 
-import { FOURCES_WAREHOUSE_IDS, MARKET_IDS, defaultCurrencyForMarketId } from "@mlm/shared";
+import { VANDSOQ_WAREHOUSE_IDS, MARKET_IDS, defaultCurrencyForMarketId } from "@mlm/shared";
 
 export type OfferDraft = {
   marketId: string;
   enabled: boolean;
   price: string;
   currency: string;
-  stockLocation: "MERCHANT" | "FOURCES_WAREHOUSE";
-  fourcesMode: "FORSEIZ_STOCK" | "ON_ORDER";
+  stockLocation: "MERCHANT" | "VANDSOQ_WAREHOUSE";
+  vandsoqMode: "FORSEIZ_STOCK" | "ON_ORDER";
   quantity: string;
   status?: "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
   rejectionReason?: string | null;
 };
 
 const MARKET_OPTIONS = [
-  { id: MARKET_IDS.SA, code: "SA" as const, warehouseId: FOURCES_WAREHOUSE_IDS.SA },
-  { id: MARKET_IDS.OM, code: "OM" as const, warehouseId: FOURCES_WAREHOUSE_IDS.OM },
-  { id: MARKET_IDS.EG, code: "EG" as const, warehouseId: FOURCES_WAREHOUSE_IDS.EG },
+  { id: MARKET_IDS.SA, code: "SA" as const, warehouseId: VANDSOQ_WAREHOUSE_IDS.SA },
+  { id: MARKET_IDS.OM, code: "OM" as const, warehouseId: VANDSOQ_WAREHOUSE_IDS.OM },
+  { id: MARKET_IDS.EG, code: "EG" as const, warehouseId: VANDSOQ_WAREHOUSE_IDS.EG },
   { id: MARKET_IDS.GLOBAL, code: "GLOBAL" as const, warehouseId: null },
 ];
 
@@ -28,7 +28,7 @@ export function createDefaultOfferDrafts(homeMarketId?: string): OfferDraft[] {
     price: "",
     currency: defaultCurrencyForMarketId(m.id),
     stockLocation: "MERCHANT",
-    fourcesMode: "FORSEIZ_STOCK",
+    vandsoqMode: "FORSEIZ_STOCK",
     quantity: "0",
   }));
 }
@@ -46,14 +46,14 @@ type Labels = {
   stockLocation: string;
   stockMerchant: string;
   stockMerchantHint: string;
-  stockFources: string;
-  stockFourcesHint: string;
-  stockFourcesUnavailable: string;
-  fourcesMode: string;
-  fourcesStockA: string;
-  fourcesStockAHint: string;
-  fourcesStockB: string;
-  fourcesStockBHint: string;
+  stockVandsoq: string;
+  stockVandsoqHint: string;
+  stockVandsoqUnavailable: string;
+  vandsoqMode: string;
+  vandsoqStockA: string;
+  vandsoqStockAHint: string;
+  vandsoqStockB: string;
+  vandsoqStockBHint: string;
   statusDraft?: string;
   statusPending?: string;
   statusApproved?: string;
@@ -89,7 +89,7 @@ export default function MarketOffersEditor({
       <div className="space-y-3">
         {drafts.map((draft) => {
           const meta = MARKET_OPTIONS.find((m) => m.id === draft.marketId)!;
-          const fourcesAllowed = Boolean(meta.warehouseId);
+          const vandsoqAllowed = Boolean(meta.warehouseId);
           return (
             <article
               key={draft.marketId}
@@ -175,7 +175,7 @@ export default function MarketOffersEditor({
                     </label>
                     <label
                       className={`flex gap-2 rounded-lg border border-[var(--border)] p-2.5 text-sm ${
-                        fourcesAllowed
+                        vandsoqAllowed
                           ? "cursor-pointer has-[:checked]:border-[var(--primary)] has-[:checked]:bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]"
                           : "cursor-not-allowed opacity-55"
                       }`}
@@ -183,49 +183,49 @@ export default function MarketOffersEditor({
                       <input
                         type="radio"
                         name={`stock-${draft.marketId}`}
-                        disabled={!fourcesAllowed}
-                        checked={draft.stockLocation === "FOURCES_WAREHOUSE"}
+                        disabled={!vandsoqAllowed}
+                        checked={draft.stockLocation === "VANDSOQ_WAREHOUSE"}
                         onChange={() =>
                           update(draft.marketId, {
-                            stockLocation: "FOURCES_WAREHOUSE",
-                            fourcesMode: draft.fourcesMode || "FORSEIZ_STOCK",
+                            stockLocation: "VANDSOQ_WAREHOUSE",
+                            vandsoqMode: draft.vandsoqMode || "FORSEIZ_STOCK",
                           })
                         }
                       />
                       <span>
-                        <strong className="block">{labels.stockFources}</strong>
+                        <strong className="block">{labels.stockVandsoq}</strong>
                         <span className="text-xs text-[var(--muted)]">
-                          {fourcesAllowed ? labels.stockFourcesHint : labels.stockFourcesUnavailable}
+                          {vandsoqAllowed ? labels.stockVandsoqHint : labels.stockVandsoqUnavailable}
                         </span>
                       </span>
                     </label>
                   </fieldset>
 
-                  {draft.stockLocation === "FOURCES_WAREHOUSE" && fourcesAllowed ? (
+                  {draft.stockLocation === "VANDSOQ_WAREHOUSE" && vandsoqAllowed ? (
                     <fieldset className="space-y-2">
-                      <legend className="text-sm font-medium">{labels.fourcesMode}</legend>
+                      <legend className="text-sm font-medium">{labels.vandsoqMode}</legend>
                       <label className="flex cursor-pointer gap-2 rounded-lg border border-[var(--border)] p-2.5 text-sm has-[:checked]:border-[var(--primary)]">
                         <input
                           type="radio"
-                          name={`fources-${draft.marketId}`}
-                          checked={draft.fourcesMode === "FORSEIZ_STOCK"}
-                          onChange={() => update(draft.marketId, { fourcesMode: "FORSEIZ_STOCK" })}
+                          name={`vandsoq-${draft.marketId}`}
+                          checked={draft.vandsoqMode === "FORSEIZ_STOCK"}
+                          onChange={() => update(draft.marketId, { vandsoqMode: "FORSEIZ_STOCK" })}
                         />
                         <span>
-                          <strong className="block">{labels.fourcesStockA}</strong>
-                          <span className="text-xs text-[var(--muted)]">{labels.fourcesStockAHint}</span>
+                          <strong className="block">{labels.vandsoqStockA}</strong>
+                          <span className="text-xs text-[var(--muted)]">{labels.vandsoqStockAHint}</span>
                         </span>
                       </label>
                       <label className="flex cursor-pointer gap-2 rounded-lg border border-[var(--border)] p-2.5 text-sm has-[:checked]:border-[var(--primary)]">
                         <input
                           type="radio"
-                          name={`fources-${draft.marketId}`}
-                          checked={draft.fourcesMode === "ON_ORDER"}
-                          onChange={() => update(draft.marketId, { fourcesMode: "ON_ORDER" })}
+                          name={`vandsoq-${draft.marketId}`}
+                          checked={draft.vandsoqMode === "ON_ORDER"}
+                          onChange={() => update(draft.marketId, { vandsoqMode: "ON_ORDER" })}
                         />
                         <span>
-                          <strong className="block">{labels.fourcesStockB}</strong>
-                          <span className="text-xs text-[var(--muted)]">{labels.fourcesStockBHint}</span>
+                          <strong className="block">{labels.vandsoqStockB}</strong>
+                          <span className="text-xs text-[var(--muted)]">{labels.vandsoqStockBHint}</span>
                         </span>
                       </label>
                     </fieldset>
@@ -250,8 +250,8 @@ export function draftsToOffersPayload(drafts: OfferDraft[]) {
         price: Number.parseFloat(d.price),
         currency: d.currency,
         stockLocation: d.stockLocation,
-        warehouseId: d.stockLocation === "FOURCES_WAREHOUSE" ? meta.warehouseId : null,
-        fourcesMode: d.stockLocation === "FOURCES_WAREHOUSE" ? d.fourcesMode : null,
+        warehouseId: d.stockLocation === "VANDSOQ_WAREHOUSE" ? meta.warehouseId : null,
+        vandsoqMode: d.stockLocation === "VANDSOQ_WAREHOUSE" ? d.vandsoqMode : null,
         quantity: Number.parseInt(d.quantity || "0", 10) || 0,
       };
     });

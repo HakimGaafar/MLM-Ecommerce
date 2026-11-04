@@ -12,7 +12,7 @@ export type MarketOfferApprovalRowDto = {
   price: string;
   currency: string;
   stockLocation: string;
-  fourcesMode: string | null;
+  vandsoqMode: string | null;
   quantity: number;
   status: string;
   vendorId: string;
@@ -41,7 +41,7 @@ function mapRow(row: {
   price: { toString(): string };
   currency: string;
   stockLocation: string;
-  fourcesMode: string | null;
+  vandsoqMode: string | null;
   quantity: number;
   status: string;
   submittedAt: Date | null;
@@ -69,7 +69,7 @@ function mapRow(row: {
     price: row.price.toString(),
     currency: row.currency,
     stockLocation: row.stockLocation,
-    fourcesMode: row.fourcesMode,
+    vandsoqMode: row.vandsoqMode,
     quantity: row.quantity,
     status: row.status,
     vendorId: row.product.vendorId,

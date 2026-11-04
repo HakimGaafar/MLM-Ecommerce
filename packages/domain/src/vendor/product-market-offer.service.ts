@@ -2,7 +2,7 @@ import type { Prisma, ProductMarketOfferStatus } from "@mlm/db";
 import type { ProductMarketOfferInput } from "@mlm/shared";
 import {
   defaultCurrencyForMarketId,
-  FOURCES_WAREHOUSE_IDS,
+  VANDSOQ_WAREHOUSE_IDS,
   MARKET_IDS,
 } from "@mlm/shared";
 
@@ -11,9 +11,9 @@ export type ProductMarketOfferDto = {
   marketCode: string;
   price: string;
   currency: string;
-  stockLocation: "MERCHANT" | "FOURCES_WAREHOUSE";
+  stockLocation: "MERCHANT" | "VANDSOQ_WAREHOUSE";
   warehouseId: string | null;
-  fourcesMode: "FORSEIZ_STOCK" | "ON_ORDER" | null;
+  vandsoqMode: "FORSEIZ_STOCK" | "ON_ORDER" | null;
   quantity: number;
   status: ProductMarketOfferStatus;
   rejectionReason: string | null;
@@ -22,9 +22,9 @@ export type ProductMarketOfferDto = {
 };
 
 const WAREHOUSE_BY_MARKET: Record<string, string> = {
-  [MARKET_IDS.SA]: FOURCES_WAREHOUSE_IDS.SA,
-  [MARKET_IDS.OM]: FOURCES_WAREHOUSE_IDS.OM,
-  [MARKET_IDS.EG]: FOURCES_WAREHOUSE_IDS.EG,
+  [MARKET_IDS.SA]: VANDSOQ_WAREHOUSE_IDS.SA,
+  [MARKET_IDS.OM]: VANDSOQ_WAREHOUSE_IDS.OM,
+  [MARKET_IDS.EG]: VANDSOQ_WAREHOUSE_IDS.EG,
 };
 
 export function warehouseIdForMarket(marketId: string): string | null {
@@ -38,12 +38,12 @@ export function normalizeProductMarketOffers(
     ...offer,
     currency: offer.currency || defaultCurrencyForMarketId(offer.marketId),
     warehouseId:
-      offer.stockLocation === "FOURCES_WAREHOUSE"
+      offer.stockLocation === "VANDSOQ_WAREHOUSE"
         ? (offer.warehouseId ?? warehouseIdForMarket(offer.marketId))
         : null,
-    fourcesMode:
-      offer.stockLocation === "FOURCES_WAREHOUSE"
-        ? (offer.fourcesMode ?? "FORSEIZ_STOCK")
+    vandsoqMode:
+      offer.stockLocation === "VANDSOQ_WAREHOUSE"
+        ? (offer.vandsoqMode ?? "FORSEIZ_STOCK")
         : null,
   }));
 }
@@ -51,9 +51,9 @@ export function normalizeProductMarketOffers(
 export function fulfillmentTypeFromOffers(
   offers: ProductMarketOfferInput[],
 ): "DIRECT" | "FORSEIZ_STOCK" | "ON_ORDER" {
-  const fources = offers.filter((o) => o.stockLocation === "FOURCES_WAREHOUSE");
-  if (fources.length === 0) return "DIRECT";
-  if (fources.some((o) => o.fourcesMode === "ON_ORDER")) return "ON_ORDER";
+  const vandsoq = offers.filter((o) => o.stockLocation === "VANDSOQ_WAREHOUSE");
+  if (vandsoq.length === 0) return "DIRECT";
+  if (vandsoq.some((o) => o.vandsoqMode === "ON_ORDER")) return "ON_ORDER";
   return "FORSEIZ_STOCK";
 }
 
@@ -62,7 +62,7 @@ function offerFingerprint(offer: {
   currency: string;
   stockLocation: string;
   warehouseId: string | null;
-  fourcesMode: string | null;
+  vandsoqMode: string | null;
   quantity: number;
 }): string {
   return [
@@ -70,7 +70,7 @@ function offerFingerprint(offer: {
     offer.currency,
     offer.stockLocation,
     offer.warehouseId ?? "",
-    offer.fourcesMode ?? "",
+    offer.vandsoqMode ?? "",
     String(offer.quantity),
   ].join("|");
 }
@@ -100,7 +100,7 @@ export async function replaceProductMarketOffers(
             currency: true,
             stockLocation: true,
             warehouseId: true,
-            fourcesMode: true,
+            vandsoqMode: true,
             quantity: true,
             reviewedAt: true,
             reviewedByUserId: true,
@@ -116,12 +116,12 @@ export async function replaceProductMarketOffers(
   await tx.productMarketOffer.createMany({
     data: offers.map((offer) => {
       const warehouseId =
-        offer.stockLocation === "FOURCES_WAREHOUSE"
+        offer.stockLocation === "VANDSOQ_WAREHOUSE"
           ? (offer.warehouseId ?? warehouseIdForMarket(offer.marketId))
           : null;
-      const fourcesMode =
-        offer.stockLocation === "FOURCES_WAREHOUSE"
-          ? (offer.fourcesMode ?? "FORSEIZ_STOCK")
+      const vandsoqMode =
+        offer.stockLocation === "VANDSOQ_WAREHOUSE"
+          ? (offer.vandsoqMode ?? "FORSEIZ_STOCK")
           : null;
 
       let status: ProductMarketOfferStatus = "DRAFT";
@@ -139,7 +139,7 @@ export async function replaceProductMarketOffers(
           currency: offer.currency,
           stockLocation: offer.stockLocation,
           warehouseId,
-          fourcesMode,
+          vandsoqMode,
           quantity: offer.quantity,
         });
         if (
@@ -162,7 +162,7 @@ export async function replaceProductMarketOffers(
         currency: offer.currency,
         stockLocation: offer.stockLocation,
         warehouseId,
-        fourcesMode,
+        vandsoqMode,
         quantity: offer.quantity,
         status,
         submittedAt,

@@ -31,9 +31,12 @@ export async function generateMetadata(): Promise<Metadata> {
         ? "تسوّق من بائعين موثوقين واكسب مكافآت واستردادًا نقديًا."
         : "Shop from trusted marketplace vendors. Earn wallet cashback and affiliate rewards.",
     icons: {
-      icon: [{ url: "/brand/fources-icon.png?v=3", type: "image/png" }],
-      shortcut: "/brand/fources-icon.png?v=3",
-      apple: "/brand/fources-apple-icon.png?v=3",
+      icon: [
+        { url: "/brand/vandsoq-icon.png?v=4", type: "image/png", sizes: "192x192" },
+        { url: "/brand/vandsoq-favicon-32.png?v=4", type: "image/png", sizes: "32x32" },
+      ],
+      shortcut: "/brand/vandsoq-icon.png?v=4",
+      apple: "/brand/vandsoq-apple-icon.png?v=4",
     },
   };
 }

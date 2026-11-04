@@ -10,7 +10,7 @@ export type GlobalCustomsNoticeUi = {
   saveError: string;
 };
 
-const LEGACY_NOTICE_PREFIX = "fources:global-customs-notice";
+const LEGACY_NOTICE_PREFIX = "vandsoq:global-customs-notice";
 
 function clearLegacyNoticeKeys() {
   try {

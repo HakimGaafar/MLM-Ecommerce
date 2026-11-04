@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-const DEFAULT_SUPER_ADMIN_EMAIL = "abubaker@fources.net";
+const DEFAULT_SUPER_ADMIN_EMAIL = "abubaker@vandsoq.com";
 const DEFAULT_SUPER_ADMIN_PASSWORD = "Abu@193640";
 const DEFAULT_SUPER_ADMIN_NAME = "Platform Super Admin";
 

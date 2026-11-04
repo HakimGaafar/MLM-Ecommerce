@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import {
-  FOURCES_WAREHOUSE_IDS,
-  FOURCES_WAREHOUSE_MARKET_CODES,
+  VANDSOQ_WAREHOUSE_IDS,
+  VANDSOQ_WAREHOUSE_MARKET_CODES,
   MARKET_DEFINITIONS,
   MARKET_IDS,
 } from "@mlm/shared";
@@ -76,16 +76,16 @@ async function seedMarkets(client: PrismaClient) {
   }
 }
 
-async function seedFourcesWarehouses(client: PrismaClient) {
-  const warehouses = FOURCES_WAREHOUSE_MARKET_CODES.map((code) => ({
-    id: FOURCES_WAREHOUSE_IDS[code],
+async function seedVandsoqWarehouses(client: PrismaClient) {
+  const warehouses = VANDSOQ_WAREHOUSE_MARKET_CODES.map((code) => ({
+    id: VANDSOQ_WAREHOUSE_IDS[code],
     marketId: MARKET_IDS[code],
     countryCode: code,
-    name: `FOURCES Warehouse — ${code === "SA" ? "Saudi Arabia" : code === "OM" ? "Oman" : "Egypt"}`,
+    name: `VANDSOQ Warehouse — ${code === "SA" ? "Saudi Arabia" : code === "OM" ? "Oman" : "Egypt"}`,
   }));
 
   for (const wh of warehouses) {
-    await client.fourcesWarehouse.upsert({
+    await client.vandsoqWarehouse.upsert({
       where: { id: wh.id },
       update: {
         marketId: wh.marketId,
@@ -215,7 +215,7 @@ export async function bootstrapRequiredReferenceData(client?: PrismaClient): Pro
   const db = await resolveClient(client);
   await seedRoles(db);
   await seedMarkets(db);
-  await seedFourcesWarehouses(db);
+  await seedVandsoqWarehouses(db);
   await seedPlatformConfig(db);
   await seedMarketInvoiceIssuers(db);
 }

@@ -18,7 +18,7 @@ export type CartLineForShipping = {
   warehouseCountry?: string | null;
   merchantCountry?: string | null;
   customerCountry?: string | null;
-  fourcesMode?: VendorIndirectFulfillmentCode | null;
+  vandsoqMode?: VendorIndirectFulfillmentCode | null;
   quantity?: number;
 };
 
@@ -41,8 +41,8 @@ type VendorShippingRow = {
 
 export function packageKeyForLine(line: CartLineForShipping): string {
   const stock = line.stockLocation ?? "MERCHANT";
-  if (stock === "FOURCES_WAREHOUSE") {
-    return `fources:${line.warehouseId ?? line.warehouseCountry ?? "unknown"}:${line.fourcesMode ?? "FORSEIZ_STOCK"}`;
+  if (stock === "VANDSOQ_WAREHOUSE") {
+    return `vandsoq:${line.warehouseId ?? line.warehouseCountry ?? "unknown"}:${line.vandsoqMode ?? "FORSEIZ_STOCK"}`;
   }
   return `merchant:${line.vendorId}`;
 }
@@ -59,10 +59,10 @@ function packageTypeForLine(line: CartLineForShipping): ShippingPackageTypeCode 
 
 function fulfillmentFromPackage(
   stock: ProductStockLocationCode,
-  fourcesMode?: VendorIndirectFulfillmentCode | null,
+  vandsoqMode?: VendorIndirectFulfillmentCode | null,
 ): ProductFulfillmentTypeCode {
-  if (stock === "FOURCES_WAREHOUSE") {
-    return fourcesMode === "ON_ORDER" ? "ON_ORDER" : "FORSEIZ_STOCK";
+  if (stock === "VANDSOQ_WAREHOUSE") {
+    return vandsoqMode === "ON_ORDER" ? "ON_ORDER" : "FORSEIZ_STOCK";
   }
   return "DIRECT";
 }
@@ -106,12 +106,12 @@ export async function resolveShippingForCheckout(
   for (const line of grouped) {
     const vendor = byId.get(line.vendorId);
     const stock = line.stockLocation ?? "MERCHANT";
-    const fourcesMode =
-      stock === "FOURCES_WAREHOUSE"
-        ? (line.fourcesMode ?? (line.fulfillmentType === "ON_ORDER" ? "ON_ORDER" : "FORSEIZ_STOCK"))
+    const vandsoqMode =
+      stock === "VANDSOQ_WAREHOUSE"
+        ? (line.vandsoqMode ?? (line.fulfillmentType === "ON_ORDER" ? "ON_ORDER" : "FORSEIZ_STOCK"))
         : null;
     const fulfillmentType =
-      line.fulfillmentType ?? fulfillmentFromPackage(stock, fourcesMode);
+      line.fulfillmentType ?? fulfillmentFromPackage(stock, vandsoqMode);
     const snapshot = fulfillmentTypeToVendorShipping(fulfillmentType);
     const pkgType = packageTypeForLine({
       ...line,
@@ -121,7 +121,7 @@ export async function resolveShippingForCheckout(
     const fee = await resolveShippingRateAmount({
       marketId,
       packageType: pkgType,
-      fourcesMode,
+      vandsoqMode,
       quantity: line.quantity ?? 1,
       db,
     });

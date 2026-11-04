@@ -181,8 +181,8 @@ export default function VendorProductForm({ productId }: { productId?: string })
               marketId: string;
               price: string;
               currency: string;
-              stockLocation: "MERCHANT" | "FOURCES_WAREHOUSE";
-              fourcesMode?: "FORSEIZ_STOCK" | "ON_ORDER" | null;
+              stockLocation: "MERCHANT" | "VANDSOQ_WAREHOUSE";
+              vandsoqMode?: "FORSEIZ_STOCK" | "ON_ORDER" | null;
               quantity: number;
               status?: "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
               rejectionReason?: string | null;
@@ -207,7 +207,7 @@ export default function VendorProductForm({ productId }: { productId?: string })
                 price: offer.price,
                 currency: offer.currency,
                 stockLocation: offer.stockLocation,
-                fourcesMode: offer.fourcesMode === "ON_ORDER" ? "ON_ORDER" : "FORSEIZ_STOCK",
+                vandsoqMode: offer.vandsoqMode === "ON_ORDER" ? "ON_ORDER" : "FORSEIZ_STOCK",
                 quantity: String(offer.quantity ?? 0),
                 status: offer.status,
                 rejectionReason: offer.rejectionReason ?? null,
@@ -535,14 +535,14 @@ export default function VendorProductForm({ productId }: { productId?: string })
             stockLocation: ui.formOfferStock,
             stockMerchant: ui.formOfferStockMerchant,
             stockMerchantHint: ui.formOfferStockMerchantHint,
-            stockFources: ui.formOfferStockFources,
-            stockFourcesHint: ui.formOfferStockFourcesHint,
-            stockFourcesUnavailable: ui.formOfferStockFourcesUnavailable,
-            fourcesMode: ui.formOfferFourcesMode,
-            fourcesStockA: ui.formOfferFourcesStockA,
-            fourcesStockAHint: ui.formOfferFourcesStockAHint,
-            fourcesStockB: ui.formOfferFourcesStockB,
-            fourcesStockBHint: ui.formOfferFourcesStockBHint,
+            stockVandsoq: ui.formOfferStockVandsoq,
+            stockVandsoqHint: ui.formOfferStockVandsoqHint,
+            stockVandsoqUnavailable: ui.formOfferStockVandsoqUnavailable,
+            vandsoqMode: ui.formOfferVandsoqMode,
+            vandsoqStockA: ui.formOfferVandsoqStockA,
+            vandsoqStockAHint: ui.formOfferVandsoqStockAHint,
+            vandsoqStockB: ui.formOfferVandsoqStockB,
+            vandsoqStockBHint: ui.formOfferVandsoqStockBHint,
             statusDraft: ui.formOfferStatusDraft,
             statusPending: ui.formOfferStatusPending,
             statusApproved: ui.formOfferStatusApproved,

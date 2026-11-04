@@ -16,30 +16,30 @@ export const ProductMarketOfferInputSchema = z
     currency: z.string().trim().length(3).toUpperCase(),
     stockLocation: z.enum(PRODUCT_STOCK_LOCATIONS),
     warehouseId: z.string().trim().min(1).nullable().optional(),
-    fourcesMode: z.enum(["FORSEIZ_STOCK", "ON_ORDER"]).nullable().optional(),
+    vandsoqMode: z.enum(["FORSEIZ_STOCK", "ON_ORDER"]).nullable().optional(),
     quantity: z.coerce.number().int().min(0).max(1_000_000),
   })
   .superRefine((value, ctx) => {
-    if (value.stockLocation === "FOURCES_WAREHOUSE") {
+    if (value.stockLocation === "VANDSOQ_WAREHOUSE") {
       if (!value.warehouseId) {
         ctx.addIssue({
           code: "custom",
-          message: "FOURCES warehouse is required for warehouse stock.",
+          message: "VANDSOQ warehouse is required for warehouse stock.",
           path: ["warehouseId"],
         });
       }
       if (value.marketId === MARKET_IDS.GLOBAL) {
         ctx.addIssue({
           code: "custom",
-          message: "FOURCES warehouses are only available in Saudi Arabia, Oman, and Egypt.",
+          message: "VANDSOQ warehouses are only available in Saudi Arabia, Oman, and Egypt.",
           path: ["stockLocation"],
         });
       }
-      if (!value.fourcesMode) {
+      if (!value.vandsoqMode) {
         ctx.addIssue({
           code: "custom",
-          message: "Select FOURCES stock mode (pre-stocked or on-order).",
-          path: ["fourcesMode"],
+          message: "Select VANDSOQ stock mode (pre-stocked or on-order).",
+          path: ["vandsoqMode"],
         });
       }
     }

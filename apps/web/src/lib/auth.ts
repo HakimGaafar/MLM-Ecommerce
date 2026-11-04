@@ -27,8 +27,8 @@ export type RefreshTokenResult = {
 
 const encoder = new TextEncoder();
 
-const JWT_ISSUER = process.env.JWT_ISSUER?.trim() || "fources";
-const JWT_AUDIENCE = process.env.JWT_AUDIENCE?.trim() || "fources-web";
+const JWT_ISSUER = process.env.JWT_ISSUER?.trim() || "vandsoq";
+const JWT_AUDIENCE = process.env.JWT_AUDIENCE?.trim() || "vandsoq-web";
 
 const refreshMaxAgeSeconds = 60 * 60 * 24 * 30;
 const DEFAULT_ACCESS_MINUTES = 15;
