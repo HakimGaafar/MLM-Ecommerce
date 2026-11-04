@@ -1,6 +1,12 @@
 import { Prisma, prisma } from "@mlm/db";
 import { week1BusinessRules } from "../business-rules";
+import { resolveCommissionSplit } from "../commission/commission-rate.service";
 import { getPlatformConfig } from "../platform-config/platform-config.service";
+import {
+  allocateShippingShareFallback,
+  calculateCrossMarketVendorSettlement,
+  getVendorDirectShippingShare,
+} from "./cross-market-settlement";
 import { ensureWalletInTx } from "./wallet.service";
 function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
@@ -55,6 +61,9 @@ async function postVendorEarningEntry(params: {
   vendorRate: number;
   orderItemId: string;
   unitLabel?: string | null;
+  commissionKind?: string;
+  platformRate?: number;
+  orderCurrency?: string;
 }): Promise<boolean> {
   const idempotencyKey = `vendor:order:${params.orderId}:unit:${params.orderItemId}`;
   const existing = await params.tx.walletTransaction.findUnique({
@@ -85,7 +94,77 @@ async function postVendorEarningEntry(params: {
         vendorRate: params.vendorRate,
         orderItemId: params.orderItemId,
         ...(params.unitLabel ? { unitLabel: params.unitLabel } : {}),
+        ...(params.commissionKind ? { commissionKind: params.commissionKind } : {}),
+        ...(params.platformRate != null ? { platformRate: params.platformRate } : {}),
+        ...(params.orderCurrency ? { orderCurrency: params.orderCurrency } : {}),
         kind: "vendor_earning_accrual",
+      },
+    },
+  });
+
+  await params.tx.wallet.update({
+    where: { id: params.walletId },
+    data: { pendingBalance: { increment: amountDec } },
+  });
+
+  return true;
+}
+
+/** CROSS/International: credit DIRECT shipping once per vendor (product share is per-unit). */
+async function postVendorShippingEarningEntry(params: {
+  tx: Prisma.TransactionClient;
+  walletId: string;
+  ownerUserId: string;
+  amount: number;
+  orderId: string;
+  orderNo: string;
+  vendorId: string;
+  vendorName: string;
+  vendorRate: number;
+  platformRate: number;
+  productEligible: number;
+  orderCurrency?: string;
+}): Promise<boolean> {
+  const idempotencyKey = `vendor:order:${params.orderId}:vendor:${params.vendorId}:shipping`;
+  const existing = await params.tx.walletTransaction.findUnique({
+    where: { idempotencyKey },
+    select: { id: true },
+  });
+  if (existing) return false;
+
+  const settlement = calculateCrossMarketVendorSettlement({
+    productEligible: params.productEligible,
+    platformRate: params.platformRate,
+    vendorRate: params.vendorRate,
+    directShippingShare: params.amount,
+  });
+
+  const amountDec = new Prisma.Decimal(params.amount);
+  await params.tx.walletTransaction.create({
+    data: {
+      walletId: params.walletId,
+      userId: params.ownerUserId,
+      entryType: "VENDOR_EARNING",
+      direction: "CREDIT",
+      amount: amountDec,
+      status: "PENDING",
+      referenceType: "order",
+      referenceId: params.orderId,
+      idempotencyKey,
+      metaJson: {
+        orderId: params.orderId,
+        orderNo: params.orderNo,
+        vendorId: params.vendorId,
+        vendorName: params.vendorName,
+        vendorRate: params.vendorRate,
+        platformRate: params.platformRate,
+        commissionKind: "CROSS",
+        shippingShare: params.amount,
+        productEligible: settlement.productEligible,
+        platformCommission: settlement.platformCommission,
+        vendorNet: settlement.vendorNet,
+        ...(params.orderCurrency ? { orderCurrency: params.orderCurrency } : {}),
+        kind: "vendor_earning_shipping_accrual",
       },
     },
   });
@@ -110,9 +189,13 @@ export async function accrueVendorEarningsForCompletedOrder(orderId: string): Pr
       orderNo: true,
       subtotal: true,
       discountTotal: true,
+      shippingFee: true,
       paymentStatus: true,
       status: true,
       marketId: true,
+      vendorShippingLines: {
+        select: { vendorId: true, fulfillmentType: true, fee: true },
+      },
       items: {
         select: {
           id: true,
@@ -120,7 +203,9 @@ export async function accrueVendorEarningsForCompletedOrder(orderId: string): Pr
           lineTotal: true,
           unitLabel: true,
           unitStatus: true,
-          vendor: { select: { id: true, ownerUserId: true, storeName: true } },
+          vendor: {
+            select: { id: true, ownerUserId: true, storeName: true, primaryMarketId: true },
+          },
         },
       },
     },
@@ -131,8 +216,33 @@ export async function accrueVendorEarningsForCompletedOrder(orderId: string): Pr
 
   const orderSubtotal = Number(order.subtotal);
   const orderDiscountTotal = Number(order.discountTotal);
+  const orderShippingFee = Number(order.shippingFee);
   const platformConfig = await getPlatformConfig(order.marketId);
-  const { vendorRate } = platformConfig;
+  const market = await prisma.market.findUnique({
+    where: { id: order.marketId },
+    select: { code: true, defaultCurrency: true },
+  });
+  const orderCurrency = market?.defaultCurrency ?? undefined;
+  const shippingLines = order.vendorShippingLines.map((line) => ({
+    vendorId: line.vendorId,
+    fulfillmentType: line.fulfillmentType,
+    fee: Number(line.fee),
+  }));
+  const hasWarehouseShippingLines = shippingLines.some(
+    (line) => line.fulfillmentType === "FORSEIZ_STOCK" || line.fulfillmentType === "ON_ORDER",
+  );
+
+  type CrossVendorAccrual = {
+    vendorId: string;
+    ownerUserId: string;
+    vendorName: string;
+    walletId: string;
+    vendorRate: number;
+    platformRate: number;
+    productEligible: number;
+    merchandise: number;
+  };
+  const crossVendors = new Map<string, CrossVendorAccrual>();
 
   await prisma.$transaction(async (tx) => {
     for (const item of order.items) {
@@ -144,7 +254,13 @@ export async function accrueVendorEarningsForCompletedOrder(orderId: string): Pr
         orderSubtotal,
         orderDiscountTotal,
       });
-      const amount = calculateVendorEarningAmount(vendorEligibleAmount, vendorRate);
+      const split = resolveCommissionSplit({
+        vendorPrimaryMarketId: item.vendor.primaryMarketId,
+        orderMarketId: order.marketId,
+        orderMarketCode: market?.code,
+        config: platformConfig,
+      });
+      const amount = calculateVendorEarningAmount(vendorEligibleAmount, split.vendorRate);
       if (amount <= 0) continue;
 
       const ownerUserId = item.vendor.ownerUserId;
@@ -168,9 +284,62 @@ export async function accrueVendorEarningsForCompletedOrder(orderId: string): Pr
         vendorName,
         vendorLineTotal,
         vendorEligibleAmount,
-        vendorRate,
+        vendorRate: split.vendorRate,
         orderItemId: item.id,
         unitLabel: item.unitLabel,
+        commissionKind: split.kind,
+        platformRate: split.platformRate,
+        orderCurrency,
+      });
+
+      if (split.kind === "CROSS") {
+        const prior = crossVendors.get(item.vendorId);
+        if (prior) {
+          prior.productEligible = roundMoney(prior.productEligible + vendorEligibleAmount);
+          prior.merchandise = roundMoney(prior.merchandise + vendorLineTotal);
+        } else {
+          crossVendors.set(item.vendorId, {
+            vendorId: item.vendorId,
+            ownerUserId,
+            vendorName,
+            walletId: wallet.id,
+            vendorRate: split.vendorRate,
+            platformRate: split.platformRate,
+            productEligible: vendorEligibleAmount,
+            merchandise: vendorLineTotal,
+          });
+        }
+      }
+    }
+
+    for (const row of crossVendors.values()) {
+      let shippingShare = getVendorDirectShippingShare({
+        vendorId: row.vendorId,
+        vendorShippingLines: shippingLines,
+      });
+      if (shippingShare <= 0 && shippingLines.length === 0) {
+        shippingShare = allocateShippingShareFallback({
+          vendorMerchandise: row.merchandise,
+          orderSubtotal,
+          orderShippingFee,
+          hasWarehouseShippingLines,
+        });
+      }
+      if (shippingShare <= 0) continue;
+
+      await postVendorShippingEarningEntry({
+        tx,
+        walletId: row.walletId,
+        ownerUserId: row.ownerUserId,
+        amount: shippingShare,
+        orderId: order.id,
+        orderNo: order.orderNo,
+        vendorId: row.vendorId,
+        vendorName: row.vendorName,
+        vendorRate: row.vendorRate,
+        platformRate: row.platformRate,
+        productEligible: row.productEligible,
+        orderCurrency,
       });
     }
   });
@@ -235,7 +404,7 @@ export async function reverseVendorEarningsForOrderInTx(params: {
             ...params.unitIds.map((orderItemId) => ({
               idempotencyKey: `vendor:order:${params.orderId}:unit:${orderItemId}`,
             })),
-            // Legacy whole-vendor accruals (pre–Phase II): reversed proportionally below
+            // Legacy whole-vendor + CROSS shipping accruals: reversed when vendor units clear
             { idempotencyKey: { startsWith: `vendor:order:${params.orderId}:vendor:` } },
           ],
         }
@@ -274,20 +443,42 @@ export async function reverseVendorEarningsForOrderInTx(params: {
     ).reduce((sum, row) => sum + Number(row.lineTotal), 0),
   );
 
+  const remainingActiveByVendor = new Map<string, number>();
+  if (params.unitIds && params.unitIds.length > 0) {
+    const activeUnits = await params.tx.orderItem.findMany({
+      where: {
+        orderId: params.orderId,
+        unitStatus: { not: "RETURNED" },
+        id: { notIn: returnedUnits },
+      },
+      select: { vendorId: true },
+    });
+    for (const row of activeUnits) {
+      remainingActiveByVendor.set(row.vendorId, (remainingActiveByVendor.get(row.vendorId) ?? 0) + 1);
+    }
+  }
+
   for (const prior of accruals) {
     if (prior.status !== "PENDING" && prior.status !== "APPROVED") continue;
 
     const meta = prior.metaJson as Record<string, unknown> | null;
     const vendorId = typeof meta?.vendorId === "string" ? meta.vendorId : "unknown";
     const orderItemId = typeof meta?.orderItemId === "string" ? meta.orderItemId : null;
-    const isLegacyVendorKey = prior.idempotencyKey.includes(":vendor:") && !prior.idempotencyKey.includes(":unit:");
+    const isLegacyVendorKey =
+      prior.idempotencyKey.includes(":vendor:") && !prior.idempotencyKey.includes(":unit:");
+    const isShippingKey = prior.idempotencyKey.endsWith(":shipping");
 
     if (orderItemId && returnedUnits.length > 0 && !returnedUnits.includes(orderItemId)) {
       continue;
     }
 
+    // CROSS shipping credit reverses only when the vendor has no remaining active units.
+    if (isShippingKey && params.unitIds && params.unitIds.length > 0) {
+      if ((remainingActiveByVendor.get(vendorId) ?? 0) > 0) continue;
+    }
+
     let reversalAmount = prior.amount;
-    if (isLegacyVendorKey && returnedLineTotal > 0) {
+    if (isLegacyVendorKey && !isShippingKey && returnedLineTotal > 0) {
       const vendorLineTotal = typeof meta?.vendorLineTotal === "number" ? meta.vendorLineTotal : Number(meta?.vendorLineTotal ?? 0);
       if (vendorLineTotal > 0) {
         const ratio = Math.min(1, returnedLineTotal / vendorLineTotal);
@@ -297,7 +488,9 @@ export async function reverseVendorEarningsForOrderInTx(params: {
 
     const reversalKey = orderItemId
       ? `vendor-reversal:return:${params.orderReturnId}:unit:${orderItemId}`
-      : `vendor-reversal:return:${params.orderReturnId}:vendor:${vendorId}`;
+      : isShippingKey
+        ? `vendor-reversal:return:${params.orderReturnId}:vendor:${vendorId}:shipping`
+        : `vendor-reversal:return:${params.orderReturnId}:vendor:${vendorId}`;
     const existing = await params.tx.walletTransaction.findUnique({
       where: { idempotencyKey: reversalKey },
     });

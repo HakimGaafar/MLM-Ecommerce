@@ -551,6 +551,7 @@ import {
   accrueMerchantReferralCommissionsForCompletedOrder,
   reverseMerchantReferralCommissionsForOrderInTx,
 } from "./merchant-referral-commission.service";
+import { accrueCommissionDebtForCodOrder } from "./commission-debt.service";
 import {
   accrueVendorEarningsForCompletedOrder,
   reverseVendorEarningsForOrderInTx,
@@ -564,6 +565,7 @@ export async function finalizeOrderRewards(orderId: string): Promise<void> {
   await accrueAffiliateCommissionsForCompletedOrder(orderId);
   await accrueMerchantReferralCommissionsForCompletedOrder(orderId);
   await accrueVendorEarningsForCompletedOrder(orderId);
+  await accrueCommissionDebtForCodOrder(orderId);
 }
 
 /**

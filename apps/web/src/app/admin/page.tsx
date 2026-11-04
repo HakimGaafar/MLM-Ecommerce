@@ -23,7 +23,7 @@ export default async function AdminDashboardPage() {
     emphasize?: boolean;
   }[] = [
     {
-      href: "/admin/vendors",
+      href: "/admin/vendors/onboarding",
       label: ui.alertVendorsPending,
       hint: ui.alertVendorsPendingHint,
       count: overview.counts.vendorsPendingApproval,

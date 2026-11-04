@@ -113,8 +113,10 @@ async function seedPlatformConfig(client: PrismaClient) {
     affiliateLevel2Rate: 0.02,
     affiliateLevel3Rate: 0.02,
     affiliateLevel4Rate: 0.01,
-    vendorRate: 0.7,
-    platformRate: 0.3,
+    vendorRate: 0.95,
+    platformRate: 0.05,
+    platformRateCross: 0.10,
+    vendorRateCross: 0.90,
     vatRate: 0.15,
     minWithdrawalAmount: minWithdrawal,
     returnWindowDays: 15,
@@ -136,6 +138,78 @@ async function seedPlatformConfig(client: PrismaClient) {
   }
 }
 
+async function seedMarketInvoiceIssuers(client: PrismaClient) {
+  const issuers = [
+    {
+      id: "issuer_om",
+      marketId: MARKET_IDS.OM,
+      code: "OM-VISION",
+      legalNameEn: "Al Roaya Wa Al Tatweer",
+      legalNameAr: "الرؤية والتطوير",
+      addressLine1: "Muscat",
+      city: "Muscat",
+      countryCode: "OM",
+      vatRegistered: true,
+      vatPercent: 5,
+      currency: "OMR",
+    },
+    {
+      id: "issuer_sa",
+      marketId: MARKET_IDS.SA,
+      code: "SA-NABD",
+      legalNameEn: "Nabdh Al Aamal",
+      legalNameAr: "نبض الأعمال",
+      addressLine1: "Riyadh",
+      city: "Riyadh",
+      countryCode: "SA",
+      vatRegistered: true,
+      vatPercent: 15,
+      currency: "SAR",
+    },
+    {
+      id: "issuer_eg",
+      marketId: MARKET_IDS.EG,
+      code: "EG-4CS",
+      legalNameEn: "4CS",
+      legalNameAr: "4CS",
+      addressLine1: "Cairo",
+      city: "Cairo",
+      countryCode: "EG",
+      vatRegistered: true,
+      vatPercent: 14,
+      currency: "EGP",
+    },
+    {
+      id: "issuer_global",
+      marketId: MARKET_IDS.GLOBAL,
+      code: "INTL-OM",
+      legalNameEn: "Al Roaya Wa Al Tatweer",
+      legalNameAr: "الرؤية والتطوير",
+      addressLine1: "Muscat",
+      city: "Muscat",
+      countryCode: "OM",
+      vatRegistered: true,
+      vatPercent: 5,
+      currency: "OMR",
+    },
+  ] as const;
+
+  for (const row of issuers) {
+    await client.marketInvoiceIssuer.upsert({
+      where: { marketId: row.marketId },
+      create: row,
+      update: {
+        code: row.code,
+        legalNameEn: row.legalNameEn,
+        legalNameAr: row.legalNameAr,
+        vatPercent: row.vatPercent,
+        currency: row.currency,
+        vatRegistered: row.vatRegistered,
+      },
+    });
+  }
+}
+
 /** Idempotent upserts for reference data required before the app can register users or checkout. */
 export async function bootstrapRequiredReferenceData(client?: PrismaClient): Promise<void> {
   const db = await resolveClient(client);
@@ -143,6 +217,7 @@ export async function bootstrapRequiredReferenceData(client?: PrismaClient): Pro
   await seedMarkets(db);
   await seedFourcesWarehouses(db);
   await seedPlatformConfig(db);
+  await seedMarketInvoiceIssuers(db);
 }
 
 export async function isRequiredReferenceDataPresent(client?: PrismaClient): Promise<boolean> {

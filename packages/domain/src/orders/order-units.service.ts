@@ -5,10 +5,13 @@ import { getReturnWindowDays } from "../platform-config/platform-config.service"
 
 export type OrderUnitCreateInput = {
   productId: string | null;
+  variantId?: string | null;
   vendorId: string;
   fulfillmentType: ProductFulfillmentType;
   productNameSnapshot: string;
   vendorNameSnapshot: string;
+  variantTitleSnapshot?: string | null;
+  variantSkuSnapshot?: string | null;
   quantity: 1;
   unitPrice: Prisma.Decimal;
   lineTotal: Prisma.Decimal;
@@ -38,10 +41,13 @@ export function buildUnitRowsForOrder(
   orderNo: string,
   lines: Array<{
     productId: string | null;
+    variantId?: string | null;
     vendorId: string;
     fulfillmentType: ProductFulfillmentType;
     name: string;
     vendorName: string;
+    variantTitle?: string | null;
+    variantSku?: string | null;
     quantity: number;
     unitPrice: Prisma.Decimal;
     lineTotal: Prisma.Decimal;
@@ -57,10 +63,13 @@ export function buildUnitRowsForOrder(
       unitIndex += 1;
       rows.push({
         productId: line.productId,
+        variantId: line.variantId ?? null,
         vendorId: line.vendorId,
         fulfillmentType: line.fulfillmentType,
         productNameSnapshot: line.name,
         vendorNameSnapshot: line.vendorName,
+        variantTitleSnapshot: line.variantTitle ?? null,
+        variantSkuSnapshot: line.variantSku ?? null,
         quantity: 1,
         unitPrice,
         lineTotal: unitPrice,

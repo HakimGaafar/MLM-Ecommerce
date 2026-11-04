@@ -89,11 +89,18 @@ export async function listAdminReturns(params: {
 export async function updateAdminReturnStatus(
   returnId: string,
   nextStatus: OrderReturnStatus,
-  options?: { rejectionReason?: string },
+  options?: {
+    rejectionReason?: string;
+    actorUserId?: string;
+    returnCostFinalFee?: number;
+    returnCostBearerFinal?: "CUSTOMER" | "VENDOR" | "PLATFORM";
+    goodsDisposition?: "HOLD_AT_HUB" | "RETURN_TO_VENDOR" | "DISPOSE";
+    hubInspectionNote?: string;
+  },
 ): Promise<{ status: OrderReturnStatus }> {
   const row = await prisma.orderReturn.findUnique({
     where: { id: returnId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, hubInspectionRequired: true },
   });
   if (!row) {
     throw new AdminReturnError("NOT_FOUND", "Return not found.");
@@ -104,6 +111,22 @@ export async function updateAdminReturnStatus(
     throw new AdminReturnError("INVALID_TRANSITION", "That status change is not allowed from the current state.");
   }
 
+  const now = new Date();
+  const hubReceive =
+    nextStatus === "RECEIPT_IN_PROGRESS" || nextStatus === "RECEIPT_COMPLETED"
+      ? { hubReceivedAt: now }
+      : {};
+  const hubInspect =
+    nextStatus === "PROCESSING_COMPLETED" || nextStatus === "PROCESSING_REJECTED"
+      ? {
+          hubInspectedAt: now,
+          hubInspectedByUserId: options?.actorUserId ?? null,
+          hubInspectionNote: options?.hubInspectionNote?.trim() || null,
+        }
+      : options?.hubInspectionNote
+        ? { hubInspectionNote: options.hubInspectionNote.trim() }
+        : {};
+
   await prisma.orderReturn.update({
     where: { id: returnId },
     data: {
@@ -111,6 +134,15 @@ export async function updateAdminReturnStatus(
       ...(nextStatus === "PROCESSING_REJECTED"
         ? { rejectionReason: options?.rejectionReason?.trim() ?? null }
         : {}),
+      ...hubReceive,
+      ...hubInspect,
+      ...(options?.returnCostFinalFee != null
+        ? { returnCostFinalFee: options.returnCostFinalFee }
+        : {}),
+      ...(options?.returnCostBearerFinal
+        ? { returnCostBearerFinal: options.returnCostBearerFinal }
+        : {}),
+      ...(options?.goodsDisposition ? { goodsDisposition: options.goodsDisposition } : {}),
     },
   });
 

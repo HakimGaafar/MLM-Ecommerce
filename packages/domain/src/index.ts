@@ -27,10 +27,16 @@ export {
   toPlatformConfigAdminDto,
   buildPlatformConfigSeedData,
   invalidatePlatformConfigCache,
+  getSessionAccessMinutes,
   type PlatformConfigSnapshot,
   type PlatformConfigAdminDto,
   type PlatformConfigChangeLogDto,
 } from "./platform-config/platform-config.service";
+export { allocateInvoiceSerial } from "./invoices/invoice-serial.service";
+export * from "./security/turnstile.service";
+export * from "./commission/commission-rate.service";
+export * from "./wallet/commission-debt.service";
+export * from "./vendor/vendor-onboarding-wizard.service";
 export {
   getAdminPlatformConfig,
   updateAdminPlatformConfig,
@@ -71,6 +77,8 @@ export * from "./customer/customer-dashboard.service";
 export * from "./customer/orders.service";
 export * from "./customer/cart.service";
 export * from "./customer/checkout.service";
+export * from "./customer/checkout-vat.service";
+export * from "./customer/return-cost.service";
 export * from "./customer/coupon-checkout.service";
 export * from "./customer/returns.service";
 export * from "./customer/return-refund-timeline";
@@ -79,14 +87,21 @@ export * from "./customer/customer-addresses.service";
 export * from "./customer/shipping-profile";
 export * from "./catalog/public-catalog.service";
 export * from "./catalog/catalog-delivery-context.service";
+export * from "./catalog/inventory.service";
+export * from "./catalog/product-slug.service";
+export * from "./catalog/product-ratings.service";
+export * from "./catalog/related-products.service";
 export * from "./catalog/market-banners.service";
 export * from "./catalog/product-categories.service";
 export * from "./catalog/product-questions.service";
 export * from "./catalog/public-store.service";
+export * from "./customer/wishlist.service";
+export * from "./admin/admin-platform-coupons.service";
 export * from "./seller/seller-onboarding.service";
 export * from "./vendor/vendor-context.service";
 export * from "./vendor/vendor-access.service";
 export * from "./vendor/vendor-products.service";
+export * from "./vendor/product-variants.service";
 export * from "./vendor/product-market-offer.service";
 export * from "./vendor/vendor-product-questions.service";
 export * from "./vendor/vendor-reviews.service";
@@ -95,7 +110,13 @@ export * from "./vendor/vendor-team.service";
 export * from "./vendor/vendor-plans.service";
 export * from "./payments/stripe-checkout.service";
 export * from "./payments/stripe-refund.service";
+export * from "./payments/payment-config";
 export * from "./payments/payment-gateway";
+export * from "./payments/tap-checkout.service";
+export * from "./payments/tap-client";
+export * from "./payments/tap-hash";
+export * from "./wallet/cross-market-settlement";
+export * from "./wallet/vendor-payout-invoice.service";
 export * from "./affiliate/international-consent.service";
 export {
   getStripeClient,
@@ -116,6 +137,7 @@ export * from "./vendor/vendor-permissions.service";
 export * from "./vendor/vendor-coupons.service";
 export * from "./vendor/vendor-wallet.service";
 export * from "./admin/admin-product-approval.service";
+export * from "./admin/admin-market-offer-approval.service";
 export * from "./admin/admin-orders.service";
 export * from "./admin/admin-users.service";
 export * from "./admin/admin-vendors.service";
@@ -146,6 +168,8 @@ export * from "./invoices/platform-entity";
 export * from "./invoices/invoice-calculation";
 export * from "./invoices/vendor-invoice-profile.service";
 export * from "./invoices/order-invoice.service";
+export * from "./invoices/market-invoice-issuer.service";
+export * from "./fx/fx-rate.service";
 export * from "./referral/referral-bind.service";
 export * from "./contact/contact-inquiry.service";
 export * from "./auth/password-reset.service";

@@ -1,11 +1,16 @@
 import { randomUUID } from "node:crypto";
 import type { CustomerProfileDto, CustomerShippingAddressDto, ProductFulfillmentTypeCode } from "@mlm/shared";
-import { previewCheckoutTotalsFromSubtotalString } from "@mlm/shared";
-import {
-  getPlatformConfig,
-  getVatRate,
-} from "../platform-config/platform-config.service";
+import { getPlatformConfig } from "../platform-config/platform-config.service";
 import { Prisma, prisma } from "@mlm/db";
+import {
+  computeCheckoutVat,
+  type CheckoutVatLineDto,
+} from "./checkout-vat.service";
+import {
+  assertMarketOfferStock,
+  decrementMarketOfferStock,
+  InventoryError,
+} from "../catalog/inventory.service";
 import { buildUnitRowsForOrder } from "../orders/order-units.service";
 import {
   resolveShippingForCheckout,
@@ -37,6 +42,10 @@ import {
   type CouponsCheckoutResolution,
 } from "./coupon-checkout.service";
 import { computeWalletBalanceBuckets } from "../wallet/wallet.service";
+import {
+  isOnlineCardPaymentConfigured,
+  resolvePaymentGatewayId,
+} from "../payments/payment-config";
 import { assertShippingCountryMatchesMarket, pickShippingAddressForMarket } from "./delivery-market";
 import type { MarketCode } from "@mlm/shared";
 import {
@@ -44,6 +53,7 @@ import {
   type CartDeliveryIssueDto,
 } from "../shipping/product-service-area.service";
 import { isUserEmailVerified } from "../auth/otp-verification.service";
+import { isSameCityDelivery } from "../commission/commission-rate.service";
 
 export class CheckoutError extends Error {
   constructor(
@@ -61,7 +71,12 @@ export class CheckoutError extends Error {
       | "DELIVERY_MARKET_MISMATCH"
       | "EMAIL_VERIFICATION_REQUIRED"
       | "PRODUCT_OUTSIDE_COVERAGE"
-      | "CART_DELIVERY_MISMATCH",
+      | "CART_DELIVERY_MISMATCH"
+      | "COD_NOT_AVAILABLE"
+      | "INSUFFICIENT_STOCK"
+      | "OFFER_NOT_FOUND"
+      | "SETTLEMENT_RISK_REQUIRED"
+      | "AMOUNT_MISMATCH",
     message?: string,
   ) {
     super(message ?? code);
@@ -76,6 +91,14 @@ export type PlaceOrderInput = {
   couponCode?: string | null;
   couponCodes?: string[] | null;
   useWalletBalance?: boolean;
+  buyingForCompany?: boolean;
+  companyName?: string | null;
+  companyTaxId?: string | null;
+  companyCrNumber?: string | null;
+  companyHqAddressLine1?: string | null;
+  companyHqCity?: string | null;
+  companyHqCountryCode?: string | null;
+  settlementRiskAccepted?: boolean;
 };
 
 export type CheckoutDeliveryIssueDto = CartDeliveryIssueDto;
@@ -105,6 +128,9 @@ export type { CheckoutShippingBreakdownDto };
 type PreparedCartLine = CartLineForCoupon & {
   cartItemId: string;
   productId: string;
+  variantId?: string | null;
+  variantTitle?: string | null;
+  variantSku?: string | null;
   name: string;
   vendorName: string;
   fulfillmentType: ProductFulfillmentTypeCode;
@@ -114,6 +140,7 @@ type PreparedCartLine = CartLineForCoupon & {
   warehouseId?: string | null;
   warehouseCountry?: string | null;
   merchantCountry?: string | null;
+  merchantCity?: string | null;
   fourcesMode?: "FORSEIZ_STOCK" | "ON_ORDER" | null;
 };
 
@@ -175,6 +202,19 @@ async function loadPreparedCartLines(
   const rows = await db.cartItem.findMany({
     where: { cartId: cart.id },
     include: {
+      variant: {
+        select: {
+          id: true,
+          title: true,
+          sku: true,
+          isActive: true,
+          offers: {
+            where: { marketId },
+            take: 1,
+            select: { price: true, currency: true },
+          },
+        },
+      },
       product: {
         select: {
           id: true,
@@ -184,9 +224,9 @@ async function loadPreparedCartLines(
           status: true,
           vendorId: true,
           fulfillmentType: true,
-          vendor: { select: { storeName: true, countryCode: true } },
+          vendor: { select: { storeName: true, countryCode: true, city: true } },
           marketOffers: {
-            where: { marketId },
+            where: { marketId, status: "APPROVED" },
             take: 1,
             select: {
               price: true,
@@ -207,12 +247,21 @@ async function loadPreparedCartLines(
     const p = row.product;
     if (!p || p.status !== "PUBLISHED") continue;
     const offer = p.marketOffers[0];
-    const unitPrice = new Prisma.Decimal((offer?.price ?? p.price).toString());
+    // Phase 5: require an approved sell-market offer (no legacy Product.price fallback).
+    if (!offer) continue;
+    const variantOffer = row.variant?.isActive ? row.variant.offers[0] : null;
+    if (row.variantId && (!row.variant?.isActive || !variantOffer)) continue;
+    const unitPrice = new Prisma.Decimal((variantOffer?.price ?? offer.price).toString());
+    const displayName =
+      row.variant?.title && row.variant.isActive ? `${p.name} — ${row.variant.title}` : p.name;
     prepared.push({
       cartItemId: row.id,
       productId: p.id,
+      variantId: row.variantId,
+      variantTitle: row.variant?.isActive ? row.variant.title : null,
+      variantSku: row.variant?.isActive ? row.variant.sku : null,
       vendorId: p.vendorId,
-      name: p.name,
+      name: displayName,
       vendorName: p.vendor.storeName,
       fulfillmentType: (offer?.fourcesMode === "ON_ORDER"
         ? "ON_ORDER"
@@ -222,15 +271,73 @@ async function loadPreparedCartLines(
       quantity: row.quantity,
       unitPrice,
       lineTotal: unitPrice.mul(row.quantity),
-      currency: offer?.currency || p.currency || "SAR",
+      currency: variantOffer?.currency || offer?.currency || p.currency || "SAR",
       stockLocation: offer?.stockLocation,
       warehouseId: offer?.warehouseId,
       warehouseCountry: offer?.warehouse?.countryCode ?? null,
       merchantCountry: p.vendor.countryCode,
+      merchantCity: p.vendor.city,
       fourcesMode: offer?.fourcesMode ?? null,
     });
   }
   return prepared;
+}
+
+function isDirectMerchantLine(line: PreparedCartLine): boolean {
+  if (line.stockLocation === "FOURCES_WAREHOUSE") return false;
+  if (line.fulfillmentType === "FORSEIZ_STOCK" || line.fulfillmentType === "ON_ORDER") return false;
+  return line.stockLocation === "MERCHANT" || line.fulfillmentType === "DIRECT";
+}
+
+/** Phase 4 COD: kill-switch + every line direct merchant + same city as vendor. */
+export async function assertCodAllowedForCart(params: {
+  marketId: string;
+  shipToCity: string;
+  lines: PreparedCartLine[];
+}): Promise<void> {
+  const config = await getPlatformConfig(params.marketId);
+  if (!config.codEnabled) {
+    throw new CheckoutError(
+      "COD_NOT_AVAILABLE",
+      "Cash on delivery is temporarily disabled.",
+    );
+  }
+  if (params.lines.length === 0) {
+    throw new CheckoutError("EMPTY_CART");
+  }
+  for (const line of params.lines) {
+    if (!isDirectMerchantLine(line)) {
+      throw new CheckoutError(
+        "COD_NOT_AVAILABLE",
+        "Cash on delivery is only available for direct vendor delivery in the vendor's city.",
+      );
+    }
+    if (
+      !isSameCityDelivery({
+        vendorCity: line.merchantCity,
+        shipToCity: params.shipToCity,
+      })
+    ) {
+      throw new CheckoutError(
+        "COD_NOT_AVAILABLE",
+        "Cash on delivery is only available when the delivery city matches the vendor's city.",
+      );
+    }
+  }
+}
+
+export async function isCodAvailableForCheckout(params: {
+  marketId: string;
+  shipToCity: string;
+  lines: PreparedCartLine[];
+}): Promise<boolean> {
+  try {
+    await assertCodAllowedForCart(params);
+    return true;
+  } catch (e) {
+    if (e instanceof CheckoutError && e.code === "COD_NOT_AVAILABLE") return false;
+    throw e;
+  }
 }
 
 function assertSingleCurrency(prepared: PreparedCartLine[]): void {
@@ -241,15 +348,12 @@ function assertSingleCurrency(prepared: PreparedCartLine[]): void {
   }
 }
 
-function computeOrderTotals(
+function finalizeOrderMoney(
   subtotal: Prisma.Decimal,
   discountTotal: Prisma.Decimal,
   shippingFee: Prisma.Decimal,
-  vatRate: number,
+  vatTotal: Prisma.Decimal,
 ) {
-  const taxable = subtotal.add(shippingFee).sub(discountTotal);
-  const vatRaw = Number(taxable.mul(new Prisma.Decimal(vatRate)));
-  const vatTotal = new Prisma.Decimal((Math.round(vatRaw * 100) / 100).toFixed(2));
   const totalAmount = subtotal.add(shippingFee).add(vatTotal).sub(discountTotal);
   return { shippingFee, vatTotal, totalAmount };
 }
@@ -258,11 +362,12 @@ async function resolveOptionalCoupons(
   couponCode: string | null | undefined,
   prepared: PreparedCartLine[],
   db: Prisma.TransactionClient | typeof prisma,
+  marketId?: string,
 ): Promise<CouponsCheckoutResolution | null> {
   const trimmed = couponCode?.trim();
   if (!trimmed) return null;
   try {
-    return await resolveCouponsForCheckout(trimmed, prepared, db);
+    return await resolveCouponsForCheckout(trimmed, prepared, db, marketId);
   } catch (e) {
     if (e instanceof CouponCheckoutError) throw mapCouponCheckoutError(e);
     throw e;
@@ -273,6 +378,7 @@ async function resolveOptionalCouponCodes(
   couponCodes: string[] | null | undefined,
   prepared: PreparedCartLine[],
   db: Prisma.TransactionClient | typeof prisma,
+  marketId?: string,
 ): Promise<{
   codes: CheckoutQuoteCouponCodeDto[];
   applications: CouponsCheckoutResolution["applications"];
@@ -293,7 +399,7 @@ async function resolveOptionalCouponCodes(
   for (const code of codes) {
     let resolved: CouponsCheckoutResolution;
     try {
-      resolved = await resolveCouponsForCheckout(code, prepared, db);
+      resolved = await resolveCouponsForCheckout(code, prepared, db, marketId);
     } catch (e) {
       if (e instanceof CouponCheckoutError) throw mapCouponCheckoutError(e);
       throw e;
@@ -326,7 +432,8 @@ async function resolveOptionalCouponCodes(
 }
 
 export function isOnlineCardCheckoutEnabled(): boolean {
-  return Boolean(process.env.STRIPE_SECRET_KEY?.trim());
+  // Active PSP only (default Tap). Stripe stays in repo but is ignored unless PAYMENT_GATEWAY=stripe.
+  return isOnlineCardPaymentConfigured();
 }
 
 export async function getCheckoutQuoteForUser(
@@ -344,6 +451,8 @@ export async function getCheckoutQuoteForUser(
   shippingBreakdown: CheckoutShippingBreakdownDto[];
   discountTotal: string;
   vatTotal: string;
+  vatBreakdown: CheckoutVatLineDto[];
+  displayVatPercent: number | null;
   totalAmount: string;
   profileComplete: boolean;
   shippingAddresses: CustomerShippingAddressDto[];
@@ -354,6 +463,7 @@ export async function getCheckoutQuoteForUser(
   deliveryMismatchMarketCode: string | null;
   coupons: CheckoutQuoteCouponsDto | null;
   cardPaymentsEnabled: boolean;
+  activePaymentGateway: "stripe" | "hyperpay" | "tap" | "myfatoorah";
   plannedPaymentGateways: {
     tap: boolean;
     hyperpay: boolean;
@@ -395,7 +505,7 @@ export async function getCheckoutQuoteForUser(
   if (prepared.length > 0) {
     assertSingleCurrency(prepared);
     const couponCodes = options.couponCodes ?? (options.couponCode ? [options.couponCode] : undefined);
-    const coupons = await resolveOptionalCouponCodes(couponCodes, prepared, prisma);
+    const coupons = await resolveOptionalCouponCodes(couponCodes, prepared, prisma, marketId);
     if (coupons) {
       discountTotal = coupons.discountTotal.toFixed(2);
       couponsDto = { codes: coupons.codes, discountTotal };
@@ -420,13 +530,33 @@ export async function getCheckoutQuoteForUser(
   }
 
   const platformConfig = await getPlatformConfig(marketId);
-  const vatRate = platformConfig.vatRate;
-  const totals = previewCheckoutTotalsFromSubtotalString(
-    cart.subtotal,
-    discountTotal,
-    shippingFeeTotal,
-    String(vatRate),
-  );
+  const vat = await computeCheckoutVat({
+    marketId,
+    lines: prepared.map((line) => ({
+      vendorId: line.vendorId,
+      vendorName: line.vendorName,
+      lineTotal: line.lineTotal,
+    })),
+    shippingLines: shippingBreakdown.map((line) => ({
+      vendorId: line.vendorId,
+      vendorName: line.vendorName,
+      fulfillmentType: line.fulfillmentType,
+      fee: line.fee,
+    })),
+    discountTotal: Number(discountTotal) || 0,
+  });
+  const subNum = Math.round((Number.parseFloat(cart.subtotal) || 0) * 100) / 100;
+  const shipNum = Math.round((Number.parseFloat(shippingFeeTotal) || 0) * 100) / 100;
+  const discNum = Math.round((Number.parseFloat(discountTotal) || 0) * 100) / 100;
+  const vatNum = Math.round((Number.parseFloat(vat.vatTotal) || 0) * 100) / 100;
+  const totalNum = Math.round((subNum + shipNum - discNum + vatNum) * 100) / 100;
+  const totals = {
+    subtotal: subNum.toFixed(2),
+    shippingFee: shipNum.toFixed(2),
+    discountTotal: discNum.toFixed(2),
+    vatTotal: vat.vatTotal,
+    totalAmount: totalNum.toFixed(2),
+  };
 
   const wallet = await prisma.wallet.findUnique({
     where: { userId_marketId: { userId: buyerUserId, marketId } },
@@ -491,6 +621,8 @@ export async function getCheckoutQuoteForUser(
     shippingBreakdown,
     discountTotal: totals.discountTotal,
     vatTotal: totals.vatTotal,
+    vatBreakdown: vat.vatBreakdown,
+    displayVatPercent: vat.displayVatPercent,
     totalAmount: totals.totalAmount,
     profileComplete,
     shippingAddresses,
@@ -501,6 +633,7 @@ export async function getCheckoutQuoteForUser(
     deliveryMismatchMarketCode: addressPick.deliveryMismatchMarketCode,
     coupons: couponsDto,
     cardPaymentsEnabled: isOnlineCardCheckoutEnabled(),
+    activePaymentGateway: resolvePaymentGatewayId(),
     plannedPaymentGateways: {
       tap: platformConfig.showTapGateway,
       hyperpay: platformConfig.showHyperPayGateway,
@@ -561,7 +694,21 @@ export async function resolveCheckoutShipping(
   return buildShippingSnapshot(profile, user.name);
 }
 
-/** Creates order from cart and clears cart lines. Used for COD and Stripe checkout. */
+/**
+ * Decimal places for comparing captured card amounts to live cart remaining.
+ * Matches Tap amount formatting (OMR/BHD/KWD/JOD = 3; else 2).
+ */
+export function formatCheckoutMoneyAmount(amount: number | string, currency: string): string {
+  const n = typeof amount === "number" ? amount : Number.parseFloat(amount);
+  if (!Number.isFinite(n) || n < 0) {
+    throw new CheckoutError("AMOUNT_MISMATCH", "Invalid payment amount.");
+  }
+  const code = currency.trim().toUpperCase();
+  const decimals = code === "OMR" || code === "BHD" || code === "KWD" || code === "JOD" ? 3 : 2;
+  return n.toFixed(decimals);
+}
+
+/** Creates order from cart and clears cart lines. Used for COD and card checkout. */
 export async function createOrderFromCart(
   buyerUserId: string,
   marketId: string,
@@ -570,6 +717,14 @@ export async function createOrderFromCart(
     method: "COD" | "ONLINE_CARD";
     status: "PENDING" | "PAID";
     stripeCheckoutSessionId?: string | null;
+    tapChargeId?: string | null;
+    /**
+     * Amount captured by the PSP for the card portion (major units).
+     * Required when status is PAID and a Tap/Stripe reference is set — compared to
+     * live cart remaining inside the transaction (blocks cart-change underpayment).
+     */
+    capturedCardAmount?: string | null;
+    capturedCardCurrency?: string | null;
   },
 ): Promise<string> {
   const idempotencyKey = input.idempotencyKey?.trim().slice(0, 120) || null;
@@ -603,13 +758,39 @@ export async function createOrderFromCart(
       );
     }
 
+    if (payment.method === "COD") {
+      await assertCodAllowedForCart({
+        marketId,
+        shipToCity: shipping.shippingCity,
+        lines: prepared,
+      });
+    }
+
     let subtotal = new Prisma.Decimal(0);
     for (const line of prepared) {
       subtotal = subtotal.add(line.lineTotal);
     }
 
+    const stockLines = prepared.map((line) => ({
+      productId: line.productId,
+      productName: line.name,
+      quantity: line.quantity,
+      variantId: line.variantId,
+      fourcesMode: line.fourcesMode,
+      stockLocation: line.stockLocation,
+      fulfillmentType: line.fulfillmentType,
+    }));
+    try {
+      await assertMarketOfferStock(tx, marketId, stockLines);
+    } catch (e) {
+      if (e instanceof InventoryError) {
+        throw new CheckoutError(e.code, e.message);
+      }
+      throw e;
+    }
+
     const couponCodes = input.couponCodes ?? (input.couponCode ? [input.couponCode] : undefined);
-    const coupons = await resolveOptionalCouponCodes(couponCodes, prepared, tx);
+    const coupons = await resolveOptionalCouponCodes(couponCodes, prepared, tx, marketId);
     const discountTotal = coupons?.discountTotal ?? new Prisma.Decimal(0);
     const shippingLines = await resolveShippingForCheckout(
       prepared.map((line) => ({
@@ -627,8 +808,23 @@ export async function createOrderFromCart(
       tx,
     );
     const shippingFee = sumVendorShippingFees(shippingLines);
-    const vatRate = await getVatRate(marketId);
-    const { vatTotal, totalAmount } = computeOrderTotals(subtotal, discountTotal, shippingFee, vatRate);
+    const vatComputed = await computeCheckoutVat({
+      marketId,
+      lines: prepared.map((line) => ({
+        vendorId: line.vendorId,
+        vendorName: line.vendorName,
+        lineTotal: line.lineTotal,
+      })),
+      shippingLines: shippingLines.map((line) => ({
+        vendorId: line.vendorId,
+        vendorName: line.vendorName,
+        fulfillmentType: line.fulfillmentType,
+        fee: line.fee,
+      })),
+      discountTotal: Number(discountTotal),
+    });
+    const vatTotal = new Prisma.Decimal(vatComputed.vatTotal);
+    const { totalAmount } = finalizeOrderMoney(subtotal, discountTotal, shippingFee, vatTotal);
     const walletRequested = input.useWalletBalance === true;
     let cashbackAvailableDec = new Prisma.Decimal(0);
     if (walletRequested) {
@@ -662,9 +858,39 @@ export async function createOrderFromCart(
       : new Prisma.Decimal(0);
     const remainingAmount = Prisma.Decimal.max(totalAmount.sub(walletApplied), new Prisma.Decimal(0));
 
+    const hasCardRef = Boolean(payment.tapChargeId || payment.stripeCheckoutSessionId);
+    if (payment.method === "ONLINE_CARD" && payment.status === "PAID" && hasCardRef) {
+      const currency = prepared[0]!.currency.toUpperCase();
+      const capturedCurrency = payment.capturedCardCurrency?.trim().toUpperCase() ?? "";
+      const capturedRaw = payment.capturedCardAmount?.trim() ?? "";
+      if (!capturedRaw || !capturedCurrency) {
+        throw new CheckoutError(
+          "AMOUNT_MISMATCH",
+          "Captured card amount is missing; cannot finalize this payment.",
+        );
+      }
+      if (capturedCurrency !== currency) {
+        throw new CheckoutError(
+          "AMOUNT_MISMATCH",
+          "Payment currency does not match the cart. Start checkout again.",
+        );
+      }
+      const expected = formatCheckoutMoneyAmount(remainingAmount.toString(), currency);
+      const captured = formatCheckoutMoneyAmount(capturedRaw, currency);
+      if (expected !== captured) {
+        throw new CheckoutError(
+          "AMOUNT_MISMATCH",
+          "Cart total changed after payment. Your card was charged the original amount; restore the cart or contact support for a refund.",
+        );
+      }
+    }
+
     if (coupons) {
       await incrementCouponUsedCounts(
-        coupons.applications.map((app) => app.couponId),
+        coupons.applications.map((app) => ({
+          couponId: app.couponId,
+          isPlatform: app.isPlatform === true,
+        })),
         tx,
       );
     }
@@ -674,16 +900,20 @@ export async function createOrderFromCart(
       orderNo,
       prepared.map((line) => ({
         productId: line.productId,
+        variantId: line.variantId,
         vendorId: line.vendorId,
         fulfillmentType: line.fulfillmentType,
         name: line.name,
         vendorName: line.vendorName,
+        variantTitle: line.variantTitle,
+        variantSku: line.variantSku,
         quantity: line.quantity,
         unitPrice: line.unitPrice,
         lineTotal: line.lineTotal,
       })),
     );
 
+    const buyingForCompany = input.buyingForCompany === true;
     const order = await tx.order.create({
       data: {
         marketId,
@@ -695,26 +925,45 @@ export async function createOrderFromCart(
         discountTotal,
         vatTotal,
         totalAmount,
-        couponId: coupons?.codes.length === 1 ? coupons.applications[0]?.couponId ?? null : null,
+        buyingForCompany,
+        companyName: buyingForCompany ? input.companyName?.trim() || null : null,
+        companyTaxId: buyingForCompany ? input.companyTaxId?.trim() || null : null,
+        companyCrNumber: buyingForCompany ? input.companyCrNumber?.trim() || null : null,
+        companyHqAddressLine1: buyingForCompany
+          ? input.companyHqAddressLine1?.trim() || null
+          : null,
+        companyHqCity: buyingForCompany ? input.companyHqCity?.trim() || null : null,
+        companyHqCountryCode: buyingForCompany
+          ? input.companyHqCountryCode?.trim().toUpperCase() || null
+          : null,
+        settlementRiskAcceptedAt: input.settlementRiskAccepted === true ? new Date() : null,
+        couponId:
+          coupons?.codes.length === 1 && coupons.applications[0]?.isPlatform !== true
+            ? coupons.applications[0]?.couponId ?? null
+            : null,
         couponCodeSnapshot: coupons?.codes.length === 1 ? coupons.codes[0]?.code ?? null : null,
         ...shipping,
         paymentMethod: payment.method,
         paymentStatus: remainingAmount.eq(0) ? "PAID" : payment.status,
         checkoutIdempotencyKey: idempotencyKey,
         stripeCheckoutSessionId: payment.stripeCheckoutSessionId ?? null,
-        couponApplications: coupons
-          ? {
-              create: coupons.applications.map((app) => ({
-                couponId: app.couponId,
-                vendorId: app.vendorId,
-                couponCode: app.couponCode,
-                vendorNameSnapshot: app.vendorName,
-                discountType: app.discountType,
-                discountValue: app.discountValue,
-                discountAmount: app.discountTotal,
-              })),
-            }
-          : undefined,
+        tapChargeId: payment.tapChargeId ?? null,
+        couponApplications: (() => {
+          const vendorApps =
+            coupons?.applications.filter((app) => app.isPlatform !== true) ?? [];
+          if (vendorApps.length === 0) return undefined;
+          return {
+            create: vendorApps.map((app) => ({
+              couponId: app.couponId,
+              vendorId: app.vendorId,
+              couponCode: app.couponCode,
+              vendorNameSnapshot: app.vendorName,
+              discountType: app.discountType,
+              discountValue: app.discountValue,
+              discountAmount: app.discountTotal,
+            })),
+          };
+        })(),
         vendorShippingLines: {
           create: shippingLines.map((line) => ({
             vendorId: line.vendorId,
@@ -762,6 +1011,15 @@ export async function createOrderFromCart(
       });
     }
 
+    try {
+      await decrementMarketOfferStock(tx, marketId, stockLines);
+    } catch (e) {
+      if (e instanceof InventoryError) {
+        throw new CheckoutError(e.code, e.message);
+      }
+      throw e;
+    }
+
     await tx.cartItem.deleteMany({
       where: { id: { in: prepared.map((p) => p.cartItemId) } },
     });
@@ -782,6 +1040,12 @@ export async function placeOrderFromCart(
       "Verify your email with the one-time code before placing your first order.",
     );
   }
+  if (input.settlementRiskAccepted !== true) {
+    throw new CheckoutError(
+      "SETTLEMENT_RISK_REQUIRED",
+      "Accept FX, transfer fee, and customs risk terms to continue checkout.",
+    );
+  }
 
   const paymentMethod = input.paymentMethod ?? "COD";
   if (paymentMethod === "ONLINE_CARD") {
@@ -790,7 +1054,7 @@ export async function placeOrderFromCart(
     }
     throw new CheckoutError(
       "UNSUPPORTED_PAYMENT_METHOD",
-      "Use the Stripe checkout session endpoint for card payments.",
+      "Use the card checkout session endpoint for online card payments.",
     );
   }
 

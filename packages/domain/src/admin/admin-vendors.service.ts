@@ -118,6 +118,11 @@ export async function setVendorStoreApproval(params: {
       storeApprovalNote: params.note?.trim() || null,
       storeApprovedByUserId: params.adminUserId,
       storeApprovedAt: params.status === "APPROVED" ? now : null,
+      ...(params.status === "APPROVED"
+        ? { onboardingStatus: "ACTIVE" as const }
+        : params.status === "REJECTED" || params.status === "SUSPENDED"
+          ? { onboardingStatus: "UNDER_REGISTRATION" as const }
+          : {}),
     },
   });
 

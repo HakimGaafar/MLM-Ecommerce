@@ -3,7 +3,7 @@ import { INTERNATIONAL_MARKETING_AGREEMENT_VERSION } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { PUBLIC_API_ERRORS, internalServerErrorResponse } from "@/lib/api-error-response";
-import { getSessionTokenFromRequest, verifySessionToken } from "@/lib/auth";
+import { getAccessTokenFromRequest, verifySessionToken } from "@/lib/auth";
 import { isSameOriginRequest, normalizeReferralCode } from "@/lib/security";
 
 function buildReferralCodeSeed(email: string) {
@@ -41,7 +41,7 @@ const EnrollAffiliateSchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const token = getSessionTokenFromRequest(request);
+  const token = getAccessTokenFromRequest(request);
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
   if (!isSameOriginRequest(request)) {
     return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
   }
-  const token = getSessionTokenFromRequest(request);
+  const token = getAccessTokenFromRequest(request);
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const token = getSessionTokenFromRequest(request);
+  const token = getAccessTokenFromRequest(request);
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

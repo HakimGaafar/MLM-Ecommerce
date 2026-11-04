@@ -1,5 +1,10 @@
 import type { OrderItem } from "@mlm/db";
 import { CHECKOUT_VAT_RATE } from "@mlm/shared";
+import {
+  calculateCrossMarketVendorSettlement,
+  getVendorDirectShippingShare,
+  type CrossMarketVendorSettlement,
+} from "../wallet/cross-market-settlement";
 import { getVendorEligibleAmount } from "../wallet/vendor-earning.service";
 
 function roundMoney(n: number): number {
@@ -93,6 +98,40 @@ export function calculateCommissionInvoiceTotals(params: {
   const vatTotal = roundMoney(commissionSubtotal * vatRate);
   const totalAmount = roundMoney(commissionSubtotal + vatTotal);
   return { commissionSubtotal, vatTotal, totalAmount };
+}
+
+/**
+ * Cross-market settlement view for a vendor on an order.
+ * Commission remains product-only; vendor net adds DIRECT shipping (warehouse excluded).
+ */
+export function calculateCrossMarketInvoiceSettlement(params: {
+  vendorId: string;
+  items: Pick<OrderItem, "vendorId" | "lineTotal" | "unitStatus">[];
+  orderSubtotal: number;
+  orderDiscountTotal: number;
+  platformRate: number;
+  vendorRate: number;
+  vendorShippingLines: { vendorId: string; fulfillmentType: string; fee: number | string }[];
+}): CrossMarketVendorSettlement | null {
+  const vendorLineTotal = vendorMerchandiseSubtotal(params.items, params.vendorId);
+  if (vendorLineTotal <= 0) return null;
+
+  const productEligible = getVendorEligibleAmount({
+    vendorLineTotal,
+    orderSubtotal: params.orderSubtotal,
+    orderDiscountTotal: params.orderDiscountTotal,
+  });
+  const directShippingShare = getVendorDirectShippingShare({
+    vendorId: params.vendorId,
+    vendorShippingLines: params.vendorShippingLines,
+  });
+
+  return calculateCrossMarketVendorSettlement({
+    productEligible,
+    platformRate: params.platformRate,
+    vendorRate: params.vendorRate,
+    directShippingShare,
+  });
 }
 
 export function buildInvoiceNo(prefix: string, orderNo: string, vendorId: string): string {

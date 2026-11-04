@@ -1,7 +1,8 @@
 import type { PaginatedResult, ProductStatus } from "@mlm/shared";
 import { buildPaginatedResult, normalizePagination, ProductMarketOffersSchema } from "@mlm/shared";
-import { Prisma, prisma } from "@mlm/db";
+import { Prisma, prisma, type ProductStatus as DbProductStatus } from "@mlm/db";
 import {
+  approveHomeMarketOffer,
   fulfillmentTypeFromOffers,
   normalizeProductMarketOffers,
   pickHomeOffer,
@@ -73,7 +74,7 @@ export async function listPendingNewProducts(params?: {
 }): Promise<PaginatedResult<ProductApprovalRowDto>> {
   const { page, pageSize, skip, take } = normalizePagination(params);
   const where = {
-    status: "PENDING" as const,
+    status: { in: ["PENDING", "CHANGES_REQUESTED"] as DbProductStatus[] },
     ...(params?.marketId ? { marketId: params.marketId } : {}),
   };
   const [rows, total] = await prisma.$transaction([
@@ -176,17 +177,26 @@ export async function listProductApprovalHistory(
 
 export async function reviewPendingProduct(
   id: string,
-  action: "approve" | "reject",
+  action: "approve" | "reject" | "request_changes",
   rejectionReason?: string | null,
   reviewedByUserId?: string,
+  changeRequestNote?: string | null,
 ): Promise<ProductApprovalRowDto | null> {
   const existingProduct = await prisma.product.findFirst({
-    where: { id, status: "PENDING" },
+    where: { id, status: { in: ["PENDING", "CHANGES_REQUESTED"] } },
     include: { vendor: { select: { storeName: true, slug: true } } },
   });
 
-  const nextStatus = action === "approve" ? "PUBLISHED" : "REJECTED";
-  const reviewAction = action === "approve" ? "APPROVED" : "REJECTED";
+  const nextStatus =
+    action === "approve" ? "PUBLISHED" : action === "request_changes" ? "CHANGES_REQUESTED" : "REJECTED";
+  const reviewAction =
+    action === "approve" ? "APPROVED" : action === "request_changes" ? "REQUESTED_CHANGES" : "REJECTED";
+  const reasonNote =
+    action === "reject"
+      ? rejectionReason?.trim() ?? null
+      : action === "request_changes"
+        ? changeRequestNote?.trim() ?? null
+        : null;
 
   if (existingProduct) {
     const row = await prisma.$transaction(async (tx) => {
@@ -198,12 +208,16 @@ export async function reviewPendingProduct(
         },
         include: { vendor: { select: { storeName: true, slug: true } } },
       });
+      if (action === "approve") {
+        // Home market goes live with the product; other markets stay pending for Phase 5 queue.
+        await approveHomeMarketOffer(tx, id, existingProduct.marketId, reviewedByUserId);
+      }
       await tx.productReview.create({
         data: {
           productId: id,
           action: reviewAction,
           target: "NEW_PRODUCT",
-          rejectionReason: action === "reject" ? (rejectionReason?.trim() ?? null) : null,
+          rejectionReason: reasonNote,
           reviewedByUserId: reviewedByUserId ?? null,
         },
       });
@@ -266,7 +280,7 @@ export async function reviewPendingProduct(
         if (parsed.success) {
           const offers = normalizeProductMarketOffers(parsed.data);
           const home = pickHomeOffer(offers, editRequest.product.marketId);
-          await replaceProductMarketOffers(tx, editRequest.productId, offers);
+          await replaceProductMarketOffers(tx, editRequest.productId, offers, "preserve_approved");
           await tx.product.update({
             where: { id: editRequest.productId },
             data: {
@@ -279,11 +293,14 @@ export async function reviewPendingProduct(
       }
     }
 
+    const editStatus = action === "approve" ? "APPROVED" : "REJECTED";
+    const editNote =
+      action === "approve" ? null : action === "request_changes" ? reasonNote : rejectionReason?.trim() ?? null;
     await tx.productEditRequest.update({
       where: { id: editRequest.id },
       data: {
-        status: action === "approve" ? "APPROVED" : "REJECTED",
-        rejectionReason: action === "reject" ? (rejectionReason?.trim() ?? null) : null,
+        status: editStatus,
+        rejectionReason: editNote,
         reviewedAt: new Date(),
         reviewedByUserId: reviewedByUserId ?? null,
       },
@@ -294,7 +311,7 @@ export async function reviewPendingProduct(
         editRequestId: editRequest.id,
         action: reviewAction,
         target: "EDIT_REQUEST",
-        rejectionReason: action === "reject" ? (rejectionReason?.trim() ?? null) : null,
+        rejectionReason: editNote,
         reviewedByUserId: reviewedByUserId ?? null,
       },
     });

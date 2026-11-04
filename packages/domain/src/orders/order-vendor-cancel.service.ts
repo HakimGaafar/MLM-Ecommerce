@@ -2,8 +2,11 @@ import { Prisma, prisma, raceSafeUpsert } from "@mlm/db";
 import type { OrderUnitStatus } from "@mlm/db";
 import { RETURN_STATUSES_BLOCKING_NEW } from "../customer/orders.service";
 import { rollupOrderStatus } from "./order-fulfillment-groups.service";
-import { getPaymentGateway } from "../payments/payment-gateway";
-import { StripeRefundError } from "../payments/stripe-refund.service";
+import {
+  refundOrderCardPayment,
+  StripeRefundError,
+  TapRefundError,
+} from "../payments/payment-gateway";
 import { ensureWalletInTx } from "../wallet/wallet.service";
 
 export class OrderVendorCancelError extends Error {
@@ -15,7 +18,7 @@ export class OrderVendorCancelError extends Error {
       | "ALREADY_CANCELLED"
       | "NO_ACTIVE_ITEMS"
       | "ACTIVE_RETURN"
-      | "STRIPE_REFUND_FAILED",
+      | "CARD_REFUND_FAILED",
     message?: string,
   ) {
     super(message ?? code);
@@ -147,29 +150,33 @@ export async function cancelVendorFromOrder(input: {
   });
   const walletApplied = Number(walletDebit._sum.amount ?? 0);
   const totalBefore = Number(order.totalAmount);
-  const stripePaid =
-    order.paymentStatus === "PAID" && order.stripeCheckoutSessionId
+  const hasCardRef = Boolean(order.tapChargeId || order.stripeCheckoutSessionId);
+  const cardPaid =
+    order.paymentStatus === "PAID" && hasCardRef
       ? Math.max(0, roundMoney(totalBefore - walletApplied))
       : 0;
 
   const walletRefund = roundMoney(Math.min(refundAmount, walletApplied));
-  const stripeRefund = roundMoney(Math.min(refundAmount - walletRefund, stripePaid));
+  const cardRefund = roundMoney(Math.min(refundAmount - walletRefund, cardPaid));
 
-  if (stripeRefund > 0 && order.stripeCheckoutSessionId) {
+  if (cardRefund > 0 && hasCardRef) {
     try {
-      await getPaymentGateway().refundOrderAmount(
-        order.stripeCheckoutSessionId,
-        stripeRefund.toFixed(2),
-      );
+      await refundOrderCardPayment({
+        tapChargeId: order.tapChargeId,
+        stripeCheckoutSessionId: order.stripeCheckoutSessionId,
+        amount: cardRefund.toFixed(2),
+      });
     } catch (e) {
       const msg =
-        e instanceof StripeRefundError ? e.message : "Stripe refund failed.";
-      throw new OrderVendorCancelError("STRIPE_REFUND_FAILED", msg);
+        e instanceof StripeRefundError || e instanceof TapRefundError
+          ? e.message
+          : "Card refund failed.";
+      throw new OrderVendorCancelError("CARD_REFUND_FAILED", msg);
     }
-  } else if (stripeRefund > 0 && !order.stripeCheckoutSessionId) {
+  } else if (cardRefund > 0 && !hasCardRef) {
     throw new OrderVendorCancelError(
-      "STRIPE_REFUND_FAILED",
-      "Card refund required but no Stripe session is linked to this order.",
+      "CARD_REFUND_FAILED",
+      "Card refund required but no card checkout reference is linked to this order.",
     );
   }
 
@@ -233,7 +240,7 @@ export async function cancelVendorFromOrder(input: {
               kind: "vendor_slice_cancel",
               refundAmount,
               walletRefund,
-              stripeRefund,
+              cardRefund,
             },
           },
         });

@@ -17,6 +17,8 @@ export type PlatformConfigSnapshot = {
   affiliateLevelRates: [number, number, number, number];
   vendorRate: number;
   platformRate: number;
+  platformRateCross: number;
+  vendorRateCross: number;
   vatRate: number;
   minWithdrawalAmount: number;
   returnWindowDays: number;
@@ -38,6 +40,8 @@ export type PlatformConfigSnapshot = {
   showTapGateway: boolean;
   showHyperPayGateway: boolean;
   showMyFatoorahGateway: boolean;
+  sessionAccessMinutes: number;
+  codEnabled: boolean;
   updatedAt: string | null;
   updatedByUserId: string | null;
 };
@@ -63,6 +67,8 @@ export type PlatformConfigAdminDto = PlatformConfigSnapshot & {
   affiliateLevelPercents: [number, number, number, number];
   vendorPercent: number;
   platformPercent: number;
+  platformPercentCross: number;
+  vendorPercentCross: number;
   vatPercent: number;
   updatedByName?: string | null;
 };
@@ -87,6 +93,8 @@ export function getDefaultPlatformConfigSnapshot(marketId: string = DEFAULT_MARK
     affiliateLevelRates: [...levelRates] as [number, number, number, number],
     vendorRate: rates.vendorRate,
     platformRate: rates.platformRate,
+    platformRateCross: 0.1,
+    vendorRateCross: 0.9,
     vatRate: DEFAULT_VAT_RATE,
     minWithdrawalAmount: getMinWithdrawalAmountSarFromEnv(),
     returnWindowDays: defaultReturnWindowDays,
@@ -108,9 +116,24 @@ export function getDefaultPlatformConfigSnapshot(marketId: string = DEFAULT_MARK
     showTapGateway: true,
     showHyperPayGateway: true,
     showMyFatoorahGateway: true,
+    sessionAccessMinutes: 15,
+    codEnabled: true,
     updatedAt: null,
     updatedByUserId: null,
   };
+}
+
+/** Access token lifetime in minutes (N-035). Prefers default market platform config. */
+export async function getSessionAccessMinutes(): Promise<number> {
+  /** Prod hard-cap 60m; longer access JWTs defeat demote/reset until expiry. */
+  const hardMax = process.env.NODE_ENV === "production" ? 60 : 60 * 24;
+  const fromEnv = Number.parseInt(process.env.SESSION_ACCESS_MINUTES ?? "", 10);
+  if (Number.isFinite(fromEnv) && fromEnv >= 5) {
+    return Math.min(fromEnv, hardMax);
+  }
+  const snapshot = await getPlatformConfig(DEFAULT_MARKET_ID);
+  const minutes = snapshot.sessionAccessMinutes ?? 15;
+  return Math.min(Math.max(minutes, 5), hardMax);
 }
 
 function mapRow(row: {
@@ -123,6 +146,8 @@ function mapRow(row: {
   affiliateLevel4Rate: { toString(): string };
   vendorRate: { toString(): string };
   platformRate: { toString(): string };
+  platformRateCross?: { toString(): string } | null;
+  vendorRateCross?: { toString(): string } | null;
   vatRate: { toString(): string };
   minWithdrawalAmount: { toString(): string };
   returnWindowDays: number;
@@ -144,6 +169,8 @@ function mapRow(row: {
   showTapGateway: boolean;
   showHyperPayGateway: boolean;
   showMyFatoorahGateway: boolean;
+  sessionAccessMinutes?: number | null;
+  codEnabled?: boolean | null;
   updatedAt: Date;
   updatedByUserId: string | null;
 }): PlatformConfigSnapshot {
@@ -159,6 +186,8 @@ function mapRow(row: {
     ],
     vendorRate: Number(row.vendorRate),
     platformRate: Number(row.platformRate),
+    platformRateCross: row.platformRateCross != null ? Number(row.platformRateCross) : 0.1,
+    vendorRateCross: row.vendorRateCross != null ? Number(row.vendorRateCross) : 0.9,
     vatRate: Number(row.vatRate),
     minWithdrawalAmount: Number(row.minWithdrawalAmount),
     returnWindowDays: row.returnWindowDays,
@@ -180,6 +209,8 @@ function mapRow(row: {
     showTapGateway: row.showTapGateway,
     showHyperPayGateway: row.showHyperPayGateway,
     showMyFatoorahGateway: row.showMyFatoorahGateway,
+    sessionAccessMinutes: row.sessionAccessMinutes ?? 15,
+    codEnabled: row.codEnabled ?? true,
     updatedAt: row.updatedAt.toISOString(),
     updatedByUserId: row.updatedByUserId,
   };
@@ -203,6 +234,8 @@ export function toPlatformConfigAdminDto(
     ],
     vendorPercent: toPercent(snapshot.vendorRate),
     platformPercent: toPercent(snapshot.platformRate),
+    platformPercentCross: toPercent(snapshot.platformRateCross),
+    vendorPercentCross: toPercent(snapshot.vendorRateCross),
     vatPercent: toPercent(snapshot.vatRate),
   };
 }
@@ -320,6 +353,8 @@ export function buildPlatformConfigSeedData(
     affiliateLevelRates: overrides?.affiliateLevelRates ?? defaults.affiliateLevelRates,
     vendorRate: overrides?.vendorRate ?? defaults.vendorRate,
     platformRate: overrides?.platformRate ?? defaults.platformRate,
+    platformRateCross: overrides?.platformRateCross ?? defaults.platformRateCross,
+    vendorRateCross: overrides?.vendorRateCross ?? defaults.vendorRateCross,
     vatRate: overrides?.vatRate ?? defaults.vatRate,
     minWithdrawalAmount: overrides?.minWithdrawalAmount ?? defaults.minWithdrawalAmount,
     returnWindowDays: overrides?.returnWindowDays ?? defaults.returnWindowDays,
@@ -342,5 +377,7 @@ export function buildPlatformConfigSeedData(
     showHyperPayGateway: overrides?.showHyperPayGateway ?? defaults.showHyperPayGateway,
     showMyFatoorahGateway:
       overrides?.showMyFatoorahGateway ?? defaults.showMyFatoorahGateway,
+    sessionAccessMinutes: overrides?.sessionAccessMinutes ?? defaults.sessionAccessMinutes,
+    codEnabled: overrides?.codEnabled ?? defaults.codEnabled,
   };
 }

@@ -8,6 +8,7 @@ export class MerchantGateError extends Error {
       | "STORE_NOT_APPROVED"
       | "SETUP_INCOMPLETE"
       | "KYC_INCOMPLETE"
+      | "SETTLEMENT_RISK_REQUIRED"
       | "VENDOR_NOT_FOUND",
     message?: string,
   ) {
@@ -24,6 +25,7 @@ export type MerchantReadinessDto = {
   setupCompletedCount: number;
   setupTotalSteps: number;
   kycApproved: boolean;
+  settlementRiskConsented: boolean;
   canSell: boolean;
   blockers: string[];
 };
@@ -35,6 +37,7 @@ export async function getMerchantReadiness(vendorId: string): Promise<MerchantRe
       storeApprovalStatus: true,
       storeApprovedAt: true,
       storeApprovalNote: true,
+      settlementRiskConsentAt: true,
     },
   });
   if (!vendor) return null;
@@ -47,11 +50,13 @@ export async function getMerchantReadiness(vendorId: string): Promise<MerchantRe
   const setupComplete = Boolean(setup && setup.completedCount >= setup.totalSteps);
   const storeApproved = vendor.storeApprovalStatus === "APPROVED";
   const kycApproved = kyc.approved;
+  const settlementRiskConsented = Boolean(vendor.settlementRiskConsentAt);
 
   const blockers: string[] = [];
   if (!setupComplete) blockers.push("SETUP_INCOMPLETE");
   if (!kycApproved) blockers.push("KYC_INCOMPLETE");
   if (!storeApproved) blockers.push("STORE_NOT_APPROVED");
+  if (!settlementRiskConsented) blockers.push("SETTLEMENT_RISK_REQUIRED");
 
   return {
     storeApprovalStatus: vendor.storeApprovalStatus,
@@ -61,12 +66,13 @@ export async function getMerchantReadiness(vendorId: string): Promise<MerchantRe
     setupCompletedCount: setup?.completedCount ?? 0,
     setupTotalSteps: setup?.totalSteps ?? 3,
     kycApproved,
+    settlementRiskConsented,
     canSell: blockers.length === 0,
     blockers,
   };
 }
 
-/** Gate product create / submit until setup, vendor KYC, and admin store approval are done. */
+/** Gate product create / submit until setup, KYC, store approval, and settlement-risk consent. */
 export async function assertMerchantCanSell(vendorId: string): Promise<void> {
   const readiness = await getMerchantReadiness(vendorId);
   if (!readiness) {
@@ -88,6 +94,12 @@ export async function assertMerchantCanSell(vendorId: string): Promise<void> {
     throw new MerchantGateError(
       "STORE_NOT_APPROVED",
       "Your store must be approved by the platform before you can add products.",
+    );
+  }
+  if (!readiness.settlementRiskConsented) {
+    throw new MerchantGateError(
+      "SETTLEMENT_RISK_REQUIRED",
+      "Accept FX, transfer fee, and customs risk terms in Store settings before adding products.",
     );
   }
 }

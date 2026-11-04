@@ -22,7 +22,8 @@ export class SellerOnboardError extends Error {
       | "SLUG_RESERVED"
       | "ALREADY_VENDOR"
       | "ROLES_MISSING"
-      | "VALIDATION",
+      | "VALIDATION"
+      | "FORBIDDEN",
     message?: string,
   ) {
     super(message ?? code);

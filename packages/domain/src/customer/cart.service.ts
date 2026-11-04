@@ -11,6 +11,8 @@ import {
 export type CustomerCartLineDto = {
   itemId: string;
   productId: string;
+  variantId: string | null;
+  variantTitle: string | null;
   name: string;
   vendorName: string;
   unitPrice: string;
@@ -164,6 +166,18 @@ export async function getCustomerCart(
     where: { cartId: cart.id },
     orderBy: { updatedAt: "desc" },
     include: {
+      variant: {
+        select: {
+          id: true,
+          title: true,
+          isActive: true,
+          offers: {
+            where: { marketId },
+            take: 1,
+            select: { price: true, currency: true },
+          },
+        },
+      },
       product: {
         select: {
           id: true,
@@ -174,7 +188,7 @@ export async function getCustomerCart(
           vendorId: true,
           vendor: { select: { storeName: true } },
           marketOffers: {
-            where: { marketId },
+            where: { marketId, status: "APPROVED" },
             take: 1,
             select: { price: true, currency: true, stockLocation: true },
           },
@@ -198,16 +212,21 @@ export async function getCustomerCart(
     const p = row.product;
     if (!p || p.status !== "PUBLISHED") continue;
     const offer = p.marketOffers[0];
-    const unitPrice = offer?.price ?? p.price;
-    const lineCurrency = offer?.currency ?? p.currency;
+    const variantOffer = row.variant?.isActive ? row.variant.offers[0] : null;
+    const unitPrice = variantOffer?.price ?? offer?.price ?? p.price;
+    const lineCurrency = variantOffer?.currency ?? offer?.currency ?? p.currency;
     currency = lineCurrency || "SAR";
     const unit = Number(unitPrice);
     const line = unit * row.quantity;
     subtotal += line;
+    const displayName =
+      row.variant?.title && row.variant.isActive ? `${p.name} — ${row.variant.title}` : p.name;
     items.push({
       itemId: row.id,
       productId: p.id,
-      name: p.name,
+      variantId: row.variantId,
+      variantTitle: row.variant?.isActive ? row.variant.title : null,
+      name: displayName,
       vendorName: p.vendor.storeName,
       unitPrice: unitPrice.toString(),
       currency: lineCurrency,
@@ -245,22 +264,21 @@ export async function addCartItem(
   quantity: number,
   marketId: string,
   defaultCurrency = "SAR",
+  variantId?: string | null,
 ): Promise<CustomerCartDto> {
   const product = await prisma.product.findFirst({
     where: {
       id: productId,
       status: "PUBLISHED",
       vendor: { storeApprovalStatus: "APPROVED" },
-      OR: [
-        { marketOffers: { some: { marketId } } },
-        { marketId, marketOffers: { none: {} } },
-      ],
+      marketOffers: { some: { marketId, status: "APPROVED" } },
     },
     select: {
       id: true,
       vendorId: true,
+      _count: { select: { variants: { where: { isActive: true } } } },
       marketOffers: {
-        where: { marketId },
+        where: { marketId, status: "APPROVED" },
         take: 1,
         select: { stockLocation: true },
       },
@@ -270,8 +288,33 @@ export async function addCartItem(
     throw new Error("PRODUCT_NOT_FOUND");
   }
 
+  const hasVariants = product._count.variants > 0;
+  let resolvedVariantId: string | null = variantId?.trim() || null;
+  if (hasVariants) {
+    if (!resolvedVariantId) {
+      throw new Error("VARIANT_REQUIRED");
+    }
+    const variant = await prisma.productVariant.findFirst({
+      where: {
+        id: resolvedVariantId,
+        productId,
+        isActive: true,
+        offers: { some: { marketId } },
+      },
+      select: { id: true },
+    });
+    if (!variant) {
+      throw new Error("VARIANT_NOT_FOUND");
+    }
+  } else {
+    resolvedVariantId = null;
+  }
+
   const cart = await ensureCart(userId, marketId);
-  const cartItemWhere = { cartId_productId: { cartId: cart.id, productId } };
+  const variantKey = resolvedVariantId ?? "";
+  const cartItemWhere = {
+    cartId_productId_variantKey: { cartId: cart.id, productId, variantKey },
+  };
 
   await raceSafeUpsert({
     upsert: () =>
@@ -280,6 +323,8 @@ export async function addCartItem(
         create: {
           cartId: cart.id,
           productId,
+          variantId: resolvedVariantId,
+          variantKey,
           quantity,
         },
         update: {
@@ -290,12 +335,12 @@ export async function addCartItem(
   });
 
   const merged = await prisma.cartItem.findUnique({
-    where: { cartId_productId: { cartId: cart.id, productId } },
+    where: cartItemWhere,
     select: { quantity: true },
   });
   if (merged && merged.quantity > 99) {
     await prisma.cartItem.update({
-      where: { cartId_productId: { cartId: cart.id, productId } },
+      where: cartItemWhere,
       data: { quantity: 99 },
     });
   }

@@ -15,6 +15,7 @@ export type VendorNavItemId =
   | "orders"
   | "coupons"
   | "payout"
+  | "payoutInvoices"
   | "operations"
   | "kyc"
   | "store"
@@ -37,6 +38,7 @@ export const VENDOR_NAV_ITEMS: ReadonlyArray<{
   { id: "orders", href: "/vendor/orders", permission: "vendor:orders:read" },
   { id: "coupons", href: "/vendor/coupons", permission: "vendor:coupons:read" },
   { id: "payout", href: "/vendor/payout", permission: "vendor:wallet:read" },
+  { id: "payoutInvoices", href: "/vendor/payout/invoices", permission: "vendor:wallet:read" },
   { id: "operations", href: "/vendor/operations", permission: "vendor:wallet:read" },
   { id: "kyc", href: "/vendor/kyc", permission: "vendor:wallet:read" },
   { id: "store", href: "/vendor/store", permission: "vendor:store:read" },

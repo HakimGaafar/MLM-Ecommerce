@@ -1,11 +1,17 @@
 import type { PaginatedResult, PublicProductListQuery, PublicProductSort } from "@mlm/shared";
 import { buildPaginatedResult, normalizePagination } from "@mlm/shared";
 import { prisma, Prisma } from "@mlm/db";
-import { resolveCategoryId } from "./product-categories.service";
+import {
+  collectCategoryAndDescendantIds,
+  resolveCategoryId,
+} from "./product-categories.service";
+import { looksLikeProductId } from "./product-slug.service";
 import type { CatalogDeliveryContext } from "./catalog-delivery-context.service";
+import { listPublicProductVariants, type PublicProductVariantDto } from "../vendor/product-variants.service";
 
 export type PublicProductListItemDto = {
   id: string;
+  slug: string;
   name: string;
   price: string;
   currency: string;
@@ -25,10 +31,12 @@ export type PublicProductDetailDto = PublicProductListItemDto & {
   metaTitle: string | null;
   metaDescription: string | null;
   images: { id: string; url: string; isPrimary: boolean }[];
+  variants: PublicProductVariantDto[];
 };
 
 type ProductRow = {
   id: string;
+  slug: string;
   name: string;
   price: Prisma.Decimal;
   currency: string;
@@ -63,6 +71,7 @@ function toListDto(row: ProductRow, locale: "en" | "ar"): PublicProductListItemD
   const offer = row.marketOffers?.[0];
   return {
     id: row.id,
+    slug: row.slug,
     name: row.name,
     price: (offer?.price ?? row.price).toString(),
     currency: offer?.currency ?? row.currency,
@@ -78,6 +87,7 @@ function toListDto(row: ProductRow, locale: "en" | "ar"): PublicProductListItemD
 function productSelectForMarket(marketId?: string) {
   return {
     id: true,
+    slug: true,
     name: true,
     price: true,
     currency: true,
@@ -94,7 +104,7 @@ function productSelectForMarket(marketId?: string) {
       select: { id: true, url: true, isPrimary: true },
     },
     marketOffers: {
-      where: marketId ? { marketId } : undefined,
+      where: marketId ? { marketId, status: "APPROVED" as const } : undefined,
       take: 1,
       select: { price: true, currency: true },
     },
@@ -107,19 +117,13 @@ export function publishedInMarketWhere(marketId: string, _delivery?: CatalogDeli
     AND: [
       { vendor: { storeApprovalStatus: "APPROVED" as const } },
       {
-        OR: [
-          {
-            marketOffers: {
-              some: { marketId, stockLocation: "FOURCES_WAREHOUSE" as const },
-            },
+        // Phase 5: sell-market must have an APPROVED offer (no legacy home-only fallback).
+        marketOffers: {
+          some: {
+            marketId,
+            status: "APPROVED" as const,
           },
-          {
-            marketOffers: {
-              some: { marketId, stockLocation: "MERCHANT" as const },
-            },
-          },
-          { marketId, marketOffers: { none: {} } },
-        ],
+        },
       },
     ],
   };
@@ -174,33 +178,27 @@ export async function searchPublicProducts(
     return buildPaginatedResult([], 0, page, pageSize);
   }
 
+  const categoryIds = categoryId
+    ? await collectCategoryAndDescendantIds(categoryId, params.marketId)
+    : null;
+
   const where = {
     ...publishedInMarketWhere(params.marketId, params.delivery),
-    ...(categoryId ? { categoryId } : {}),
+    ...(categoryIds ? { categoryId: { in: categoryIds } } : {}),
     ...(params.vendorId ? { vendorId: params.vendorId } : {}),
     ...(params.q ? { name: { contains: params.q, mode: "insensitive" as const } } : {}),
     ...(params.minPrice !== undefined || params.maxPrice !== undefined
       ? {
-          OR: [
-            {
-              marketOffers: {
-                some: {
-                  marketId: params.marketId,
-                  price: {
-                    ...(params.minPrice !== undefined ? { gte: params.minPrice } : {}),
-                    ...(params.maxPrice !== undefined ? { lte: params.maxPrice } : {}),
-                  },
-                },
-              },
-            },
-            {
-              marketOffers: { none: {} },
+          marketOffers: {
+            some: {
+              marketId: params.marketId,
+              status: "APPROVED" as const,
               price: {
                 ...(params.minPrice !== undefined ? { gte: params.minPrice } : {}),
                 ...(params.maxPrice !== undefined ? { lte: params.maxPrice } : {}),
               },
             },
-          ],
+          },
         }
       : {}),
   };
@@ -241,15 +239,18 @@ export async function listPublicProducts(params: {
   return result.items ?? [];
 }
 
+/** Resolve by product id or public slug (market-scoped when marketId is set). */
 export async function getPublicProductById(
-  productId: string,
+  idOrSlug: string,
   locale: "en" | "ar" = "en",
   marketId?: string,
   delivery?: CatalogDeliveryContext | null,
 ): Promise<PublicProductDetailDto | null> {
+  const key = idOrSlug.trim();
+  const byId = looksLikeProductId(key);
   const row = await prisma.product.findFirst({
     where: {
-      id: productId,
+      ...(byId ? { id: key } : marketId ? { slug: key, marketId } : { slug: key }),
       ...(marketId
         ? publishedInMarketWhere(marketId, delivery)
         : { status: "PUBLISHED", vendor: { storeApprovalStatus: "APPROVED" } }),
@@ -265,6 +266,7 @@ export async function getPublicProductById(
     row.descriptionEn?.trim() ||
     row.descriptionAr?.trim() ||
     null;
+  const variants = marketId ? await listPublicProductVariants(row.id, marketId) : [];
   return {
     ...toListDto(row, locale),
     updatedAt: row.updatedAt.toISOString(),
@@ -274,5 +276,6 @@ export async function getPublicProductById(
     metaTitle: row.metaTitle,
     metaDescription: row.metaDescription,
     images: row.images,
+    variants,
   };
 }

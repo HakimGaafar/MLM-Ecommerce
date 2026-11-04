@@ -29,6 +29,8 @@ export type CouponCheckoutResult = {
   discountType: CouponDiscountType;
   discountValue: string;
   discountTotal: Prisma.Decimal;
+  /** Phase 7 — platform-funded code (no vendor application row). */
+  isPlatform?: boolean;
 };
 
 export type CouponsCheckoutResolution = {
@@ -106,13 +108,26 @@ function toCouponCheckoutResult(coupon: CouponRow, discountTotal: Prisma.Decimal
   };
 }
 
+function computePlatformDiscount(
+  coupon: { discountType: string; discountValue: Prisma.Decimal },
+  lines: CartLineForCoupon[],
+): Prisma.Decimal {
+  const subtotal = lines.reduce((sum, l) => sum.add(l.lineTotal), new Prisma.Decimal(0));
+  if (coupon.discountType === "PERCENT") {
+    const rate = Number(coupon.discountValue) / 100;
+    return roundDecimal2(subtotal.mul(rate));
+  }
+  return roundDecimal2(Prisma.Decimal.min(coupon.discountValue, subtotal));
+}
+
 /**
- * Resolve a coupon code against cart lines. Applies to every matching vendor in the cart.
+ * Resolve a coupon code against cart lines. Vendor codes first; else platform coupon for market.
  */
 export async function resolveCouponsForCheckout(
   couponCode: string,
   lines: CartLineForCoupon[],
   db: DbClient = prisma,
+  marketId?: string,
 ): Promise<CouponsCheckoutResolution> {
   const code = normalizeCouponCode(couponCode);
   if (code.length < 3) {
@@ -136,45 +151,92 @@ export async function resolveCouponsForCheckout(
     include: { vendor: { select: { storeName: true } } },
   });
 
-  if (coupons.length === 0) {
+  if (coupons.length > 0) {
+    const applications: CouponCheckoutResult[] = [];
+
+    for (const coupon of coupons) {
+      if (coupon.currency !== currency) {
+        throw new CouponCheckoutError(
+          "COUPON_CURRENCY_MISMATCH",
+          `Coupon for ${coupon.vendor.storeName} does not match the cart currency.`,
+        );
+      }
+      if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) {
+        throw new CouponCheckoutError(
+          "COUPON_USAGE_EXCEEDED",
+          `Coupon for ${coupon.vendor.storeName} has reached its usage limit.`,
+        );
+      }
+
+      const discountTotal = computeDiscountForCoupon(coupon, lines);
+      if (discountTotal.lte(0)) continue;
+
+      applications.push(toCouponCheckoutResult(coupon, discountTotal));
+    }
+
+    if (applications.length === 0) {
+      throw new CouponCheckoutError(
+        "COUPON_VENDOR_MISMATCH",
+        "Coupon does not apply to items in your cart.",
+      );
+    }
+
+    const discountTotal = applications.reduce(
+      (sum, app) => sum.add(app.discountTotal),
+      new Prisma.Decimal(0),
+    );
+
+    return {
+      code,
+      applications,
+      discountTotal: roundDecimal2(discountTotal),
+    };
+  }
+
+  if (!marketId) {
     throw new CouponCheckoutError("INVALID_COUPON", "Coupon code is not valid for this cart.");
   }
 
-  const applications: CouponCheckoutResult[] = [];
-
-  for (const coupon of coupons) {
-    if (coupon.currency !== currency) {
-      throw new CouponCheckoutError(
-        "COUPON_CURRENCY_MISMATCH",
-        `Coupon for ${coupon.vendor.storeName} does not match the cart currency.`,
-      );
-    }
-    if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) {
-      throw new CouponCheckoutError(
-        "COUPON_USAGE_EXCEEDED",
-        `Coupon for ${coupon.vendor.storeName} has reached its usage limit.`,
-      );
-    }
-
-    const discountTotal = computeDiscountForCoupon(coupon, lines);
-    if (discountTotal.lte(0)) continue;
-
-    applications.push(toCouponCheckoutResult(coupon, discountTotal));
+  const platform = await db.platformCoupon.findFirst({
+    where: {
+      marketId,
+      code,
+      ...activeCouponDateFilter(now),
+    },
+  });
+  if (!platform) {
+    throw new CouponCheckoutError("INVALID_COUPON", "Coupon code is not valid for this cart.");
+  }
+  if (platform.currency !== currency) {
+    throw new CouponCheckoutError(
+      "COUPON_CURRENCY_MISMATCH",
+      "Platform coupon currency does not match the cart.",
+    );
+  }
+  if (platform.usageLimit != null && platform.usedCount >= platform.usageLimit) {
+    throw new CouponCheckoutError("COUPON_USAGE_EXCEEDED", "Platform coupon has reached its usage limit.");
   }
 
-  if (applications.length === 0) {
+  const discountTotal = computePlatformDiscount(platform, lines);
+  if (discountTotal.lte(0)) {
     throw new CouponCheckoutError("COUPON_VENDOR_MISMATCH", "Coupon does not apply to items in your cart.");
   }
 
-  const discountTotal = applications.reduce(
-    (sum, app) => sum.add(app.discountTotal),
-    new Prisma.Decimal(0),
-  );
-
   return {
     code,
-    applications,
-    discountTotal: roundDecimal2(discountTotal),
+    applications: [
+      {
+        couponId: platform.id,
+        couponCode: platform.code,
+        vendorId: "",
+        vendorName: "Platform",
+        discountType: platform.discountType as CouponDiscountType,
+        discountValue: platform.discountValue.toString(),
+        discountTotal,
+        isPlatform: true,
+      },
+    ],
+    discountTotal,
   };
 }
 
@@ -192,7 +254,26 @@ export async function resolveCouponForCheckout(
 export async function incrementCouponUsedCount(
   couponId: string,
   db: DbClient,
+  isPlatform = false,
 ): Promise<void> {
+  if (isPlatform) {
+    const row = await db.platformCoupon.findUnique({
+      where: { id: couponId },
+      select: { usageLimit: true, usedCount: true },
+    });
+    if (!row) {
+      throw new CouponCheckoutError("INVALID_COUPON", "Coupon no longer exists.");
+    }
+    if (row.usageLimit != null && row.usedCount >= row.usageLimit) {
+      throw new CouponCheckoutError("COUPON_USAGE_EXCEEDED", "This coupon has reached its usage limit.");
+    }
+    await db.platformCoupon.update({
+      where: { id: couponId },
+      data: { usedCount: { increment: 1 } },
+    });
+    return;
+  }
+
   const row = await db.coupon.findUnique({
     where: { id: couponId },
     select: { usageLimit: true, usedCount: true },
@@ -210,10 +291,10 @@ export async function incrementCouponUsedCount(
 }
 
 export async function incrementCouponUsedCounts(
-  couponIds: string[],
+  apps: { couponId: string; isPlatform?: boolean }[],
   db: DbClient,
 ): Promise<void> {
-  for (const couponId of couponIds) {
-    await incrementCouponUsedCount(couponId, db);
+  for (const app of apps) {
+    await incrementCouponUsedCount(app.couponId, db, app.isPlatform === true);
   }
 }

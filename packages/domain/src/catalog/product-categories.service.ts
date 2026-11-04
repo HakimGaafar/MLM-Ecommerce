@@ -4,9 +4,11 @@ export type PublicCategoryDto = {
   id: string;
   slug: string;
   name: string;
+  parentId: string | null;
   productCount: number;
   /** Primary image from a recent published product in this category, if any. */
   coverImageUrl: string | null;
+  children?: PublicCategoryDto[];
 };
 
 export async function listPublicCategories(
@@ -19,6 +21,7 @@ export async function listPublicCategories(
     select: {
       id: true,
       slug: true,
+      parentId: true,
       nameEn: true,
       nameAr: true,
       _count: {
@@ -52,13 +55,63 @@ export async function listPublicCategories(
     coverById = new Map(covers.map((c) => [c.category_id, c.url]));
   }
 
-  return rows.map((row) => ({
+  const flat: PublicCategoryDto[] = rows.map((row) => ({
     id: row.id,
     slug: row.slug,
+    parentId: row.parentId,
     name: locale === "ar" ? row.nameAr : row.nameEn,
     productCount: row._count.products,
     coverImageUrl: coverById.get(row.id) ?? null,
   }));
+
+  // Flat list keeps existing catalog/vendor filters working; parentId enables trees in UI.
+  return flat;
+}
+
+/** Nested tree for nav (roots only; children attached). */
+export function buildCategoryTree(flat: PublicCategoryDto[]): PublicCategoryDto[] {
+  const byId = new Map<string, PublicCategoryDto>();
+  for (const row of flat) {
+    byId.set(row.id, { ...row, children: [] });
+  }
+  const roots: PublicCategoryDto[] = [];
+  for (const row of byId.values()) {
+    if (row.parentId && byId.has(row.parentId)) {
+      byId.get(row.parentId)!.children!.push(row);
+    } else {
+      roots.push(row);
+    }
+  }
+  return roots;
+}
+
+/** Self + all descendants (BFS). */
+export async function collectCategoryAndDescendantIds(
+  categoryId: string,
+  marketId: string,
+): Promise<string[]> {
+  const rows = await prisma.productCategory.findMany({
+    where: { marketId, isActive: true },
+    select: { id: true, parentId: true },
+  });
+  const childrenOf = new Map<string, string[]>();
+  for (const row of rows) {
+    if (!row.parentId) continue;
+    const list = childrenOf.get(row.parentId) ?? [];
+    list.push(row.id);
+    childrenOf.set(row.parentId, list);
+  }
+  const out: string[] = [];
+  const queue = [categoryId];
+  const seen = new Set<string>();
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    for (const child of childrenOf.get(id) ?? []) queue.push(child);
+  }
+  return out;
 }
 
 export async function resolveCategoryId(params: {

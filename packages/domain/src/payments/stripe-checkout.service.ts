@@ -3,14 +3,20 @@ import type { PlaceOrderInput } from "../customer/checkout.service";
 import {
   CheckoutError,
   createOrderFromCart,
+  formatCheckoutMoneyAmount,
   getCheckoutQuoteForUser,
-  isOnlineCardCheckoutEnabled,
   resolveCheckoutShipping,
 } from "../customer/checkout.service";
 import { isUserEmailVerified } from "../auth/otp-verification.service";
 import { assertShippingCountryMatchesMarket } from "../customer/delivery-market";
 import { Prisma, isPrismaUniqueViolation, prisma } from "@mlm/db";
+import { isStripeExplicitlyEnabled } from "./payment-config";
+import {
+  packCheckoutIntentMetadata,
+  unpackCheckoutIntentMetadata,
+} from "./checkout-intent-metadata";
 import { getStripeClient, stripeAmountForCurrency } from "./stripe-client";
+import { refundStripeOrderAmount, StripeRefundError } from "./stripe-refund.service";
 
 export class StripeCheckoutError extends Error {
   constructor(
@@ -20,7 +26,10 @@ export class StripeCheckoutError extends Error {
       | "FORBIDDEN"
       | "ALREADY_PAID"
       | "NOT_CANCELLABLE"
-      | "SESSION_FAILED",
+      | "SESSION_FAILED"
+      | "AMOUNT_MISMATCH"
+      | "AMOUNT_MISMATCH_REFUNDED"
+      | "AMOUNT_MISMATCH_REFUND_FAILED",
     message?: string,
   ) {
     super(message ?? code);
@@ -33,17 +42,13 @@ export type StripeCheckoutSessionResult = {
   /** null until the order is created (after successful payment). */
   orderId: string | null;
   sessionId: string | null;
-  paidWithoutStripe?: boolean;
+  paidWithoutGateway?: boolean;
 };
 
 function appBaseUrl(baseUrl: string): string {
   const trimmed = baseUrl.replace(/\/$/, "");
   if (!trimmed) throw new StripeCheckoutError("NOT_CONFIGURED", "APP_BASE_URL is not set.");
   return trimmed;
-}
-
-function couponCodesFromInput(input: PlaceOrderInput): string[] {
-  return input.couponCodes ?? (input.couponCode ? [input.couponCode] : []);
 }
 
 /**
@@ -59,14 +64,23 @@ export async function createStripeCheckoutSession(
   input: PlaceOrderInput,
   options: { appBaseUrl: string },
 ): Promise<StripeCheckoutSessionResult> {
-  if (!isOnlineCardCheckoutEnabled()) {
-    throw new StripeCheckoutError("NOT_CONFIGURED", "Stripe is not configured on this server.");
+  if (!isStripeExplicitlyEnabled()) {
+    throw new StripeCheckoutError(
+      "NOT_CONFIGURED",
+      "Stripe is disabled. Set PAYMENT_GATEWAY=stripe and STRIPE_SECRET_KEY to re-enable.",
+    );
   }
 
   if (!(await isUserEmailVerified(buyerUserId))) {
     throw new CheckoutError(
       "EMAIL_VERIFICATION_REQUIRED",
       "Verify your email with the one-time code before placing your first order.",
+    );
+  }
+  if (input.settlementRiskAccepted !== true) {
+    throw new CheckoutError(
+      "SETTLEMENT_RISK_REQUIRED",
+      "Accept FX, transfer fee, and customs risk terms to continue checkout.",
     );
   }
 
@@ -99,7 +113,12 @@ export async function createStripeCheckoutSession(
       method: "ONLINE_CARD",
       status: "PAID",
     });
-    return { checkoutUrl: null, orderId, sessionId: null, paidWithoutStripe: true };
+    return {
+      checkoutUrl: null,
+      orderId,
+      sessionId: null,
+      paidWithoutGateway: true,
+    };
   }
 
   const market = await prisma.market.findUnique({
@@ -119,15 +138,13 @@ export async function createStripeCheckoutSession(
     mode: "payment",
     client_reference_id: buyerUserId,
     customer_email: buyer?.email,
-    metadata: {
-      kind: "deferred_checkout",
+    metadata: packCheckoutIntentMetadata(input, {
       buyerUserId,
       marketId,
-      shippingAddressId: input.shippingAddressId ?? "",
-      couponCodes: couponCodesFromInput(input).join(","),
-      useWalletBalance: input.useWalletBalance ? "1" : "0",
       idempotencyKey,
-    },
+      chargedAmount: formatCheckoutMoneyAmount(remaining.toFixed(2), currencyCode),
+      chargedCurrency: currencyCode.toUpperCase(),
+    }),
     line_items: [
       {
         quantity: 1,
@@ -150,27 +167,6 @@ export async function createStripeCheckoutSession(
   }
 
   return { checkoutUrl: session.url, orderId: null, sessionId: session.id };
-}
-
-function placeOrderInputFromSessionMetadata(metadata: Record<string, string> | null): {
-  buyerUserId: string | null;
-  marketId: string | null;
-  input: PlaceOrderInput;
-} {
-  const md = metadata ?? {};
-  const couponCodes = md.couponCodes
-    ? md.couponCodes.split(",").map((c) => c.trim()).filter(Boolean)
-    : null;
-  return {
-    buyerUserId: md.buyerUserId || null,
-    marketId: md.marketId || null,
-    input: {
-      idempotencyKey: md.idempotencyKey || null,
-      shippingAddressId: md.shippingAddressId || null,
-      couponCodes: couponCodes && couponCodes.length > 0 ? couponCodes : null,
-      useWalletBalance: md.useWalletBalance === "1",
-    },
-  };
 }
 
 /**
@@ -197,7 +193,7 @@ export async function createOrderFromStripeSession(sessionId: string): Promise<{
     return { orderId: existing.id, alreadyPaid: true };
   }
 
-  const { buyerUserId, marketId, input } = placeOrderInputFromSessionMetadata(
+  const { buyerUserId, marketId, input } = unpackCheckoutIntentMetadata(
     (session.metadata as Record<string, string> | null) ?? null,
   );
   const resolvedBuyerId = buyerUserId ?? session.client_reference_id ?? null;
@@ -205,14 +201,30 @@ export async function createOrderFromStripeSession(sessionId: string): Promise<{
     throw new StripeCheckoutError("NOT_FOUND", "Checkout intent missing from Stripe session.");
   }
 
+  const currency = (session.currency ?? "").toUpperCase();
+  if (!currency || session.amount_total == null) {
+    throw new StripeCheckoutError("AMOUNT_MISMATCH", "Stripe session is missing amount or currency.");
+  }
+  const factor = currency === "OMR" || currency === "BHD" || currency === "KWD" || currency === "JOD" ? 1000 : 100;
+  const capturedCardAmount = formatCheckoutMoneyAmount(session.amount_total / factor, currency);
+
   try {
     const orderId = await createOrderFromCart(resolvedBuyerId, marketId, input, {
       method: "ONLINE_CARD",
       status: "PAID",
       stripeCheckoutSessionId: sessionId,
+      capturedCardAmount,
+      capturedCardCurrency: currency,
     });
     return { orderId, alreadyPaid: false };
   } catch (error) {
+    if (error instanceof CheckoutError && error.code === "AMOUNT_MISMATCH") {
+      await refundStripeSessionAfterAmountMismatch({
+        sessionId,
+        capturedCardAmount,
+        currency,
+      });
+    }
     // Concurrent fulfillment (success page + webhook): the unique constraint on
     // stripeCheckoutSessionId (or checkoutIdempotencyKey) aborts the loser.
     if (isPrismaUniqueViolation(error)) {
@@ -226,6 +238,35 @@ export async function createOrderFromStripeSession(sessionId: string): Promise<{
     }
     throw error;
   }
+}
+
+/** Cart mismatch after Stripe pay → auto-refund full captured amount (never creates an order). */
+async function refundStripeSessionAfterAmountMismatch(params: {
+  sessionId: string;
+  capturedCardAmount: string;
+  currency: string;
+}): Promise<never> {
+  try {
+    await refundStripeOrderAmount(params.sessionId, params.capturedCardAmount, params.currency);
+  } catch (e) {
+    const msg = e instanceof StripeRefundError || e instanceof Error ? e.message : "Stripe refund failed.";
+    const already =
+      /already.?refund|charge_already_refunded|has already been refunded/i.test(msg);
+    if (already) {
+      throw new StripeCheckoutError(
+        "AMOUNT_MISMATCH_REFUNDED",
+        "Cart changed after payment. The card charge was refunded.",
+      );
+    }
+    throw new StripeCheckoutError(
+      "AMOUNT_MISMATCH_REFUND_FAILED",
+      `Cart changed after payment and automatic refund failed (${msg}). Contact support with session ${params.sessionId}.`,
+    );
+  }
+  throw new StripeCheckoutError(
+    "AMOUNT_MISMATCH_REFUNDED",
+    "Cart changed after payment. The card charge was refunded.",
+  );
 }
 
 export async function confirmStripeCheckoutForBuyer(

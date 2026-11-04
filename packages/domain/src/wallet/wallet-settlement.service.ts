@@ -1,5 +1,7 @@
 import type { WalletEntryType } from "@mlm/db";
 import { Prisma, prisma } from "@mlm/db";
+import { getLatestFxRate } from "../fx/fx-rate.service";
+import { buildCrossMarketReleaseSnapshot } from "./cross-market-settlement";
 
 export const ADMIN_SETTLEABLE_ENTRY_TYPES: WalletEntryType[] = [
   "AFFILIATE_COMMISSION",
@@ -81,6 +83,43 @@ export async function settlePendingWalletTransaction(params: {
         ? (row.metaJson as Record<string, unknown>)
         : {};
 
+    const walletCurrency = row.wallet.currency;
+    const orderCurrency =
+      typeof priorMeta.orderCurrency === "string"
+        ? priorMeta.orderCurrency
+        : typeof priorMeta.currency === "string"
+          ? priorMeta.currency
+          : null;
+
+    let homeCurrency: string | null = null;
+    const metaVendorId = typeof priorMeta.vendorId === "string" ? priorMeta.vendorId : null;
+    if (row.entryType === "VENDOR_EARNING" && metaVendorId) {
+      const vendor = await tx.vendor.findUnique({
+        where: { id: metaVendorId },
+        select: { primaryMarket: { select: { defaultCurrency: true } } },
+      });
+      homeCurrency = vendor?.primaryMarket.defaultCurrency ?? null;
+    }
+
+    const releaseFrom = orderCurrency ?? walletCurrency;
+    const releaseTo = homeCurrency ?? walletCurrency;
+    const fxRate =
+      releaseFrom !== releaseTo ? await getLatestFxRate(releaseFrom, releaseTo) : 1;
+
+    const crossSnapshot = buildCrossMarketReleaseSnapshot({
+      amountMarket: Number(amount),
+      marketCurrency: walletCurrency,
+      homeCurrency: releaseTo,
+      fxRate,
+    });
+
+    const fxSnapshot: Record<string, unknown> = {
+      walletCurrency,
+      settlementCurrency: walletCurrency,
+      orderCurrency: orderCurrency ?? walletCurrency,
+      ...crossSnapshot,
+    };
+
     await tx.walletTransaction.update({
       where: { id: row.id },
       data: {
@@ -90,6 +129,7 @@ export async function settlePendingWalletTransaction(params: {
           settledAt: new Date().toISOString(),
           settledByUserId: params.settledByUserId,
           settlementMethod: params.method,
+          ...fxSnapshot,
           kind: priorMeta.kind ?? "wallet_settlement",
         },
       },

@@ -17,6 +17,8 @@ export type VendorStoreDto = {
   about: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
+  onboardingStatus: string;
+  settlementRiskConsentAt: string | null;
   publicStoreUrl: string;
   updatedAt: string;
 };
@@ -36,6 +38,8 @@ function toVendorStoreDto(row: {
   about: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
+  onboardingStatus: string;
+  settlementRiskConsentAt: Date | null;
   updatedAt: Date;
 }): VendorStoreDto {
   return {
@@ -53,6 +57,8 @@ function toVendorStoreDto(row: {
     about: row.about,
     metaTitle: row.metaTitle,
     metaDescription: row.metaDescription,
+    onboardingStatus: row.onboardingStatus,
+    settlementRiskConsentAt: row.settlementRiskConsentAt?.toISOString() ?? null,
     publicStoreUrl: `/stores/${row.slug}`,
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -73,6 +79,8 @@ const vendorSelect = {
   about: true,
   metaTitle: true,
   metaDescription: true,
+  onboardingStatus: true,
+  settlementRiskConsentAt: true,
   updatedAt: true,
 } as const;
 

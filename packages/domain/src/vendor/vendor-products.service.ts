@@ -13,13 +13,20 @@ import {
 } from "@mlm/shared";
 import { prisma } from "@mlm/db";
 import { assertActiveCategoryId } from "../catalog/product-categories.service";
+import { allocateProductSlug } from "../catalog/product-slug.service";
 import {
   fulfillmentTypeFromOffers,
   normalizeProductMarketOffers,
   pickHomeOffer,
+  markProductOffersPending,
   replaceProductMarketOffers,
   type ProductMarketOfferDto,
 } from "./product-market-offer.service";
+import {
+  listVendorProductVariants,
+  replaceProductVariants,
+  type VendorProductVariantDto,
+} from "./product-variants.service";
 import { assertMerchantCanSell, MerchantGateError } from "./vendor-merchant-gate.service";
 import {
   assertMerchantDirectShippingReady,
@@ -43,7 +50,8 @@ export class VendorProductError extends Error {
       | "SETUP_INCOMPLETE"
       | "KYC_INCOMPLETE"
       | "WAREHOUSE_ADDRESS_REQUIRED"
-      | "COVERAGE_REQUIRED",
+      | "COVERAGE_REQUIRED"
+      | "SETTLEMENT_RISK_REQUIRED",
     message?: string,
   ) {
     super(message ?? code);
@@ -60,6 +68,7 @@ export type VendorProductImageDto = {
 
 export type VendorProductDto = {
   id: string;
+  slug: string;
   name: string;
   price: string;
   currency: string;
@@ -74,6 +83,7 @@ export type VendorProductDto = {
   metaDescription: string | null;
   images: VendorProductImageDto[];
   offers: ProductMarketOfferDto[];
+  variants: VendorProductVariantDto[];
   createdAt: string;
   updatedAt: string;
   pendingEditRequestId: string | null;
@@ -86,6 +96,7 @@ export type VendorProductDto = {
 
 type ProductRow = {
   id: string;
+  slug: string;
   name: string;
   price: { toString(): string };
   currency: string;
@@ -109,6 +120,10 @@ type ProductRow = {
     warehouseId: string | null;
     fourcesMode?: string | null;
     quantity: number;
+    status: string;
+    rejectionReason: string | null;
+    submittedAt: Date | null;
+    reviewedAt: Date | null;
     market: { code: string };
   }[];
   editRequests: { id: string; status: string; rejectionReason: string | null; createdAt: Date }[];
@@ -127,12 +142,21 @@ function toOffersDto(row: ProductRow): ProductMarketOfferDto[] {
     warehouseId: offer.warehouseId,
     fourcesMode: (offer.fourcesMode as ProductMarketOfferDto["fourcesMode"]) ?? null,
     quantity: offer.quantity,
+    status: offer.status as ProductMarketOfferDto["status"],
+    rejectionReason: offer.rejectionReason,
+    submittedAt: offer.submittedAt?.toISOString() ?? null,
+    reviewedAt: offer.reviewedAt?.toISOString() ?? null,
   }));
 }
 
-function toDto(row: ProductRow, locale: "en" | "ar" = "en"): VendorProductDto {
+function toDto(
+  row: ProductRow,
+  locale: "en" | "ar" = "en",
+  variants: VendorProductVariantDto[] = [],
+): VendorProductDto {
   return {
     id: row.id,
+    slug: row.slug,
     name: row.name,
     price: row.price.toString(),
     currency: row.currency,
@@ -152,6 +176,7 @@ function toDto(row: ProductRow, locale: "en" | "ar" = "en"): VendorProductDto {
       isPrimary: img.isPrimary,
     })),
     offers: toOffersDto(row),
+    variants,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     pendingEditRequestId: row.editRequests.find((r) => r.status === "PENDING")?.id ?? null,
@@ -166,6 +191,11 @@ function toDto(row: ProductRow, locale: "en" | "ar" = "en"): VendorProductDto {
       city: c.city,
     })),
   };
+}
+
+async function toDtoWithVariants(row: ProductRow, locale: "en" | "ar" = "en"): Promise<VendorProductDto> {
+  const variants = await listVendorProductVariants(row.id);
+  return toDto(row, locale, variants);
 }
 
 const productInclude = {
@@ -249,7 +279,7 @@ export async function getVendorProduct(
     where: { id: productId, vendorId },
     include: productInclude,
   });
-  return row ? toDto(row, locale) : null;
+  return row ? toDtoWithVariants(row, locale) : null;
 }
 
 export async function createVendorProduct(
@@ -335,12 +365,19 @@ export async function createVendorProduct(
       serviceCities: input.serviceCities,
     });
 
+    const slug = await allocateProductSlug(
+      vendor.marketId,
+      input.slug?.trim() || input.name,
+      tx,
+    );
+
     const product = await tx.product.create({
       data: {
         marketId: vendor.marketId,
         vendorId,
         categoryId: input.categoryId,
         name: input.name,
+        slug,
         price: home.price,
         currency: home.currency,
         fulfillmentType,
@@ -357,6 +394,7 @@ export async function createVendorProduct(
       include: productInclude,
     });
     await replaceProductMarketOffers(tx, product.id, offers);
+    await replaceProductVariants(tx, product.id, input.variants);
     await replaceProductServiceCities(tx, product.id, serviceArea);
     const primaryIndex = resolvePrimaryImageIndex(input.images);
     await tx.productImage.createMany({
@@ -373,7 +411,7 @@ export async function createVendorProduct(
     });
   });
 
-  return toDto(row, locale);
+  return toDtoWithVariants(row, locale);
 }
 
 export async function updateVendorProduct(
@@ -483,10 +521,23 @@ export async function updateVendorProduct(
       });
     }
 
+    const slugUpdate =
+      input.slug !== undefined
+        ? {
+            slug: await allocateProductSlug(
+              existing.marketId,
+              input.slug || input.name || existing.name,
+              tx,
+              productId,
+            ),
+          }
+        : {};
+
     await tx.product.update({
       where: { id: productId },
       data: {
         ...(input.name !== undefined ? { name: input.name } : {}),
+        ...slugUpdate,
         ...(input.price !== undefined ? { price: input.price } : {}),
         ...(input.currency !== undefined ? { currency: input.currency } : {}),
         ...(input.categoryId !== undefined ? { categoryId: input.categoryId } : {}),
@@ -519,6 +570,9 @@ export async function updateVendorProduct(
         },
       });
     }
+    if (input.variants !== undefined) {
+      await replaceProductVariants(tx, productId, input.variants);
+    }
     if (input.images !== undefined) {
       await tx.productImage.deleteMany({ where: { productId } });
       if (input.images.length > 0) {
@@ -539,7 +593,7 @@ export async function updateVendorProduct(
     });
   });
 
-  return toDto(row, locale);
+  return toDtoWithVariants(row, locale);
 }
 
 export async function submitVendorProductForReview(
@@ -563,16 +617,24 @@ export async function submitVendorProductForReview(
   }
 
   const current = existing.status as ProductStatus;
-  if (current !== "DRAFT" && current !== "ON_HOLD" && current !== "REJECTED") {
+  if (
+    current !== "DRAFT" &&
+    current !== "ON_HOLD" &&
+    current !== "REJECTED" &&
+    current !== "CHANGES_REQUESTED"
+  ) {
     throw new Error("INVALID_STATUS_TRANSITION");
   }
 
-  const row = await prisma.product.update({
-    where: { id: productId },
-    data: { status: "PENDING", isActive: false },
-    include: productInclude,
+  const row = await prisma.$transaction(async (tx) => {
+    await markProductOffersPending(tx, productId);
+    return tx.product.update({
+      where: { id: productId },
+      data: { status: "PENDING", isActive: false },
+      include: productInclude,
+    });
   });
-  return toDto(row, locale);
+  return toDtoWithVariants(row, locale);
 }
 
 export const publishedProductFilter = { status: "PUBLISHED" as const };

@@ -1,11 +1,24 @@
 import type { PlaceOrderInput } from "../customer/checkout.service";
 import {
+  listInstalledPaymentGateways,
+  resolvePaymentGatewayId,
+  type PaymentGatewayId,
+  isTapConfigured,
+} from "./payment-config";
+import {
   confirmStripeCheckoutForBuyer,
   createStripeCheckoutSession,
 } from "./stripe-checkout.service";
-import { refundStripeOrderAmount } from "./stripe-refund.service";
+import { refundStripeOrderAmount, StripeRefundError } from "./stripe-refund.service";
+import {
+  confirmTapCheckoutForBuyer,
+  createTapCheckoutSession,
+  refundTapOrderAmount,
+  TapRefundError,
+} from "./tap-checkout.service";
 
-export type PaymentGatewayId = "stripe" | "hyperpay" | "tap" | "myfatoorah";
+export type { PaymentGatewayId } from "./payment-config";
+export { listInstalledPaymentGateways, resolvePaymentGatewayId } from "./payment-config";
 
 export type PaymentCheckoutResult = {
   checkoutUrl: string | null;
@@ -44,22 +57,62 @@ const stripeGateway: PaymentGateway = {
       checkoutUrl: result.checkoutUrl,
       orderId: result.orderId,
       providerReference: result.sessionId,
-      paidWithoutGateway: result.paidWithoutStripe,
+      paidWithoutGateway: result.paidWithoutGateway,
     };
   },
   confirmCheckoutForBuyer: confirmStripeCheckoutForBuyer,
   refundOrderAmount: refundStripeOrderAmount,
 };
 
+const tapGateway: PaymentGateway = {
+  id: "tap",
+  isConfigured: () => isTapConfigured(),
+  async createCheckout(buyerUserId, marketId, input, options) {
+    const result = await createTapCheckoutSession(buyerUserId, marketId, input, options);
+    return {
+      checkoutUrl: result.checkoutUrl,
+      orderId: result.orderId,
+      providerReference: result.providerReference,
+      paidWithoutGateway: result.paidWithoutGateway,
+    };
+  },
+  confirmCheckoutForBuyer: confirmTapCheckoutForBuyer,
+  refundOrderAmount: refundTapOrderAmount,
+};
+
 /**
- * Provider registry. Stripe is installed now; the other IDs reserve stable
- * configuration values for future adapters without changing checkout callers.
+ * Active PSP. Default is Tap. Stripe remains available when
+ * PAYMENT_GATEWAY=stripe is set explicitly.
  */
 export function getPaymentGateway(
-  requested = process.env.PAYMENT_GATEWAY?.trim().toLowerCase() || "stripe",
+  requested = process.env.PAYMENT_GATEWAY?.trim().toLowerCase() || "tap",
 ): PaymentGateway {
-  if (requested === "stripe") return stripeGateway;
+  const id = resolvePaymentGatewayId(requested);
+  if (id === "tap") return tapGateway;
+  if (id === "stripe") return stripeGateway;
   throw new Error(
-    `Payment gateway "${requested}" is not installed. Available gateway: stripe.`,
+    `Payment gateway "${requested}" is not installed. Available: ${listInstalledPaymentGateways().join(", ")}.`,
   );
 }
+
+/**
+ * Refund against the PSP that originally charged the order (not the current env default).
+ */
+export async function refundOrderCardPayment(params: {
+  tapChargeId?: string | null;
+  stripeCheckoutSessionId?: string | null;
+  amount: string;
+}): Promise<string> {
+  if (params.tapChargeId) {
+    return refundTapOrderAmount(params.tapChargeId, params.amount);
+  }
+  if (params.stripeCheckoutSessionId) {
+    return refundStripeOrderAmount(params.stripeCheckoutSessionId, params.amount);
+  }
+  throw new StripeRefundError(
+    "NO_SESSION",
+    "Card refund required but no card checkout reference is linked to this order.",
+  );
+}
+
+export { StripeRefundError, TapRefundError };

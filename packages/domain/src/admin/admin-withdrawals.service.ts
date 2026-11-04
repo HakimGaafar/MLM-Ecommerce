@@ -17,6 +17,8 @@ export type AdminWithdrawalDto = {
   createdAt: string;
   paidAt: string | null;
   bankReference: string | null;
+  /** Paid vendor withdrawals only — null when N/A (affiliate or not paid). */
+  payoutInvoiceStatus: "PENDING_REVIEW" | "ACCEPTED" | "NEEDS_FIX" | "MISSING" | null;
 };
 
 export class AdminWithdrawalError extends Error {
@@ -40,10 +42,16 @@ function mapRow(tx: {
   createdAt: Date;
   metaJson: unknown;
   wallet: { currency: string; user: { name: string; email: string } };
+  vendorPayoutInvoice?: { status: "PENDING_REVIEW" | "ACCEPTED" | "NEEDS_FIX" } | null;
 }): AdminWithdrawalDto {
   const meta = tx.metaJson as Record<string, unknown> | null;
   const paidAt = typeof meta?.paidAt === "string" ? meta.paidAt : null;
   const bankReference = typeof meta?.bankReference === "string" ? meta.bankReference : null;
+  const isVendorPaid = Boolean(paidAt) && tx.referenceType !== "affiliate_withdrawal";
+  let payoutInvoiceStatus: AdminWithdrawalDto["payoutInvoiceStatus"] = null;
+  if (isVendorPaid) {
+    payoutInvoiceStatus = tx.vendorPayoutInvoice?.status ?? "MISSING";
+  }
   return {
     id: tx.id,
     userId: tx.userId,
@@ -58,6 +66,7 @@ function mapRow(tx: {
     createdAt: tx.createdAt.toISOString(),
     paidAt,
     bankReference,
+    payoutInvoiceStatus,
   };
 }
 
@@ -90,6 +99,7 @@ export async function listAdminWithdrawals(params: {
       skip,
       take,
       include: {
+        vendorPayoutInvoice: { select: { status: true } },
         wallet: {
           include: {
             user: { select: { name: true, email: true } },
@@ -201,10 +211,6 @@ export async function markAdminWithdrawalPaid(
   if (tx.status !== "APPROVED" && tx.status !== "PENDING") {
     throw new AdminWithdrawalError("INVALID_ACTION", "Withdrawal must be approved or pending.");
   }
-  if (tx.referenceType !== "affiliate_withdrawal") {
-    throw new AdminWithdrawalError("INVALID_ACTION", "Not an affiliate withdrawal.");
-  }
-
   const amount = tx.amount;
   const paidAt = new Date().toISOString();
   const trimmedReference = bankReference?.trim() ?? "";

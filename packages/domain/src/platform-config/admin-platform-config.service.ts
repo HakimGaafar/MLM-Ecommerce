@@ -52,6 +52,16 @@ function diffConfig(
     ["affiliatePoolRate", before.affiliatePoolRate, percentToRate(input.affiliatePoolPercent)],
     ["vendorRate", before.vendorRate, percentToRate(input.vendorPercent)],
     ["platformRate", before.platformRate, percentToRate(input.platformPercent)],
+    [
+      "platformRateCross",
+      before.platformRateCross,
+      percentToRate(input.platformPercentCross ?? before.platformRateCross * 100),
+    ],
+    [
+      "vendorRateCross",
+      before.vendorRateCross,
+      percentToRate(input.vendorPercentCross ?? before.vendorRateCross * 100),
+    ],
     ["vatRate", before.vatRate, percentToRate(input.vatPercent)],
     ["minWithdrawalAmount", before.minWithdrawalAmount, Math.round(input.minWithdrawalAmount * 100) / 100],
     ["returnWindowDays", before.returnWindowDays, input.returnWindowDays],
@@ -61,6 +71,8 @@ function diffConfig(
     ["showTapGateway", before.showTapGateway, input.showTapGateway],
     ["showHyperPayGateway", before.showHyperPayGateway, input.showHyperPayGateway],
     ["showMyFatoorahGateway", before.showMyFatoorahGateway, input.showMyFatoorahGateway],
+    ["sessionAccessMinutes", before.sessionAccessMinutes, input.sessionAccessMinutes ?? before.sessionAccessMinutes],
+    ["codEnabled", before.codEnabled, input.codEnabled ?? before.codEnabled],
     ["footerTaglineEn", before.footerTaglineEn, normalizeOptionalText(input.footerTaglineEn)],
     ["footerTaglineAr", before.footerTaglineAr, normalizeOptionalText(input.footerTaglineAr)],
     ["contactLocationEn", before.contactLocationEn, normalizeOptionalText(input.contactLocationEn)],
@@ -181,6 +193,12 @@ export async function updateAdminPlatformConfig(params: {
     affiliateLevel4Rate: new Prisma.Decimal(percentToRate(params.input.affiliateLevel4Percent)),
     vendorRate: new Prisma.Decimal(percentToRate(params.input.vendorPercent)),
     platformRate: new Prisma.Decimal(percentToRate(params.input.platformPercent)),
+    platformRateCross: new Prisma.Decimal(
+      percentToRate(params.input.platformPercentCross ?? before.platformRateCross * 100),
+    ),
+    vendorRateCross: new Prisma.Decimal(
+      percentToRate(params.input.vendorPercentCross ?? before.vendorRateCross * 100),
+    ),
     vatRate: new Prisma.Decimal(percentToRate(params.input.vatPercent)),
     minWithdrawalAmount: new Prisma.Decimal(
       Math.round(params.input.minWithdrawalAmount * 100) / 100,
@@ -204,6 +222,8 @@ export async function updateAdminPlatformConfig(params: {
     showTapGateway: params.input.showTapGateway,
     showHyperPayGateway: params.input.showHyperPayGateway,
     showMyFatoorahGateway: params.input.showMyFatoorahGateway,
+    sessionAccessMinutes: params.input.sessionAccessMinutes ?? before.sessionAccessMinutes,
+    codEnabled: params.input.codEnabled ?? before.codEnabled,
     updatedByUserId: params.actorUserId,
   };
 

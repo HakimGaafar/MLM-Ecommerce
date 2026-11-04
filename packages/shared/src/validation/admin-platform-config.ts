@@ -24,6 +24,8 @@ export const AdminPlatformConfigUpdateSchema = z
     affiliateLevel4Percent: percent,
     vendorPercent: percent,
     platformPercent: percent,
+    vendorPercentCross: percent.optional(),
+    platformPercentCross: percent.optional(),
     vatPercent: percent,
     minWithdrawalAmount: z.coerce.number().min(1).max(1_000_000),
     returnWindowDays: z.coerce.number().int().min(1).max(365),
@@ -45,6 +47,8 @@ export const AdminPlatformConfigUpdateSchema = z
     showTapGateway: z.boolean(),
     showHyperPayGateway: z.boolean(),
     showMyFatoorahGateway: z.boolean(),
+    sessionAccessMinutes: z.coerce.number().int().min(5).max(60 * 24 * 365).optional(),
+    codEnabled: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     const splitSum = data.vendorPercent + data.platformPercent;
@@ -53,6 +57,17 @@ export const AdminPlatformConfigUpdateSchema = z
         code: "custom",
         message: "Vendor and platform commission must total 100%.",
         path: ["platformPercent"],
+      });
+    }
+    if (
+      data.vendorPercentCross != null &&
+      data.platformPercentCross != null &&
+      Math.abs(data.vendorPercentCross + data.platformPercentCross - 100) > 0.01
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Cross-market vendor and platform commission must total 100%.",
+        path: ["platformPercentCross"],
       });
     }
   });
@@ -89,6 +104,8 @@ export const AdminProductCategoryUpsertSchema = z.object({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must use lowercase letters, numbers, and hyphens"),
   nameEn: z.string().trim().min(2).max(120),
   nameAr: z.string().trim().min(2).max(120),
+  /** Null/omit = top-level category. */
+  parentId: z.string().trim().min(1).nullable().optional(),
   sortOrder: z.coerce.number().int().min(0).max(999).optional(),
   isActive: z.boolean().optional(),
 });

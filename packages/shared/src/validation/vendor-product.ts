@@ -4,7 +4,18 @@ import { PRODUCT_STATUSES } from "../product-status";
 import { VendorProductImagesSchema } from "./catalog";
 import { PaginationQuerySchema } from "./pagination";
 import { ProductMarketOffersSchema } from "./product-market-offer";
+import { ProductVariantsSchema } from "./product-variant";
 import { SeoMetaDescriptionSchema, SeoMetaTitleSchema } from "./seo";
+
+const ProductSlugSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(2)
+  .max(80)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must use lowercase letters, numbers, and hyphens")
+  .optional();
+
 
 const ProductFulfillmentTypeSchema = z.enum(PRODUCT_FULFILLMENT_TYPES);
 
@@ -26,12 +37,15 @@ const ProductDescriptionSchema = z.string().trim().max(10_000).optional().nullab
 export const VendorProductCreateSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
+    slug: ProductSlugSchema,
     /** Legacy single price — optional when `offers` is provided. */
     price: z.coerce.number().positive().max(1_000_000).optional(),
     currency: z.string().trim().length(3).toUpperCase().optional(),
     categoryId: z.string().trim().min(1),
     fulfillmentType: ProductFulfillmentTypeSchema.optional(),
     offers: ProductMarketOffersSchema.optional(),
+    /** Vendor-defined SKU / option rows. Empty/omit = simple product (qty on market offer). */
+    variants: ProductVariantsSchema.optional(),
     serviceAreaMode: ProductServiceAreaModeSchema.default("ALL"),
     serviceCities: ProductServiceCitiesSchema,
     descriptionEn: ProductDescriptionSchema,
@@ -60,11 +74,13 @@ export const VendorProductCreateSchema = z
 export const VendorProductUpdateSchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
+    slug: ProductSlugSchema,
     price: z.coerce.number().positive().max(1_000_000).optional(),
     currency: z.string().trim().length(3).toUpperCase().optional(),
     categoryId: z.string().trim().min(1).optional(),
     fulfillmentType: ProductFulfillmentTypeSchema.optional(),
     offers: ProductMarketOffersSchema.optional(),
+    variants: ProductVariantsSchema.optional(),
     serviceAreaMode: ProductServiceAreaModeSchema.optional(),
     serviceCities: ProductServiceCitiesSchema.optional(),
     descriptionEn: ProductDescriptionSchema,

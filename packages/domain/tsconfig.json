@@ -9,7 +9,6 @@
     "noEmit": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
-    "baseUrl": ".",
     "paths": {
       "@mlm/db": ["../db/src/index.ts"],
       "@mlm/shared": ["../shared/src/index.ts"]

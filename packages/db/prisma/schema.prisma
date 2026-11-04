@@ -31,6 +31,10 @@ enum WalletEntryType {
   WITHDRAWAL
   ORDER_PAYMENT
   ADJUSTMENT
+  /// COD: platform commission owed by vendor who collected cash (Phase 4).
+  COMMISSION_DEBT
+  /// Clearing / repayment of COMMISSION_DEBT (Phase 4).
+  COMMISSION_DEBT_CLEAR
 }
 
 enum OrderStatus {
@@ -47,11 +51,33 @@ enum ProductStatus {
   PUBLISHED
   ON_HOLD
   REJECTED
+  CHANGES_REQUESTED
 }
 
 enum ProductReviewAction {
   APPROVED
   REJECTED
+  REQUESTED_CHANGES
+}
+
+enum VendorOnboardingStatus {
+  UNDER_REGISTRATION
+  UNDER_REVIEW
+  ACTIVE
+}
+
+enum VendorOnboardingFieldDecision {
+  PENDING
+  ACCEPTED
+  NEEDS_FIX
+}
+
+enum VendorEntityType {
+  INDIVIDUAL
+  COMPANY
+  ESTABLISHMENT
+  FREELANCE
+  OTHER
 }
 
 enum ProductReviewTarget {
@@ -60,6 +86,14 @@ enum ProductReviewTarget {
 }
 
 enum ProductEditRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Phase 5 — per sell-market listing go-live (independent of Product.status).
+enum ProductMarketOfferStatus {
+  DRAFT
   PENDING
   APPROVED
   REJECTED
@@ -178,6 +212,7 @@ enum OrderVendorCancellationStatus {
 enum InvoiceDocumentType {
   VENDOR_SALE
   COMMISSION
+  SHIPPING
 }
 
 enum VendorShippingMode {
@@ -293,6 +328,19 @@ enum OrderReturnReason {
   COUNTERFEIT
   DEFECTIVE
   USED
+  DAMAGED_IN_TRANSIT
+}
+
+enum ReturnGoodsDisposition {
+  HOLD_AT_HUB
+  RETURN_TO_VENDOR
+  DISPOSE
+}
+
+enum VendorPayoutInvoiceStatus {
+  PENDING_REVIEW
+  ACCEPTED
+  NEEDS_FIX
 }
 
 enum OrderReturnStatus {
@@ -321,6 +369,8 @@ model User {
   emailVerifiedAt  DateTime?           @map("email_verified_at")
   lastLoginAt      DateTime?           @map("last_login_at")
   status           UserStatus          @default(ACTIVE)
+  /// Bumped to revoke all access/refresh JWTs (demote, password reset, logout).
+  tokenVersion     Int                 @default(0) @map("token_version")
   createdAt        DateTime            @default(now()) @map("created_at")
   updatedAt        DateTime            @updatedAt @map("updated_at")
   userRoles        UserRole[]
@@ -331,10 +381,14 @@ model User {
   ownedVendors     Vendor[]            @relation("VendorOwner")
   carts            Cart[]
   orderReturns     OrderReturn[]
+  returnHubInspections OrderReturn[] @relation("ReturnHubInspector")
+  vendorPayoutInvoicesUploaded VendorPayoutInvoice[] @relation("PayoutInvoiceUploader")
+  vendorPayoutInvoicesReviewed VendorPayoutInvoice[] @relation("PayoutInvoiceReviewer")
   shippingAddresses CustomerShippingAddress[]
   orderItemRatings OrderItemRating[]
   productReviews   ProductReview[]     @relation("ProductReviewedBy")
   productEditRequestsReviewed ProductEditRequest[] @relation("ProductEditRequestReviewedBy")
+  productMarketOffersReviewed ProductMarketOffer[] @relation("ProductMarketOfferReviewedBy")
   productQuestions ProductQuestion[]   @relation("ProductQuestionAsker")
   vendorMemberships  VendorMember[]      @relation("VendorMemberUser")
   vendorInvitesSent  VendorMember[]      @relation("VendorMemberInvitedBy")
@@ -351,6 +405,7 @@ model User {
   passwordResetTokens              PasswordResetToken[]
   passwordResetAudits              PasswordResetAuditLog[]
   otpChallenges                    OtpChallenge[]
+  wishlistItems                    WishlistItem[]
 
   @@index([lastLoginAt])
   @@map("users")
@@ -378,10 +433,21 @@ model Order {
   paymentStatus            PaymentStatus   @default(PAID) @map("payment_status")
   checkoutIdempotencyKey   String?         @map("checkout_idempotency_key")
   stripeCheckoutSessionId String?        @unique @map("stripe_checkout_session_id") @db.VarChar(255)
+  tapChargeId             String?        @unique @map("tap_charge_id") @db.VarChar(255)
   couponId                 String?         @map("coupon_id")
   couponCodeSnapshot       String?         @map("coupon_code_snapshot") @db.VarChar(32)
   deliveredAt              DateTime?       @map("delivered_at")
   finalInvoiceAllowed      Boolean         @default(false) @map("final_invoice_allowed")
+  /// Phase 6 — B2B checkout capture (does not change tax).
+  buyingForCompany         Boolean         @default(false) @map("buying_for_company")
+  companyName              String?         @map("company_name") @db.VarChar(200)
+  companyTaxId             String?         @map("company_tax_id") @db.VarChar(64)
+  companyCrNumber          String?         @map("company_cr_number") @db.VarChar(64)
+  companyHqAddressLine1    String?         @map("company_hq_address_line_1") @db.VarChar(200)
+  companyHqCity            String?         @map("company_hq_city") @db.VarChar(100)
+  companyHqCountryCode     String?         @map("company_hq_country_code") @db.Char(2)
+  /// Customer accepted FX / transfer / customs risk at checkout (cross-market).
+  settlementRiskAcceptedAt DateTime?       @map("settlement_risk_accepted_at")
   createdAt                DateTime        @default(now()) @map("created_at")
   updatedAt                DateTime        @updatedAt @map("updated_at")
   buyer                    User            @relation("CustomerOrders", fields: [buyerUserId], references: [id], onDelete: Cascade)
@@ -406,6 +472,19 @@ model Order {
   @@map("orders")
 }
 
+enum ReturnCostZone {
+  SAME_CITY
+  SAME_COUNTRY
+  CROSS_BORDER
+  UNKNOWN
+}
+
+enum ReturnCostBearer {
+  CUSTOMER
+  VENDOR
+  PLATFORM
+}
+
 model OrderReturn {
   id                 String            @id @default(cuid())
   orderId            String            @map("order_id")
@@ -415,10 +494,26 @@ model OrderReturn {
   details            String            @db.Text
   rejectionReason    String?           @map("rejection_reason") @db.Text
   policyAcceptedAt   DateTime          @map("policy_accepted_at")
+  /// Return cost snapshot at request (round-trip). Final fields set after hub inspect when needed.
+  returnShippingFee  Decimal           @default(0) @map("return_shipping_fee") @db.Decimal(18, 2)
+  returnCostZone     ReturnCostZone    @default(UNKNOWN) @map("return_cost_zone")
+  returnCostBearer   ReturnCostBearer  @default(CUSTOMER) @map("return_cost_bearer")
+  returnCostCurrency String            @default("SAR") @map("return_cost_currency") @db.Char(3)
+  returnCostNote     String?           @map("return_cost_note") @db.VarChar(500)
+  returnCostFinalFee    Decimal?           @map("return_cost_final_fee") @db.Decimal(18, 2)
+  returnCostBearerFinal ReturnCostBearer?  @map("return_cost_bearer_final")
+  /// Cross-market: inspect at buyer-market company before accept/reject.
+  hubInspectionRequired Boolean              @default(false) @map("hub_inspection_required")
+  hubReceivedAt         DateTime?            @map("hub_received_at")
+  hubInspectedAt        DateTime?            @map("hub_inspected_at")
+  hubInspectedByUserId  String?              @map("hub_inspected_by_user_id")
+  hubInspectionNote     String?              @map("hub_inspection_note") @db.VarChar(2000)
+  goodsDisposition      ReturnGoodsDisposition @default(HOLD_AT_HUB) @map("goods_disposition")
   createdAt          DateTime          @default(now()) @map("created_at")
   updatedAt          DateTime          @updatedAt @map("updated_at")
   order              Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
   buyer              User              @relation(fields: [buyerUserId], references: [id], onDelete: Cascade)
+  hubInspectedBy     User?             @relation("ReturnHubInspector", fields: [hubInspectedByUserId], references: [id], onDelete: SetNull)
   returnUnits        OrderItem[]       @relation("OrderReturnUnits")
 
   @@index([buyerUserId, createdAt])
@@ -563,6 +658,23 @@ model Vendor {
   storeApprovedAt          DateTime?                   @map("store_approved_at")
   storeApprovedByUserId    String?                     @map("store_approved_by_user_id")
   storeApprovalNote        String?                     @map("store_approval_note") @db.VarChar(500)
+  /// Phase 2 wizard lifecycle (under registration → under review → active).
+  onboardingStatus         VendorOnboardingStatus      @default(UNDER_REGISTRATION) @map("onboarding_status")
+  onboardingStep           Int                         @default(1) @map("onboarding_step")
+  onboardingSubmittedAt    DateTime?                   @map("onboarding_submitted_at")
+  repNameEn                String?                     @map("rep_name_en") @db.VarChar(120)
+  repNameOther             String?                     @map("rep_name_other") @db.VarChar(120)
+  legalNameEn              String?                     @map("legal_name_en") @db.VarChar(200)
+  legalNameOther           String?                     @map("legal_name_other") @db.VarChar(200)
+  storeNameOther           String?                     @map("store_name_other") @db.VarChar(120)
+  storeDescriptionEn       String?                     @map("store_description_en") @db.Text
+  storeDescriptionOther    String?                     @map("store_description_other") @db.Text
+  entityType               VendorEntityType?           @map("entity_type")
+  shortBusinessNote        String?                     @map("short_business_note") @db.VarChar(500)
+  commissionTermsAcceptedAt DateTime?                  @map("commission_terms_accepted_at")
+  crossMarketTermsAcceptedAt DateTime?                 @map("cross_market_terms_accepted_at")
+  /// Vendor accepts FX / transfer-fee / customs risk when listing cross-market.
+  settlementRiskConsentAt    DateTime?                 @map("settlement_risk_consent_at")
   payoutAccountHolder   String?            @map("payout_account_holder") @db.VarChar(200)
   payoutIban            String?            @map("payout_iban") @db.VarChar(34)
   contactPhone          String?            @map("contact_phone") @db.VarChar(32)
@@ -607,6 +719,9 @@ model Vendor {
   vendorCancellations     OrderVendorCancellation[]
   kycDocuments            KycDocument[]
   deliveryCities          VendorDeliveryCity[]
+  onboardingFieldReviews  VendorOnboardingFieldReview[]
+  profileChangeRequests   VendorProfileChangeRequest[]
+  payoutInvoices          VendorPayoutInvoice[]
 
   @@unique([marketId, slug])
   @@unique([ownerUserId, marketId])
@@ -614,7 +729,74 @@ model Vendor {
   @@index([primaryMarketId])
   @@index([shippingProfileStatus])
   @@index([storeApprovalStatus])
+  @@index([onboardingStatus])
   @@map("vendors")
+}
+
+/// Vendor uploads purchase invoice after bank payout received (cross-market books).
+model VendorPayoutInvoice {
+  id                       String                    @id @default(cuid())
+  marketId                 String                    @map("market_id")
+  vendorId                 String                    @map("vendor_id")
+  uploadedByUserId         String                    @map("uploaded_by_user_id")
+  withdrawalTransactionId  String                    @unique @map("withdrawal_transaction_id")
+  amountReceived           Decimal                   @map("amount_received") @db.Decimal(18, 2)
+  currency                 String                    @db.Char(3)
+  orderNosText             String                    @map("order_nos_text") @db.VarChar(2000)
+  fileStorageKey           String                    @map("file_storage_key") @db.VarChar(500)
+  fileOriginalName         String?                   @map("file_original_name") @db.VarChar(255)
+  status                   VendorPayoutInvoiceStatus @default(PENDING_REVIEW)
+  reviewNote               String?                   @map("review_note") @db.VarChar(2000)
+  reviewedByUserId         String?                   @map("reviewed_by_user_id")
+  reviewedAt               DateTime?                 @map("reviewed_at")
+  createdAt                DateTime                  @default(now()) @map("created_at")
+  updatedAt                DateTime                  @updatedAt @map("updated_at")
+  market                   Market                    @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  vendor                   Vendor                    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  uploadedBy               User                      @relation("PayoutInvoiceUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+  reviewedBy               User?                     @relation("PayoutInvoiceReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  withdrawalTransaction    WalletTransaction         @relation(fields: [withdrawalTransactionId], references: [id], onDelete: Restrict)
+
+  @@index([marketId, status, createdAt])
+  @@index([vendorId, createdAt])
+  @@map("vendor_payout_invoices")
+}
+
+/// Admin page-by-page field decisions during vendor onboarding review (Phase 2).
+model VendorOnboardingFieldReview {
+  id           String                        @id @default(cuid())
+  vendorId     String                        @map("vendor_id")
+  pageKey      String                        @map("page_key") @db.VarChar(32)
+  fieldKey     String                        @map("field_key") @db.VarChar(64)
+  decision     VendorOnboardingFieldDecision @default(PENDING)
+  note         String?                       @db.VarChar(1000)
+  decidedByUserId String?                    @map("decided_by_user_id")
+  decidedAt    DateTime?                     @map("decided_at")
+  createdAt    DateTime                      @default(now()) @map("created_at")
+  updatedAt    DateTime                      @updatedAt @map("updated_at")
+  vendor       Vendor                        @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, pageKey, fieldKey])
+  @@index([vendorId, pageKey])
+  @@map("vendor_onboarding_field_reviews")
+}
+
+/// Vendor-requested profile changes after ACTIVE (Phase 2) — sets onboarding back to UNDER_REVIEW.
+model VendorProfileChangeRequest {
+  id              String   @id @default(cuid())
+  vendorId        String   @map("vendor_id")
+  status          String   @default("PENDING") @db.VarChar(32)
+  proposedJson    Json     @map("proposed_json")
+  vendorNote      String?  @map("vendor_note") @db.VarChar(2000)
+  adminNote       String?  @map("admin_note") @db.VarChar(2000)
+  reviewedByUserId String? @map("reviewed_by_user_id")
+  reviewedAt      DateTime? @map("reviewed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  vendor          Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId, status, createdAt])
+  @@map("vendor_profile_change_requests")
 }
 
 model KycDocument {
@@ -812,6 +994,46 @@ model Coupon {
   @@map("coupons")
 }
 
+/// Phase 7 — platform-funded promo codes (separate from vendor coupons).
+model PlatformCoupon {
+  id            String             @id @default(cuid())
+  marketId      String             @map("market_id")
+  code          String             @db.VarChar(32)
+  description   String?            @db.VarChar(500)
+  discountType  CouponDiscountType @map("discount_type")
+  discountValue Decimal            @map("discount_value") @db.Decimal(18, 2)
+  currency      String             @db.Char(3)
+  status        CouponStatus       @default(DRAFT)
+  startsAt      DateTime?          @map("starts_at")
+  endsAt        DateTime?          @map("ends_at")
+  usageLimit    Int?               @map("usage_limit")
+  usedCount     Int                @default(0) @map("used_count")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+  market        Market             @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@unique([marketId, code])
+  @@index([marketId, status])
+  @@map("platform_coupons")
+}
+
+/// Phase 7 — customer wishlist per market.
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  marketId  String   @map("market_id")
+  productId String   @map("product_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  market    Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, marketId, productId])
+  @@index([userId, marketId, createdAt])
+  @@index([productId])
+  @@map("wishlist_items")
+}
+
 model VendorPermission {
   vendorId        String   @map("vendor_id")
   code            String   @db.VarChar(64)
@@ -827,16 +1049,20 @@ model VendorPermission {
 model ProductCategory {
   id        String    @id @default(cuid())
   marketId  String    @map("market_id")
+  parentId  String?   @map("parent_id")
   slug      String
   nameEn    String    @map("name_en")
   nameAr    String    @map("name_ar")
   sortOrder Int       @default(0) @map("sort_order")
   isActive  Boolean   @default(true) @map("is_active")
   market    Market    @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  parent    ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  ProductCategory[] @relation("CategoryTree")
   products  Product[]
 
   @@unique([marketId, slug])
   @@index([marketId])
+  @@index([parentId])
   @@map("product_categories")
 }
 
@@ -846,6 +1072,8 @@ model Product {
   vendorId   String           @map("vendor_id")
   categoryId String           @map("category_id")
   name       String
+  /// Public URL slug (unique per market). Prefer over id in storefront links.
+  slug       String           @db.VarChar(80)
   price      Decimal          @db.Decimal(18, 2)
   currency   String           @default("SAR")
   status          ProductStatus           @default(DRAFT)
@@ -869,7 +1097,10 @@ model Product {
   questions  ProductQuestion[]
   marketOffers ProductMarketOffer[]
   serviceCities ProductServiceCity[]
+  wishlistItems WishlistItem[]
+  variants   ProductVariant[]
 
+  @@unique([marketId, slug])
   @@index([marketId])
   @@index([vendorId])
   @@index([vendorId, status])
@@ -879,26 +1110,73 @@ model Product {
   @@map("products")
 }
 
+/// Vendor-defined SKU / option row (Size×Color, etc.). Stock & price live on ProductVariantOffer per market.
+model ProductVariant {
+  id          String               @id @default(cuid())
+  productId   String               @map("product_id")
+  sku         String?              @db.VarChar(64)
+  title       String               @db.VarChar(200)
+  /// e.g. {"Color":"Red","Size":"M"}
+  optionsJson Json                 @default("{}") @map("options_json")
+  sortOrder   Int                  @default(0) @map("sort_order")
+  isActive    Boolean              @default(true) @map("is_active")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+  product     Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  offers      ProductVariantOffer[]
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+
+  @@index([productId, sortOrder])
+  @@unique([productId, sku])
+  @@map("product_variants")
+}
+
+model ProductVariantOffer {
+  id        String         @id @default(cuid())
+  variantId String         @map("variant_id")
+  marketId  String         @map("market_id")
+  price     Decimal        @db.Decimal(18, 2)
+  currency  String         @db.Char(3)
+  quantity  Int            @default(0)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  market    Market         @relation(fields: [marketId], references: [id], onDelete: Restrict)
+
+  @@unique([variantId, marketId])
+  @@index([marketId])
+  @@map("product_variant_offers")
+}
+
 /// Phase 0 — per sell-market price, stock location, and quantity for a product.
 model ProductMarketOffer {
-  id            String               @id @default(cuid())
-  productId     String               @map("product_id")
-  marketId      String               @map("market_id")
-  price         Decimal              @db.Decimal(18, 2)
-  currency      String               @db.Char(3)
-  stockLocation ProductStockLocation @map("stock_location")
-  warehouseId   String?              @map("warehouse_id")
+  id               String                   @id @default(cuid())
+  productId        String                   @map("product_id")
+  marketId         String                   @map("market_id")
+  price            Decimal                  @db.Decimal(18, 2)
+  currency         String                   @db.Char(3)
+  stockLocation    ProductStockLocation     @map("stock_location")
+  warehouseId      String?                  @map("warehouse_id")
   /// FOURCES A (pre-stocked) vs B (on-order). Null when stock is at merchant.
-  fourcesMode   VendorIndirectFulfillment? @map("fources_mode")
-  quantity      Int                  @default(0)
-  createdAt     DateTime             @default(now()) @map("created_at")
-  updatedAt     DateTime             @updatedAt @map("updated_at")
-  product       Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
-  market        Market               @relation(fields: [marketId], references: [id], onDelete: Restrict)
-  warehouse     FourcesWarehouse?    @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  fourcesMode      VendorIndirectFulfillment? @map("fources_mode")
+  quantity         Int                      @default(0)
+  /// Phase 5 — listing live in this market only when APPROVED.
+  status           ProductMarketOfferStatus @default(DRAFT)
+  submittedAt      DateTime?                @map("submitted_at")
+  reviewedAt       DateTime?                @map("reviewed_at")
+  reviewedByUserId String?                  @map("reviewed_by_user_id")
+  rejectionReason  String?                  @map("rejection_reason") @db.VarChar(1000)
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @updatedAt @map("updated_at")
+  product          Product                  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  market           Market                   @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  warehouse        FourcesWarehouse?        @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  reviewedBy       User?                    @relation("ProductMarketOfferReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
 
   @@unique([productId, marketId])
-  @@index([marketId])
+  @@index([marketId, status])
+  @@index([status, submittedAt])
   @@index([warehouseId])
   @@map("product_market_offers")
 }
@@ -1061,17 +1339,22 @@ model Cart {
 }
 
 model CartItem {
-  id        String   @id @default(cuid())
-  cartId    String   @map("cart_id")
-  productId String   @map("product_id")
-  quantity  Int
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id         String          @id @default(cuid())
+  cartId     String          @map("cart_id")
+  productId  String          @map("product_id")
+  /// Null when product has no variants. Empty string key used for uniqueness with non-variant lines.
+  variantId  String?         @map("variant_id")
+  variantKey String          @default("") @map("variant_key") @db.VarChar(64)
+  quantity   Int
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+  cart       Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
-  @@unique([cartId, productId])
+  @@unique([cartId, productId, variantKey])
   @@index([cartId])
+  @@index([variantId])
   @@map("cart_items")
 }
 
@@ -1079,12 +1362,15 @@ model OrderItem {
   id                    String   @id @default(cuid())
   orderId               String   @map("order_id")
   productId             String?  @map("product_id")
+  variantId             String?  @map("variant_id")
   vendorId              String   @map("vendor_id")
   fulfillmentType       ProductFulfillmentType @default(DIRECT) @map("fulfillment_type")
   vendorFulfillmentStatus    OrderStatus @default(NEW) @map("vendor_fulfillment_status")
   vendorFulfillmentUpdatedAt DateTime    @default(now()) @map("vendor_fulfillment_updated_at")
   productNameSnapshot   String   @map("product_name_snapshot")
   vendorNameSnapshot    String   @map("vendor_name_snapshot")
+  variantTitleSnapshot  String?  @map("variant_title_snapshot") @db.VarChar(200)
+  variantSkuSnapshot    String?  @map("variant_sku_snapshot") @db.VarChar(64)
   quantity              Int
   unitIndex             Int?             @map("unit_index")
   unitLabel             String?          @map("unit_label") @db.VarChar(64)
@@ -1095,6 +1381,7 @@ model OrderItem {
   createdAt             DateTime @default(now()) @map("created_at")
   order                 Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product               Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant               ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
   vendor                Vendor   @relation(fields: [vendorId], references: [id], onDelete: Restrict)
   orderReturn           OrderReturn? @relation("OrderReturnUnits", fields: [orderReturnId], references: [id], onDelete: SetNull)
   rating                OrderItemRating?
@@ -1240,6 +1527,7 @@ model WalletTransaction {
   createdAt            DateTime        @default(now()) @map("created_at")
   updatedAt            DateTime        @updatedAt @map("updated_at")
   wallet               Wallet          @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  vendorPayoutInvoice  VendorPayoutInvoice?
 
   @@index([userId, status])
   @@index([userId, entryType, status])
@@ -1293,6 +1581,7 @@ model Market {
   primaryVendors  Vendor[]          @relation("VendorPrimaryMarket")
   products        Product[]
   productOffers   ProductMarketOffer[]
+  variantOffers   ProductVariantOffer[]
   orders          Order[]
   categories      ProductCategory[]
   carts           Cart[]
@@ -1302,6 +1591,10 @@ model Market {
   banners         MarketBanner[]
   contactInquiries ContactInquiry[]
   warehouses      FourcesWarehouse[]
+  invoiceIssuer   MarketInvoiceIssuer?
+  platformCoupons PlatformCoupon[]
+  wishlistItems   WishlistItem[]
+  vendorPayoutInvoices VendorPayoutInvoice[]
 
   @@map("markets")
 }
@@ -1343,12 +1636,17 @@ model PlatformConfig {
   affiliateLevel4Rate   Decimal               @map("affiliate_level4_rate") @db.Decimal(8, 6)
   vendorRate            Decimal               @map("vendor_rate") @db.Decimal(8, 6)
   platformRate          Decimal               @map("platform_rate") @db.Decimal(8, 6)
+  /// Platform share when sale is outside vendor home market or on International (default 10%).
+  platformRateCross     Decimal               @default(0.10) @map("platform_rate_cross") @db.Decimal(8, 6)
+  vendorRateCross       Decimal               @default(0.90) @map("vendor_rate_cross") @db.Decimal(8, 6)
   vatRate               Decimal               @map("vat_rate") @db.Decimal(8, 6)
   minWithdrawalAmount   Decimal               @map("min_withdrawal_amount") @db.Decimal(18, 2)
   returnWindowDays      Int                   @map("return_window_days")
   settlementWindowDays  Int                   @default(7) @map("settlement_window_days")
   referralDepthMax      Int                   @default(4) @map("referral_depth_max")
   missingAncestorPolicy MissingAncestorPolicy @default(KEEP_BY_PLATFORM) @map("missing_ancestor_policy")
+  /// Access JWT / cookie lifetime in minutes (N-035). Applied from default market config at login.
+  sessionAccessMinutes  Int                   @default(15) @map("session_access_minutes")
   termsUrl              String?               @map("terms_url") @db.VarChar(500)
   termsText             String?               @map("terms_text") @db.Text
   privacyUrl            String?               @map("privacy_url") @db.VarChar(500)
@@ -1364,12 +1662,49 @@ model PlatformConfig {
   showTapGateway        Boolean               @default(true) @map("show_tap_gateway")
   showHyperPayGateway   Boolean               @default(true) @map("show_hyperpay_gateway")
   showMyFatoorahGateway Boolean               @default(true) @map("show_myfatoorah_gateway")
+  /// COD master switch (latest §8). City-local direct delivery rule enforced in checkout separately.
+  codEnabled            Boolean               @default(true) @map("cod_enabled")
   updatedAt             DateTime              @updatedAt @map("updated_at")
   updatedByUserId       String?               @map("updated_by_user_id")
   market                Market                @relation(fields: [marketId], references: [id], onDelete: Cascade)
   changeLogs            PlatformConfigChangeLog[]
 
   @@map("platform_config")
+}
+
+/// Sequential invoice numbers per issuer key (commission / vendor-sale / future MarketInvoiceIssuer).
+model InvoiceSerialCounter {
+  id        String   @id @default(cuid())
+  issuerKey String   @unique @map("issuer_key") @db.VarChar(64)
+  prefix    String   @db.VarChar(24)
+  nextValue Int      @default(1) @map("next_value")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("invoice_serial_counters")
+}
+
+/// Market representative company that issues commission / cross-market / shipping invoices.
+model MarketInvoiceIssuer {
+  id              String   @id @default(cuid())
+  marketId        String   @unique @map("market_id")
+  code            String   @db.VarChar(32)
+  legalNameEn     String   @map("legal_name_en") @db.VarChar(200)
+  legalNameAr     String   @map("legal_name_ar") @db.VarChar(200)
+  addressLine1    String   @map("address_line_1") @db.VarChar(200)
+  addressLine2    String?  @map("address_line_2") @db.VarChar(200)
+  city            String   @db.VarChar(100)
+  postalCode      String?  @map("postal_code") @db.VarChar(32)
+  countryCode     String   @map("country_code") @db.Char(2)
+  vatRegistered   Boolean  @default(true) @map("vat_registered")
+  vatTrn          String?  @map("vat_trn") @db.VarChar(64)
+  vatPercent      Decimal  @default(0) @map("vat_percent") @db.Decimal(5, 2)
+  currency        String   @db.Char(3)
+  logoUrl         String?  @map("logo_url") @db.VarChar(500)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  market          Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@map("market_invoice_issuers")
 }
 
 model PlatformConfigChangeLog {
@@ -1385,6 +1720,23 @@ model PlatformConfigChangeLog {
   @@map("platform_config_change_logs")
 }
 
+/// Manual FX rates for cross-currency vendor settlement (Phase 4).
+model FxRate {
+  id              String   @id @default(cuid())
+  fromCurrency    String   @map("from_currency") @db.Char(3)
+  toCurrency      String   @map("to_currency") @db.Char(3)
+  rate            Decimal  @db.Decimal(18, 8)
+  source          String   @default("MANUAL") @db.VarChar(64)
+  effectiveAt     DateTime @default(now()) @map("effective_at")
+  createdByUserId String?  @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([fromCurrency, toCurrency, effectiveAt])
+  @@index([fromCurrency, toCurrency, effectiveAt(sort: Desc)])
+  @@map("fx_rates")
+}
+
 model StripeWebhookEvent {
   id          String   @id @db.VarChar(255)
   type        String   @db.VarChar(128)
@@ -1392,6 +1744,15 @@ model StripeWebhookEvent {
 
   @@index([processedAt])
   @@map("stripe_webhook_events")
+}
+
+model TapWebhookEvent {
+  id          String   @id @db.VarChar(255)
+  type        String   @db.VarChar(128)
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@index([processedAt])
+  @@map("tap_webhook_events")
 }
 
 model ContactInquiry {

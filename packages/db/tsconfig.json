@@ -9,7 +9,6 @@
     "noEmit": true,
     "isolatedModules": true,
     "types": ["node"],
-    "baseUrl": ".",
     "paths": {
       "@prisma/client": ["../../node_modules/.prisma/client"]
     }

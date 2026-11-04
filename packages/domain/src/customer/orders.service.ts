@@ -99,10 +99,12 @@ export type CustomerOrderDetailDto = CustomerOrderListItemDto & {
   activeReturnId: string | null;
   /** Units still eligible for a new return request. */
   returnableUnitCount: number;
-  /** True when order is completed, paid, and delivered (invoice prerequisite). */
+  /** True when order is completed, paid, and delivered (tax invoice prerequisite). */
   invoiceEligible: boolean;
-  /** True after return window closes with no open returns (Phase III invoicing gate). */
+  /** True after return window closes with no open returns (tax invoice gate). */
   finalInvoiceAllowed: boolean;
+  /** Platform order summary (DEV-009) — available immediately unless cancelled. */
+  orderSummaryAvailable: boolean;
   walletAppliedAmount: string;
   remainingAmount: string;
   paymentMethodDisplay: "COD" | "ONLINE_CARD" | "WALLET_COVERED";
@@ -313,6 +315,7 @@ function orderToDetailDto(
     returnableUnitCount,
     invoiceEligible: row.invoiceEligible,
     finalInvoiceAllowed: row.finalInvoiceAllowed,
+    orderSummaryAvailable: row.status !== "CANCELLED",
     walletAppliedAmount,
     remainingAmount: remaining.toFixed(2),
     paymentMethodDisplay:

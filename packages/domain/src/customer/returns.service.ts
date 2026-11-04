@@ -8,6 +8,11 @@ import {
   type ReturnableUnitDto,
 } from "../orders/order-units.service";
 import { isOrderEligibleForReturn, RETURN_STATUSES_BLOCKING_NEW } from "./orders.service";
+import {
+  estimateLocalReturnCost,
+  resolveReturnCostZone,
+  type ReturnCostEstimate,
+} from "./return-cost.service";
 
 export type CustomerReturnUnitDto = {
   id: string;
@@ -34,7 +39,14 @@ export type CustomerReturnDetailDto = CustomerReturnListItemDto & {
   policyAcceptedAt: string;
   orderTotalAmount: string;
   units: CustomerReturnUnitDto[];
+  returnShippingFee: string;
+  returnCostZone: string;
+  returnCostBearer: string;
+  returnCostCurrency: string;
+  returnCostNote: string | null;
 };
+
+export type ReturnCostPreviewDto = ReturnCostEstimate;
 
 export class CustomerReturnError extends Error {
   constructor(
@@ -54,6 +66,41 @@ export class CustomerReturnError extends Error {
   }
 }
 
+export async function previewReturnCostForOrder(
+  buyerUserId: string,
+  orderId: string,
+  reason?: OrderReturnReason | null,
+): Promise<ReturnCostPreviewDto | null> {
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, buyerUserId },
+    select: {
+      shippingCountryCode: true,
+      shippingCity: true,
+      market: { select: { defaultCurrency: true } },
+      items: {
+        take: 1,
+        orderBy: { createdAt: "asc" },
+        select: {
+          vendor: { select: { countryCode: true, city: true } },
+        },
+      },
+    },
+  });
+  if (!order) return null;
+  const vendor = order.items[0]?.vendor;
+  const zone = resolveReturnCostZone({
+    orderCountryCode: order.shippingCountryCode,
+    orderCity: order.shippingCity,
+    vendorCountryCode: vendor?.countryCode,
+    vendorCity: vendor?.city,
+  });
+  return estimateLocalReturnCost({
+    zone,
+    currency: order.market.defaultCurrency,
+    reason: reason ?? null,
+  });
+}
+
 export async function createOrderReturn(
   buyerUserId: string,
   input: OrderReturnCreateInput,
@@ -63,6 +110,14 @@ export async function createOrderReturn(
   const created = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findFirst({
       where: { id: input.orderId, buyerUserId },
+      include: {
+        market: { select: { defaultCurrency: true } },
+        items: {
+          take: 1,
+          orderBy: { createdAt: "asc" },
+          select: { vendor: { select: { countryCode: true, city: true } } },
+        },
+      },
     });
     if (!order) {
       throw new CustomerReturnError("FORBIDDEN", "Order not found for this account.");
@@ -79,6 +134,19 @@ export async function createOrderReturn(
       throw new CustomerReturnError("ACTIVE_RETURN_EXISTS", "A return is already in progress for this order.");
     }
 
+    const vendor = order.items[0]?.vendor;
+    const zone = resolveReturnCostZone({
+      orderCountryCode: order.shippingCountryCode,
+      orderCity: order.shippingCity,
+      vendorCountryCode: vendor?.countryCode,
+      vendorCity: vendor?.city,
+    });
+    const cost = estimateLocalReturnCost({
+      zone,
+      currency: order.market.defaultCurrency,
+      reason: input.reason,
+    });
+
     const row = await tx.orderReturn.create({
       data: {
         orderId: order.id,
@@ -87,6 +155,13 @@ export async function createOrderReturn(
         details: input.details,
         policyAcceptedAt,
         status: "REQUESTED",
+        returnShippingFee: cost.fee,
+        returnCostZone: cost.zone,
+        returnCostBearer: cost.bearer,
+        returnCostCurrency: cost.currency,
+        returnCostNote: cost.note,
+        hubInspectionRequired: zone === "CROSS_BORDER",
+        goodsDisposition: "HOLD_AT_HUB",
       },
     });
 
@@ -279,6 +354,11 @@ export async function getCustomerReturnDetail(
     rejectionReason: row.rejectionReason,
     policyAcceptedAt: row.policyAcceptedAt.toISOString(),
     orderTotalAmount: row.order.totalAmount.toString(),
+    returnShippingFee: (row.returnCostFinalFee ?? row.returnShippingFee).toString(),
+    returnCostZone: row.returnCostZone,
+    returnCostBearer: row.returnCostBearerFinal ?? row.returnCostBearer,
+    returnCostCurrency: row.returnCostCurrency,
+    returnCostNote: row.returnCostNote,
     units: row.returnUnits.map((u) => ({
       id: u.id,
       unitIndex: u.unitIndex,

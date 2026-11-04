@@ -11,8 +11,8 @@ export const week1BusinessRules = {
   settlementWindowDays,
   missingAncestorPolicy: "KEEP_BY_PLATFORM" as MissingAncestorPolicy,
   defaultCommissionRates: {
-    vendorRate: 0.7,
-    platformRate: 0.3,
+    vendorRate: 0.95,
+    platformRate: 0.05,
     cashbackRate: 0.05,
     affiliatePoolRate: 0.1,
     levelRates: [0.05, 0.02, 0.02, 0.01],

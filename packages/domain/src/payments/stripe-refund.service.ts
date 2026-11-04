@@ -1,4 +1,4 @@
-import { getStripeClient, stripeAmountFromDecimalString } from "../payments/stripe-client";
+import { getStripeClient, stripeAmountForCurrency, stripeAmountFromDecimalString } from "../payments/stripe-client";
 
 export class StripeRefundError extends Error {
   constructor(
@@ -14,6 +14,7 @@ export class StripeRefundError extends Error {
 export async function refundStripeOrderAmount(
   stripeCheckoutSessionId: string,
   refundAmount: string,
+  currencyHint?: string,
 ): Promise<string> {
   if (!process.env.STRIPE_SECRET_KEY?.trim()) {
     throw new StripeRefundError("NOT_CONFIGURED", "Stripe is not configured.");
@@ -28,12 +29,23 @@ export async function refundStripeOrderAmount(
     throw new StripeRefundError("NO_SESSION", "No Stripe payment found for this order.");
   }
 
-  const refund = await stripe.refunds.create({
-    payment_intent: paymentIntentId,
-    amount: stripeAmountFromDecimalString(refundAmount),
-  });
-  if (refund.status === "failed") {
-    throw new StripeRefundError("REFUND_FAILED", "Stripe refund failed.");
+  const currency = (currencyHint || session.currency || "SAR").toUpperCase();
+  const amountMinor = currencyHint
+    ? stripeAmountForCurrency(refundAmount, currency)
+    : stripeAmountFromDecimalString(refundAmount);
+
+  try {
+    const refund = await stripe.refunds.create({
+      payment_intent: paymentIntentId,
+      amount: amountMinor,
+    });
+    if (refund.status === "failed") {
+      throw new StripeRefundError("REFUND_FAILED", "Stripe refund failed.");
+    }
+    return refund.id;
+  } catch (e) {
+    if (e instanceof StripeRefundError) throw e;
+    const msg = e instanceof Error ? e.message : "Stripe refund failed.";
+    throw new StripeRefundError("REFUND_FAILED", msg);
   }
-  return refund.id;
 }
