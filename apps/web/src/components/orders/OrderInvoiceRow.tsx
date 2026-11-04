@@ -2,27 +2,21 @@ import Link from "next/link";
 
 export default function OrderInvoiceRow({
   orderId,
-  invoiceEligible,
-  finalInvoiceAllowed,
+  /** Order summary is available as soon as the order exists (not cancelled). Tax invoices stay gated separately. */
+  orderSummaryAvailable,
   title,
   viewSummary,
-  pendingMessage,
   notEligibleMessage,
 }: {
   orderId: string;
-  invoiceEligible: boolean;
-  finalInvoiceAllowed: boolean;
+  orderSummaryAvailable: boolean;
   title: string;
   viewSummary: string;
-  pendingMessage: string;
+  pendingMessage?: string;
   notEligibleMessage: string;
 }) {
-  const available = invoiceEligible && finalInvoiceAllowed;
-  const subtitle = !invoiceEligible
-    ? notEligibleMessage
-    : !finalInvoiceAllowed
-      ? pendingMessage
-      : viewSummary;
+  const available = orderSummaryAvailable;
+  const subtitle = available ? viewSummary : notEligibleMessage;
 
   const content = (
     <>

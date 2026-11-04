@@ -20,6 +20,18 @@ type DetailPayload = {
     createdAt: string;
     updatedAt: string;
     allowedNextStatuses: string[];
+    returnShippingFee?: string;
+    returnCostZone?: string;
+    returnCostBearer?: string;
+    returnCostFinalFee?: string | null;
+    returnCostBearerFinal?: string | null;
+    returnCostCurrency?: string;
+    returnCostNote?: string | null;
+    hubInspectionRequired?: boolean;
+    hubReceivedAt?: string | null;
+    hubInspectedAt?: string | null;
+    hubInspectionNote?: string | null;
+    goodsDisposition?: string;
     order: { id: string; orderNo: string; totalAmount: string; status: string };
     buyer: { name: string; email: string };
     units: Array<{
@@ -87,6 +99,12 @@ export default function AdminReturnDetail({
   const [payload, setPayload] = useState<DetailPayload["detail"] | null>(null);
   const [selectedNext, setSelectedNext] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
+  const [finalFee, setFinalFee] = useState("");
+  const [bearerFinal, setBearerFinal] = useState<"CUSTOMER" | "VENDOR" | "PLATFORM" | "">("");
+  const [disposition, setDisposition] = useState<"HOLD_AT_HUB" | "RETURN_TO_VENDOR" | "DISPOSE">(
+    "HOLD_AT_HUB",
+  );
+  const [hubNote, setHubNote] = useState("");
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
 
@@ -107,6 +125,16 @@ export default function AdminReturnDetail({
       const first = data.detail.allowedNextStatuses[0] ?? "";
       setSelectedNext(first);
       setRejectionReason(data.detail.rejectionReason ?? "");
+      setFinalFee(data.detail.returnCostFinalFee ?? data.detail.returnShippingFee ?? "");
+      setBearerFinal(
+        (data.detail.returnCostBearerFinal as typeof bearerFinal) ||
+          (data.detail.returnCostBearer as typeof bearerFinal) ||
+          "",
+      );
+      setDisposition(
+        (data.detail.goodsDisposition as typeof disposition) || "HOLD_AT_HUB",
+      );
+      setHubNote(data.detail.hubInspectionNote ?? "");
     } catch (e) {
       setError(e instanceof Error ? e.message : ui.loadError);
       setPayload(null);
@@ -128,10 +156,19 @@ export default function AdminReturnDetail({
     setUpdateError(null);
     setUpdating(true);
     try {
-      const requestBody: { status: string; rejectionReason?: string } = { status: selectedNext };
+      const feeNum = Number.parseFloat(finalFee);
+      const requestBody: Record<string, unknown> = {
+        status: selectedNext,
+        goodsDisposition: disposition,
+        hubInspectionNote: hubNote.trim() || undefined,
+      };
       if (selectedNext === "PROCESSING_REJECTED") {
         requestBody.rejectionReason = rejectionReason.trim();
       }
+      if (Number.isFinite(feeNum) && feeNum >= 0) {
+        requestBody.returnCostFinalFee = feeNum;
+      }
+      if (bearerFinal) requestBody.returnCostBearerFinal = bearerFinal;
       const res = await fetch(`/api/v1/admin/returns/${encodeURIComponent(returnId)}`, {
         method: "PATCH",
         credentials: "include",
@@ -229,6 +266,24 @@ export default function AdminReturnDetail({
               {formatMoney(payload.order.totalAmount, "SAR", locale)}
             </dd>
           </div>
+          {payload.returnShippingFee != null ? (
+            <div className="flex flex-wrap justify-between gap-2">
+              <dt className="text-[var(--muted)]">Return shipping</dt>
+              <dd className="font-medium tabular-nums">
+                {formatMoney(
+                  payload.returnCostFinalFee ?? payload.returnShippingFee,
+                  payload.returnCostCurrency ?? "SAR",
+                  locale,
+                )}{" "}
+                · {payload.returnCostBearerFinal ?? payload.returnCostBearer} ·{" "}
+                {payload.returnCostZone}
+                {payload.hubInspectionRequired ? " · hub inspect" : ""}
+              </dd>
+            </div>
+          ) : null}
+          {payload.returnCostNote ? (
+            <p className="text-xs text-[var(--muted)]">{payload.returnCostNote}</p>
+          ) : null}
         </dl>
       </section>
 
@@ -282,6 +337,50 @@ export default function AdminReturnDetail({
               ))}
             </select>
           </label>
+          <div className="mt-4 grid max-w-xl gap-3 text-sm sm:grid-cols-2">
+            <label className="block space-y-1">
+              <span className="font-medium">Final return fee</span>
+              <input
+                className="app-input"
+                value={finalFee}
+                onChange={(ev) => setFinalFee(ev.target.value)}
+                inputMode="decimal"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="font-medium">Shipping bearer</span>
+              <select
+                className="app-input"
+                value={bearerFinal}
+                onChange={(ev) => setBearerFinal(ev.target.value as typeof bearerFinal)}
+              >
+                <option value="CUSTOMER">Customer</option>
+                <option value="VENDOR">Vendor</option>
+                <option value="PLATFORM">Platform</option>
+              </select>
+            </label>
+            <label className="block space-y-1 sm:col-span-2">
+              <span className="font-medium">Goods after accept</span>
+              <select
+                className="app-input"
+                value={disposition}
+                onChange={(ev) => setDisposition(ev.target.value as typeof disposition)}
+              >
+                <option value="HOLD_AT_HUB">Hold at buyer-market hub</option>
+                <option value="RETURN_TO_VENDOR">Return to vendor</option>
+                <option value="DISPOSE">Dispose</option>
+              </select>
+            </label>
+            <label className="block space-y-1 sm:col-span-2">
+              <span className="font-medium">Hub inspection note</span>
+              <textarea
+                className="app-input min-h-20 w-full"
+                value={hubNote}
+                onChange={(ev) => setHubNote(ev.target.value)}
+                maxLength={2000}
+              />
+            </label>
+          </div>
           {selectedNext === "PROCESSING_REJECTED" ? (
             <label className="mt-4 block space-y-1 text-sm">
               <span className="font-medium">{ui.rejectionReason}</span>

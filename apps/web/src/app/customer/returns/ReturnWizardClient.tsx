@@ -23,6 +23,7 @@ const REASON_ORDER: OrderReturnReason[] = [
   "WRONG_ITEM",
   "COUNTERFEIT",
   "DEFECTIVE",
+  "DAMAGED_IN_TRANSIT",
   "USED",
 ];
 
@@ -44,6 +45,23 @@ type WizardUi = {
   wizardSelectUnitsHint: string;
   wizardUnitLabel: string;
   wizardLoadUnitsError: string;
+  wizardReturnCostTitle?: string;
+  wizardReturnCostLoading?: string;
+  wizardReturnCostFee?: string;
+  wizardReturnCostBearer?: string;
+  wizardReturnCostDeferred?: string;
+  bearerCustomer?: string;
+  bearerVendor?: string;
+  bearerPlatform?: string;
+};
+
+type ReturnCostEstimate = {
+  zone: string;
+  fee: string;
+  currency: string;
+  bearer: string;
+  crossBorderDeferred: boolean;
+  note: string;
 };
 
 export default function ReturnWizardClient({
@@ -76,6 +94,8 @@ export default function ReturnWizardClient({
   const [policyAccepted, setPolicyAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [costEstimate, setCostEstimate] = useState<ReturnCostEstimate | null>(null);
+  const [costLoading, setCostLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,6 +124,33 @@ export default function ReturnWizardClient({
       cancelled = true;
     };
   }, [orderId, ui.wizardLoadUnitsError]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setCostLoading(true);
+      try {
+        const qs = new URLSearchParams({ reason });
+        const res = await fetch(
+          `/api/v1/customer/orders/${encodeURIComponent(orderId)}/return-cost?${qs}`,
+          {
+            credentials: "include",
+            cache: "no-store",
+          },
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as { estimate: ReturnCostEstimate };
+        if (!cancelled) setCostEstimate(data.estimate);
+      } catch {
+        /* estimate is informational */
+      } finally {
+        if (!cancelled) setCostLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId, reason]);
 
   const steps = useMemo(
     () => [
@@ -281,6 +328,40 @@ export default function ReturnWizardClient({
       {step === 3 ? (
         <section className="space-y-4">
           <p className="text-sm text-[var(--foreground)]">{ui.wizardPolicyIntro}</p>
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
+            <p className="font-medium text-[var(--foreground)]">
+              {ui.wizardReturnCostTitle ?? "Estimated return shipping"}
+            </p>
+            {costLoading ? (
+              <p className="mt-1 text-[var(--muted)]">
+                {ui.wizardReturnCostLoading ?? "Estimating…"}
+              </p>
+            ) : costEstimate ? (
+              <div className="mt-2 space-y-1 text-[var(--muted)]">
+                {costEstimate.crossBorderDeferred ? (
+                  <p>{ui.wizardReturnCostDeferred ?? costEstimate.note}</p>
+                ) : (
+                  <>
+                    <p>
+                      {(ui.wizardReturnCostFee ?? "Estimated fee") + ": "}
+                      <span className="font-medium tabular-nums text-[var(--foreground)]">
+                        {formatMoney(costEstimate.fee, costEstimate.currency || currency, locale)}
+                      </span>
+                    </p>
+                    <p>
+                      {(ui.wizardReturnCostBearer ?? "Usually paid by") + ": "}
+                      {costEstimate.bearer === "VENDOR"
+                        ? (ui.bearerVendor ?? "Vendor")
+                        : costEstimate.bearer === "PLATFORM"
+                          ? (ui.bearerPlatform ?? "Platform")
+                          : (ui.bearerCustomer ?? "Customer")}
+                    </p>
+                    <p className="text-xs">{costEstimate.note}</p>
+                  </>
+                )}
+              </div>
+            ) : null}
+          </div>
           <label className="flex cursor-pointer gap-3 text-sm text-[var(--foreground)]">
             <input
               type="checkbox"

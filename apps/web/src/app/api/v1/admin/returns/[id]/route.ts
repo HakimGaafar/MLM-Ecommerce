@@ -23,6 +23,18 @@ function serializeDetail(row: NonNullable<Awaited<ReturnType<typeof getAdminRetu
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     allowedNextStatuses: allowedNextReturnStatuses(row.status),
+    returnShippingFee: row.returnShippingFee.toString(),
+    returnCostZone: row.returnCostZone,
+    returnCostBearer: row.returnCostBearer,
+    returnCostFinalFee: row.returnCostFinalFee?.toString() ?? null,
+    returnCostBearerFinal: row.returnCostBearerFinal,
+    returnCostCurrency: row.returnCostCurrency,
+    returnCostNote: row.returnCostNote,
+    hubInspectionRequired: row.hubInspectionRequired,
+    hubReceivedAt: row.hubReceivedAt?.toISOString() ?? null,
+    hubInspectedAt: row.hubInspectedAt?.toISOString() ?? null,
+    hubInspectionNote: row.hubInspectionNote,
+    goodsDisposition: row.goodsDisposition,
     order: {
       id: row.order.id,
       orderNo: row.order.orderNo,
@@ -80,6 +92,11 @@ export async function PATCH(
   try {
     const result = await updateAdminReturnStatus(id, parsed.data.status, {
       rejectionReason: parsed.data.rejectionReason,
+      actorUserId: auth.userId,
+      returnCostFinalFee: parsed.data.returnCostFinalFee,
+      returnCostBearerFinal: parsed.data.returnCostBearerFinal,
+      goodsDisposition: parsed.data.goodsDisposition,
+      hubInspectionNote: parsed.data.hubInspectionNote,
     });
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {

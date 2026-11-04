@@ -2,6 +2,7 @@ import Link from "next/link";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { getCustomerPreferredLocale } from "@/lib/customer-locale";
+import VendorPayoutMissingInvoicesBanner from "./VendorPayoutMissingInvoicesBanner";
 import VendorPayoutView from "./VendorPayoutView";
 
 export default async function VendorPayoutPage() {
@@ -25,6 +26,9 @@ export default async function VendorPayoutPage() {
         </Link>
       </div>
       <div className="mt-6 flex flex-wrap items-center gap-4">
+        <Link href="/vendor/payout/invoices" className="text-sm text-link font-medium">
+          {dict.vendorPayout.linkInvoices}
+        </Link>
         <Link href="/vendor/kyc" className="text-sm text-link font-medium">
           {dict.kyc.vendorTitle} →
         </Link>
@@ -32,6 +36,10 @@ export default async function VendorPayoutPage() {
           {dict.vendorOperations.linkFromPayout}
         </Link>
       </div>
+      <VendorPayoutMissingInvoicesBanner
+        message={dict.vendorPayoutInvoices.list.missingBanner}
+        linkLabel={dict.vendorPayout.linkInvoices}
+      />
       <div className="mt-8">
         <VendorPayoutView locale={locale} ui={ui} />
       </div>

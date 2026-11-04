@@ -6,6 +6,7 @@ import { downloadInvoicePdf } from "@/lib/invoices/download-invoice-pdf";
 type Locale = "en" | "ar";
 
 type InvoiceListItem = {
+  documentType?: "VENDOR_SALE" | "SHIPPING";
   vendorId: string;
   vendorName: string;
   invoiceNo: string | null;
@@ -17,6 +18,8 @@ type Ui = {
   title: string;
   orderSummary: string;
   downloadVendorInvoice: string;
+  downloadShippingInvoice: string;
+  shippingInvoiceLabel: string;
   unavailable: string;
   gateClosed: string;
   orderNotEligible: string;
@@ -44,7 +47,7 @@ export default function OrderInvoiceTiles({
   const [invoices, setInvoices] = useState<InvoiceListItem[]>([]);
   const [loading, setLoading] = useState(invoiceEligible && finalInvoiceAllowed);
   const [error, setError] = useState<string | null>(null);
-  const [downloadingVendorId, setDownloadingVendorId] = useState<string | null>(null);
+  const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!invoiceEligible || !finalInvoiceAllowed) return;
@@ -71,17 +74,20 @@ export default function OrderInvoiceTiles({
     };
   }, [orderId, invoiceEligible, finalInvoiceAllowed, ui.loadError]);
 
-  async function handleDownload(vendorId: string) {
-    setDownloadingVendorId(vendorId);
+  async function handleDownload(inv: InvoiceListItem) {
+    const key = `${inv.documentType ?? "VENDOR_SALE"}:${inv.vendorId}`;
+    setDownloadingKey(key);
     setError(null);
     try {
-      await downloadInvoicePdf(
-        `/api/v1/customer/orders/${orderId}/invoices/${vendorId}/vendor-sale`,
-      );
+      const url =
+        inv.documentType === "SHIPPING"
+          ? `/api/v1/customer/orders/${orderId}/invoices/shipping`
+          : `/api/v1/customer/orders/${orderId}/invoices/${inv.vendorId}/vendor-sale`;
+      await downloadInvoicePdf(url);
     } catch (e) {
       setError(e instanceof Error ? e.message : ui.downloadError);
     } finally {
-      setDownloadingVendorId(null);
+      setDownloadingKey(null);
     }
   }
 
@@ -104,34 +110,41 @@ export default function OrderInvoiceTiles({
         <p className="mt-3 text-sm text-[var(--muted)]">{ui.unavailable}</p>
       ) : (
         <ul className="mt-4 space-y-3">
-          {invoices.map((inv) => (
-            <li
-              key={inv.vendorId}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--border)] px-4 py-3"
-            >
-              <div>
-                <p className="font-medium text-[var(--foreground)]">{inv.vendorName}</p>
-                {inv.invoiceNo ? (
-                  <p className="mt-0.5 font-mono text-xs text-[var(--muted)]">{inv.invoiceNo}</p>
-                ) : null}
-                {!inv.profileComplete ? (
-                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">{ui.profileIncomplete}</p>
-                ) : null}
-              </div>
-              {inv.available ? (
-                <button
-                  type="button"
-                  className="btn-secondary btn-press shrink-0 disabled:opacity-50"
-                  disabled={downloadingVendorId === inv.vendorId}
-                  onClick={() => void handleDownload(inv.vendorId)}
-                >
-                  {downloadingVendorId === inv.vendorId ? ui.downloading : ui.downloadVendorInvoice}
-                </button>
-              ) : (
-                <span className="text-sm text-[var(--muted)]">{ui.unavailable}</span>
-              )}
-            </li>
-          ))}
+          {invoices.map((inv) => {
+            const key = `${inv.documentType ?? "VENDOR_SALE"}:${inv.vendorId}`;
+            const label =
+              inv.documentType === "SHIPPING" ? ui.shippingInvoiceLabel : inv.vendorName;
+            const btnLabel =
+              inv.documentType === "SHIPPING" ? ui.downloadShippingInvoice : ui.downloadVendorInvoice;
+            return (
+              <li
+                key={key}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--border)] px-4 py-3"
+              >
+                <div>
+                  <p className="font-medium text-[var(--foreground)]">{label}</p>
+                  {inv.invoiceNo ? (
+                    <p className="mt-0.5 font-mono text-xs text-[var(--muted)]">{inv.invoiceNo}</p>
+                  ) : null}
+                  {inv.documentType !== "SHIPPING" && !inv.profileComplete ? (
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">{ui.profileIncomplete}</p>
+                  ) : null}
+                </div>
+                {inv.available ? (
+                  <button
+                    type="button"
+                    className="btn-secondary btn-press shrink-0 disabled:opacity-50"
+                    disabled={downloadingKey === key}
+                    onClick={() => void handleDownload(inv)}
+                  >
+                    {downloadingKey === key ? ui.downloading : btnLabel}
+                  </button>
+                ) : (
+                  <span className="text-sm text-[var(--muted)]">{ui.unavailable}</span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 

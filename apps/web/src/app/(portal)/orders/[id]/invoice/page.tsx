@@ -68,25 +68,14 @@ export default async function OrderInvoicePage({
   const detail = dict.customerOrderDetail;
   const stepLabels = dict.customerOrderStep as Record<string, string>;
 
-  if (!order.invoiceEligible) {
+  // Order summary (not tax invoice) — available once the order exists and is not cancelled.
+  if (order.status === "CANCELLED" || !order.orderSummaryAvailable) {
     return (
       <OrderSummaryUnavailable
         orderId={id}
         locale={locale}
         title={inv.title}
         message={inv.notEligibleBody}
-        backToOrder={inv.backToOrder}
-      />
-    );
-  }
-
-  if (!order.finalInvoiceAllowed) {
-    return (
-      <OrderSummaryUnavailable
-        orderId={id}
-        locale={locale}
-        title={inv.title}
-        message={inv.gateClosedBody}
         backToOrder={inv.backToOrder}
       />
     );
