@@ -54,6 +54,14 @@ export default function MarketerLoginPanel() {
         throw new Error(ui.customerAccountRequired);
       }
 
+      // Affiliate lives in the customer portal — force customer active role (Phase 3).
+      await fetch("/api/v1/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ activeRole: "CUSTOMER" }),
+      });
+
       const target = "/affiliate";
       markMarketConfirmed();
       window.location.assign(

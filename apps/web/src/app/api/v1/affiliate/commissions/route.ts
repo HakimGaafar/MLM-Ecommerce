@@ -5,12 +5,12 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 import { parsePaginationSearchParams } from "@/lib/api-pagination";
 import { getCustomerPreferredLocale } from "@/lib/customer-locale";
-import { requireCustomerSession } from "@/lib/require-customer-session";
+import { requireAffiliateSession } from "@/lib/require-affiliate-session";
 import { resolveRequestMarket } from "@/lib/request-market";
 import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireCustomerSession(request);
+  const auth = await requireAffiliateSession(request);
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

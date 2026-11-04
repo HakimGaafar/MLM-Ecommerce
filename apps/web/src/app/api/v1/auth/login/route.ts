@@ -2,9 +2,10 @@ import { prisma } from "@mlm/db";
 import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { ACTIVE_ROLE_COOKIE } from "@/lib/active-role";
+import { ACTIVE_ROLE_COOKIE, activeRoleCookieOptions } from "@/lib/active-role";
 import { createAccessToken, createRefreshToken, setAuthCookies } from "@/lib/auth";
 import { setActiveRefreshJti } from "@/lib/refresh-session";
+import { cacheTokenVersion } from "@/lib/session-invalidation";
 import { resolvePrimaryRole } from "@/lib/server-session";
 import {
   consumeRateLimit,
@@ -20,11 +21,11 @@ const loginSchema = z.object({
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const throttle = await consumeRateLimit(`login:${ip}`, 10, 10 * 60 * 1000);
-  if (!throttle.allowed) {
+  const ipThrottle = await consumeRateLimit(`login:${ip}`, 10, 10 * 60 * 1000);
+  if (!ipThrottle.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
-      { status: 429, headers: { "Retry-After": `${throttle.retryAfterSeconds}` } },
+      { status: 429, headers: { "Retry-After": `${ipThrottle.retryAfterSeconds}` } },
     );
   }
 
@@ -35,6 +36,14 @@ export async function POST(request: NextRequest) {
   }
 
   const { email, password } = parsed.data;
+  const identityThrottle = await consumeRateLimit(`login:email:${email}`, 8, 10 * 60 * 1000);
+  if (!identityThrottle.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": `${identityThrottle.retryAfterSeconds}` } },
+    );
+  }
+
   const user = await prisma.user.findUnique({
     where: { email },
     include: { userRoles: { include: { role: true } } },
@@ -54,11 +63,13 @@ export async function POST(request: NextRequest) {
     sub: user.id,
     email: user.email,
     roles,
+    tv: user.tokenVersion,
   };
 
   const accessToken = await createAccessToken(payload);
   const { token: refreshToken, jti } = await createRefreshToken(payload);
   await setActiveRefreshJti(payload.sub, jti);
+  await cacheTokenVersion(user.id, user.tokenVersion);
   await prisma.user.update({
     where: { id: user.id },
     data: { lastLoginAt: new Date() },
@@ -66,16 +77,15 @@ export async function POST(request: NextRequest) {
 
   const response = NextResponse.json({ ok: true });
   response.headers.set("Cache-Control", "no-store");
-  setAuthCookies(response, accessToken, refreshToken);
+  await setAuthCookies(response, accessToken, refreshToken);
 
-  const primaryRole = resolvePrimaryRole(roles);
-  if (primaryRole) {
-    response.cookies.set(ACTIVE_ROLE_COOKIE, primaryRole, {
-      path: "/",
-      maxAge: 60 * 60 * 24 * 365,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-    });
+  // Customer email login prefers CUSTOMER when the user has that role (Phase 3).
+  // Merchant login sets VENDOR separately.
+  const landingRole = roles.includes("CUSTOMER")
+    ? "CUSTOMER"
+    : resolvePrimaryRole(roles);
+  if (landingRole) {
+    response.cookies.set(ACTIVE_ROLE_COOKIE, landingRole, activeRoleCookieOptions());
   }
 
   return response;

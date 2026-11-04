@@ -33,6 +33,16 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  /** Legacy public payout invoice paths must not be world-readable. */
+  async redirects() {
+    return [
+      {
+        source: "/uploads/payout-invoices/:path*",
+        destination: "/404",
+        permanent: false,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" },

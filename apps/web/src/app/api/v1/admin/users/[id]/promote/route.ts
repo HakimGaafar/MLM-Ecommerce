@@ -1,6 +1,7 @@
 import { AdminUserError, promoteUserToAdmin } from "@mlm/domain";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdminSession } from "@/lib/require-super-admin-session";
+import { invalidateUserSessions } from "@/lib/session-invalidation";
 
 function errorResponse(error: AdminUserError) {
   const status =
@@ -33,6 +34,12 @@ export async function POST(
       actorUserId: auth.userId,
       targetUserId,
     });
+    // Force re-auth so the new ADMIN role is in the access JWT immediately.
+    try {
+      await invalidateUserSessions(targetUserId);
+    } catch {
+      /* Role already granted; refresh will also pick up new roles. */
+    }
     return NextResponse.json({ user }, { status: 200, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof AdminUserError) return errorResponse(error);

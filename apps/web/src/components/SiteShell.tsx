@@ -3,7 +3,12 @@ import { cookies } from "next/headers";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import AppShell from "@/components/shell/AppShell";
-import { ACTIVE_ROLE_COOKIE, getRolesUserCanSwitch, resolveActiveRole } from "@/lib/active-role";
+import {
+  ACTIVE_ROLE_COOKIE,
+  getRolesUserCanSwitch,
+  homePathForActiveRole,
+  resolveActiveRole,
+} from "@/lib/active-role";
 import {
   buildAdminSidebarSections,
   buildCustomerSidebarSections,
@@ -18,7 +23,6 @@ import { getThemePreference } from "@/lib/theme-preference";
 import { getServerSession } from "@/lib/server-session";
 import { getBrandName } from "@/lib/brand";
 import { getCustomerCartItemCount } from "@mlm/domain";
-import { homePathForRoles } from "@/lib/require-page-auth";
 
 function displayNameFromFullName(name: string | null | undefined, fallback: string): string {
   const first = name?.trim().split(/\s+/).filter(Boolean)[0];
@@ -55,7 +59,7 @@ export default async function SiteShell({ children }: { children: React.ReactNod
 
   const headerLinks = buildHeaderNav(activeRole, navDict, isLoggedIn);
   const cartItemCount =
-    session?.sub && roles.includes("CUSTOMER")
+    session?.sub && activeRole === "CUSTOMER"
       ? await getCustomerCartItemCount(session.sub, activeMarket.id)
       : 0;
   const customerSidebarSections = buildCustomerSidebarSections(navDict, {
@@ -66,7 +70,10 @@ export default async function SiteShell({ children }: { children: React.ReactNod
 
   const menuItems: { href: string; label: string }[] = [];
   if (isLoggedIn) {
-    menuItems.push({ href: homePathForRoles(roles), label: dict.customerNav.controlPanel });
+    menuItems.push({
+      href: homePathForActiveRole(activeRole),
+      label: dict.customerNav.controlPanel,
+    });
   }
 
   const userName = session?.sub

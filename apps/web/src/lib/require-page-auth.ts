@@ -1,14 +1,15 @@
 import { redirect } from "next/navigation";
+import { homePathForActiveRole, resolveActiveRole } from "@/lib/active-role";
 import { loginPathForRequiredRole } from "@/lib/auth-login-path";
 import type { AppRole } from "@/lib/server-session";
-import { getServerSession } from "@/lib/server-session";
+import { getServerSession, resolvePrimaryRole } from "@/lib/server-session";
 
+/** Fallback home from JWT roles when no active-role cookie is available. */
 export function homePathForRoles(roles: string[] = []): string {
-  if (roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")) return "/admin";
-  if (roles.includes("VENDOR")) return "/vendor";
-  if (roles.includes("CUSTOMER")) return "/dashboard";
-  return "/account/customer";
+  return homePathForActiveRole(resolvePrimaryRole(roles));
 }
+
+export { homePathForActiveRole, resolveActiveRole };
 
 /** Server component guard — redirects to the matching login or the user's home dashboard. */
 export async function requirePageAuth(requiredRole: AppRole) {

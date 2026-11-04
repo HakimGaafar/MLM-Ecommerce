@@ -14,6 +14,7 @@ import MarketSwitcher, {
   type MarketSwitcherLabels,
 } from "@/components/shell/MarketSwitcher";
 import type { MarketCode } from "@mlm/shared";
+import { homePathForActiveRole } from "@/lib/active-role";
 import { getToastDict } from "@/lib/toast-messages";
 import ThemeToggle from "@/components/shell/ThemeToggle";
 import { BRAND_LOGO_PATH } from "@/lib/brand";
@@ -131,7 +132,7 @@ export default function AppHeader({
     });
     if (res.ok) {
       toast.success(toastDict.roleSwitched);
-      router.replace("/dashboard");
+      router.replace(homePathForActiveRole(role));
     } else {
       toast.error(toastDict.genericError);
     }

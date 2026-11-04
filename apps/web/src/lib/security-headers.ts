@@ -4,12 +4,15 @@ const CSP_DIRECTIVES = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
+  "object-src 'none'",
+  // Next.js still requires unsafe-inline for framework scripts/styles without nonce plumbing.
   "script-src 'self' 'unsafe-inline' https://js.stripe.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   "connect-src 'self' https://api.stripe.com",
   "frame-src https://js.stripe.com https://hooks.stripe.com",
+  "upgrade-insecure-requests",
 ].join("; ");
 
 const isProduction = process.env.NODE_ENV === "production";

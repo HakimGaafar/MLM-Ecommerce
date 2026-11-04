@@ -6,12 +6,15 @@ import {
 import { VendorInvoiceProfileSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { requireVendorSession } from "@/lib/require-vendor-session";
-import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
+import { requireVendorPermission } from "@/lib/require-vendor-permission";
+import { publicErrorPayload } from "@/lib/api-error-response";
 
 export async function GET(request: NextRequest) {
   const auth = await requireVendorSession(request);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!auth.authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await requireVendorPermission(auth, "vendor:store:read");
+  if (denied) return denied;
 
   const profile = await getVendorInvoiceProfile(auth.vendorId);
   if (!profile) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -22,6 +25,8 @@ export async function PUT(request: NextRequest) {
   const auth = await requireVendorSession(request);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!auth.authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await requireVendorPermission(auth, "vendor:store:edit");
+  if (denied) return denied;
 
   const raw = await request.json().catch(() => null);
   const parsed = VendorInvoiceProfileSchema.safeParse(raw);

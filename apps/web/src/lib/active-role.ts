@@ -26,3 +26,33 @@ export function resolveActiveRole(
 
   return resolvePrimaryRole(roles);
 }
+
+/** Portal home for the active role (Phase 3: vendor ≠ customer). Safe for client + server. */
+export function homePathForActiveRole(role: AppRole | null | undefined): string {
+  if (role === "ADMIN") return "/admin";
+  if (role === "VENDOR") return "/vendor";
+  if (role === "CUSTOMER" || role === "AFFILIATE") return "/dashboard";
+  return "/account/customer";
+}
+
+export function activeRoleCookieOptions(secure = process.env.NODE_ENV === "production") {
+  return {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax" as const,
+    secure,
+    httpOnly: true,
+  };
+}
+
+export function clearActiveRoleCookie(
+  response: { cookies: { set: (name: string, value: string, options: Record<string, unknown>) => void } },
+) {
+  response.cookies.set(ACTIVE_ROLE_COOKIE, "", {
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    expires: new Date(0),
+  });
+}

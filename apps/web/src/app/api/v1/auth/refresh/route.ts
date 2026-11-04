@@ -12,6 +12,7 @@ import {
   setActiveRefreshJti,
   verifyActiveRefreshJti,
 } from "@/lib/refresh-session";
+import { cacheTokenVersion } from "@/lib/session-invalidation";
 import { consumeRateLimit, getClientIp } from "@/lib/security";
 
 export async function POST(request: NextRequest) {
@@ -54,14 +55,16 @@ export async function POST(request: NextRequest) {
     sub: user.id,
     email: user.email,
     roles: user.userRoles.map((item: (typeof user.userRoles)[number]) => item.role.code),
+    tv: user.tokenVersion,
   };
 
   const newAccessToken = await createAccessToken(payload);
   const { token: newRefreshToken, jti: newJti } = await createRefreshToken(payload);
   await setActiveRefreshJti(payload.sub, newJti);
+  await cacheTokenVersion(user.id, user.tokenVersion);
 
   const response = NextResponse.json({ ok: true });
   response.headers.set("Cache-Control", "no-store");
-  setAuthCookies(response, newAccessToken, newRefreshToken);
+  await setAuthCookies(response, newAccessToken, newRefreshToken);
   return response;
 }

@@ -6,7 +6,7 @@ import {
 } from "@mlm/domain";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getSessionTokenFromRequest, verifySessionToken } from "@/lib/auth";
+import { getAccessTokenFromRequest, verifySessionToken } from "@/lib/auth";
 import { sendOtpVerificationEmail } from "@/lib/mail";
 import { consumeRateLimit, getClientIp } from "@/lib/security";
 import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
@@ -25,7 +25,7 @@ function otpErrorResponse(error: OtpVerificationError) {
 }
 
 export async function GET(request: NextRequest) {
-  const token = getSessionTokenFromRequest(request);
+  const token = getAccessTokenFromRequest(request);
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const token = getSessionTokenFromRequest(request);
+  const token = getAccessTokenFromRequest(request);
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -97,7 +97,7 @@ const VerifySchema = z.object({
 });
 
 export async function PUT(request: NextRequest) {
-  const token = getSessionTokenFromRequest(request);
+  const token = getAccessTokenFromRequest(request);
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

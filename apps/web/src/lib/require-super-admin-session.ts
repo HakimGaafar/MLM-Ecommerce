@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { ACTIVE_ROLE_COOKIE, resolveActiveRole } from "@/lib/active-role";
 import { getAccessTokenFromRequest, verifyAccessToken } from "@/lib/auth";
 
 export type SuperAdminSessionAuth =
@@ -17,6 +18,11 @@ export async function requireSuperAdminSession(
 
   const roles = session.roles ?? [];
   if (!roles.includes("SUPER_ADMIN")) {
+    return { userId: session.sub, authorized: false };
+  }
+
+  const active = resolveActiveRole(roles, request.cookies.get(ACTIVE_ROLE_COOKIE)?.value);
+  if (active && active !== "ADMIN") {
     return { userId: session.sub, authorized: false };
   }
 

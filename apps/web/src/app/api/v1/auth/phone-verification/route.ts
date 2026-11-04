@@ -6,7 +6,7 @@ import {
 } from "@mlm/domain";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getSessionTokenFromRequest, verifySessionToken } from "@/lib/auth";
+import { getAccessTokenFromRequest, verifySessionToken } from "@/lib/auth";
 import { isPhoneOtpEnabled } from "@/lib/phone-otp";
 import { consumeRateLimit, getClientIp } from "@/lib/security";
 import { publicErrorPayload } from "@/lib/api-error-response";
@@ -25,7 +25,7 @@ function otpErrorResponse(error: OtpVerificationError) {
 }
 
 export async function GET(request: NextRequest) {
-  const token = getSessionTokenFromRequest(request);
+  const token = getAccessTokenFromRequest(request);
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -54,7 +54,7 @@ const SendSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const token = getSessionTokenFromRequest(request);
+  const token = getAccessTokenFromRequest(request);
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -87,9 +87,11 @@ export async function POST(request: NextRequest) {
 
   try {
     const issued = await createPhoneVerificationOtp(session.sub, parsed.data.phone);
-    console.info(
-      `[phone-otp:test] user=${session.sub} phone=${parsed.data.phone} code=${issued.code}`,
-    );
+    if (process.env.NODE_ENV !== "production") {
+      console.info(
+        `[phone-otp:test] user=${session.sub} phone=${issued.maskedPhone} code=${issued.code}`,
+      );
+    }
     return NextResponse.json({
       enabled: true,
       sent: true,
@@ -107,7 +109,7 @@ const VerifySchema = z.object({
 });
 
 export async function PUT(request: NextRequest) {
-  const token = getSessionTokenFromRequest(request);
+  const token = getAccessTokenFromRequest(request);
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -1,6 +1,7 @@
 import { resolveVendorAccessForUser } from "@mlm/domain";
 import { prisma } from "@mlm/db";
 import type { NextRequest } from "next/server";
+import { ACTIVE_ROLE_COOKIE, resolveActiveRole } from "@/lib/active-role";
 import { getAccessTokenFromRequest, verifyAccessToken } from "@/lib/auth";
 import { resolveRequestMarket } from "@/lib/request-market";
 
@@ -23,6 +24,12 @@ export async function requireVendorSession(request: NextRequest): Promise<Vendor
 
   const roles = roleRows.map((row) => row.role.code);
   if (!roles.includes("VENDOR")) {
+    return { userId: session.sub, vendorId: null, authorized: false };
+  }
+
+  // Dual-role users must be in vendor mode for vendor APIs (Phase 3).
+  const active = resolveActiveRole(roles, request.cookies.get(ACTIVE_ROLE_COOKIE)?.value);
+  if (active && active !== "VENDOR") {
     return { userId: session.sub, vendorId: null, authorized: false };
   }
 

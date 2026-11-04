@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { ACTIVE_ROLE_COOKIE, resolveActiveRole } from "@/lib/active-role";
 import { getAccessTokenFromRequest, verifyAccessToken } from "@/lib/auth";
 
 export type AdminSessionAuth =
@@ -15,6 +16,12 @@ export async function requireAdminSession(request: NextRequest): Promise<AdminSe
 
   const roles = session.roles ?? [];
   if (!roles.includes("ADMIN") && !roles.includes("SUPER_ADMIN")) {
+    return { userId: session.sub, authorized: false };
+  }
+
+  // Dual-role users must be in admin mode for admin APIs.
+  const active = resolveActiveRole(roles, request.cookies.get(ACTIVE_ROLE_COOKIE)?.value);
+  if (active && active !== "ADMIN") {
     return { userId: session.sub, authorized: false };
   }
 

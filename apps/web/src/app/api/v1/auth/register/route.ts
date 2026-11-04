@@ -37,8 +37,8 @@ const registerSchema = z.object({
     .min(10)
     .max(128)
     .refine(isStrongPassword, "Password must include upper, lower, number, and symbol"),
-  accountType: z.enum(["CUSTOMER", "VENDOR", "BOTH"]).optional().default("CUSTOMER"),
-  asVendor: z.boolean().optional(),
+  // Public register is customer-only; vendors must use /sell onboarding.
+  accountType: z.enum(["CUSTOMER"]).optional().default("CUSTOMER"),
   referralCode: z
     .string()
     .transform(normalizeReferralCode)
@@ -64,16 +64,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { name, email, password, accountType, asVendor, referralCode } = parsed.data;
+  const { name, email, password, referralCode } = parsed.data;
   const referralFromCookie = normalizeReferralCode(
     request.cookies.get(REFERRAL_COOKIE)?.value ?? "",
   );
   const requestedReferralCode = referralCode ?? referralFromCookie;
-  const resolvedAccountType =
-    accountType ?? (asVendor === true ? "BOTH" : "CUSTOMER");
-  const hasCustomerRole =
-    resolvedAccountType === "CUSTOMER" || resolvedAccountType === "BOTH";
-  const hasVendorRole = resolvedAccountType === "VENDOR" || resolvedAccountType === "BOTH";
   const passwordHash = await bcrypt.hash(password, 10);
 
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -94,23 +89,13 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const customerRole = hasCustomerRole
-        ? await tx.role.findUnique({ where: { code: "CUSTOMER" } })
-        : null;
-      const vendorRole = hasVendorRole
-        ? await tx.role.findUnique({ where: { code: "VENDOR" } })
-        : null;
-
-      if ((hasCustomerRole && !customerRole) || (hasVendorRole && !vendorRole)) {
+      const customerRole = await tx.role.findUnique({ where: { code: "CUSTOMER" } });
+      if (!customerRole) {
         throw new Error("ROLES_MISSING");
       }
 
-      await tx.userRole.createMany({
-        data: [
-          ...(customerRole ? [{ userId: createdUser.id, roleId: customerRole.id }] : []),
-          ...(vendorRole ? [{ userId: createdUser.id, roleId: vendorRole.id }] : []),
-        ],
-        skipDuplicates: true,
+      await tx.userRole.create({
+        data: { userId: createdUser.id, roleId: customerRole.id },
       });
 
       await tx.wallet.create({
@@ -131,8 +116,8 @@ export async function POST(request: NextRequest) {
 
       return {
         ...createdUser,
-        accountType: resolvedAccountType,
-        roles: [customerRole?.code, vendorRole?.code].filter(Boolean),
+        accountType: "CUSTOMER" as const,
+        roles: [customerRole.code],
       };
     });
 

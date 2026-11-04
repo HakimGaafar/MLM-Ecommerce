@@ -3,6 +3,11 @@ import { resolveMarketIdFromRequestCookies } from "@/lib/market-request-cookies"
 import { getPermissionsForVendorActor, resolveVendorAccessForUser } from "@mlm/domain";
 import { canAccessVendorPath, firstAllowedVendorNavHref } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  ACTIVE_ROLE_COOKIE,
+  homePathForActiveRole,
+  resolveActiveRole,
+} from "@/lib/active-role";
 import { getAccessTokenFromRequest, verifyAccessToken } from "@/lib/auth";
 import { loginPathForRequestPath } from "@/lib/auth-login-path";
 
@@ -11,16 +16,15 @@ const REFERRAL_COOKIE = "mlm_referral_code";
 const routeRoleMap: Array<{ prefix: string; role: string }> = [
   { prefix: "/api/v1/admin", role: "ADMIN" },
   { prefix: "/api/v1/vendor", role: "VENDOR" },
+  { prefix: "/api/v1/customer", role: "CUSTOMER" },
+  { prefix: "/api/v1/affiliate", role: "AFFILIATE" },
   { prefix: "/admin", role: "ADMIN" },
   { prefix: "/vendor", role: "VENDOR" },
   { prefix: "/customer", role: "CUSTOMER" },
 ];
 
-function dashboardFromRoles(roles: string[] = []) {
-  if (roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")) return "/admin";
-  if (roles.includes("VENDOR")) return "/vendor";
-  if (roles.includes("CUSTOMER")) return "/customer";
-  return "/";
+function dashboardFromRoles(roles: string[] = [], cookieValue?: string | null) {
+  return homePathForActiveRole(resolveActiveRole(roles, cookieValue));
 }
 
 function hasRouteRole(roles: string[] = [], requiredRole: string) {
@@ -131,9 +135,15 @@ export async function proxy(request: NextRequest) {
   const session = token ? await verifyAccessToken(token).catch(() => null) : null;
   const activeMarketId = resolveMarketIdFromRequestCookies(request);
 
+  const activeRoleCookie = request.cookies.get(ACTIVE_ROLE_COOKIE)?.value ?? null;
+  const activeRole = session
+    ? resolveActiveRole(session.roles ?? [], activeRoleCookie)
+    : null;
+
   if ((isLoginPage || isRegisterPage || isAuthRecoveryPage) && session) {
+    const home = homePathForActiveRole(activeRole);
     return attachReferralCookie(
-      NextResponse.redirect(new URL("/dashboard", request.url)),
+      NextResponse.redirect(new URL(home, request.url)),
       isRegisterPage,
       hasValidReferralInQuery ? normalizedReferral : undefined,
     );
@@ -165,7 +175,29 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!matched && isCleanProtectedPage) {
+    // Customer portal surfaces — dual-role users in vendor/admin mode go to their home.
+    const isCustomerPortalSurface =
+      pathname.startsWith("/profile") ||
+      pathname.startsWith("/orders") ||
+      pathname.startsWith("/returns") ||
+      pathname.startsWith("/cashback") ||
+      pathname.startsWith("/affiliate") ||
+      pathname.startsWith("/kyc") ||
+      pathname.startsWith("/cart") ||
+      pathname.startsWith("/checkout");
+
     if (
+      isCustomerPortalSurface &&
+      activeRole &&
+      activeRole !== "CUSTOMER" &&
+      activeRole !== "AFFILIATE"
+    ) {
+      return NextResponse.redirect(new URL(homePathForActiveRole(activeRole), request.url));
+    }
+
+    // /dashboard is shared: only apply vendor permission redirects when active role is VENDOR.
+    if (
+      activeRole === "VENDOR" &&
       session?.roles?.includes("VENDOR") &&
       (pathname === "/dashboard" || pathname.startsWith("/dashboard/"))
     ) {
@@ -192,10 +224,62 @@ export async function proxy(request: NextRequest) {
     if (isApiRoute) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    return NextResponse.redirect(new URL(dashboardFromRoles(session.roles), request.url));
+    return NextResponse.redirect(
+      new URL(dashboardFromRoles(session.roles, activeRoleCookie), request.url),
+    );
   }
 
-  if (session?.roles?.includes("VENDOR") && !isApiRoute) {
+  // Dual-role: edge-gate admin/customer APIs to the active portal mode.
+  if (isApiRoute && matched) {
+    if (
+      matched.role === "ADMIN" &&
+      activeRole &&
+      activeRole !== "ADMIN"
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (
+      matched.role === "CUSTOMER" &&
+      activeRole &&
+      activeRole !== "CUSTOMER" &&
+      activeRole !== "AFFILIATE"
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (
+      matched.role === "VENDOR" &&
+      activeRole &&
+      activeRole !== "VENDOR"
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
+  // Dual-role: block /admin and /vendor pages when not in that portal mode.
+  if (
+    !isApiRoute &&
+    pathname.startsWith("/admin") &&
+    activeRole &&
+    activeRole !== "ADMIN"
+  ) {
+    return NextResponse.redirect(new URL(homePathForActiveRole(activeRole), request.url));
+  }
+  if (
+    !isApiRoute &&
+    pathname.startsWith("/vendor") &&
+    activeRole &&
+    activeRole !== "VENDOR" &&
+    activeRole !== "ADMIN"
+  ) {
+    return NextResponse.redirect(new URL(homePathForActiveRole(activeRole), request.url));
+  }
+
+  // Vendor path permission checks when in vendor mode (or on /vendor/*).
+  if (
+    (pathname.startsWith("/vendor") || activeRole === "VENDOR") &&
+    session?.roles?.includes("VENDOR") &&
+    !isApiRoute
+  ) {
     const access = await resolveVendorAccessForUser(session.sub, activeMarketId);
     if (!access && !pathname.startsWith("/sell")) {
       return NextResponse.redirect(new URL("/sell", request.url));
@@ -228,6 +312,7 @@ export const config = {
     "/api/v1/admin/:path*",
     "/api/v1/vendor/:path*",
     "/api/v1/customer/:path*",
+    "/api/v1/affiliate/:path*",
     "/api/v1/catalog/:path*",
     "/api/v1/public/:path*",
     "/admin",

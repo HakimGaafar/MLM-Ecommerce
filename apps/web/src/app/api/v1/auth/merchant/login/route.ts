@@ -2,18 +2,19 @@ import { prisma } from "@mlm/db";
 import { MerchantLoginSchema, normalizeMerchantUsername } from "@mlm/shared";
 import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
-import { ACTIVE_ROLE_COOKIE } from "@/lib/active-role";
+import { ACTIVE_ROLE_COOKIE, activeRoleCookieOptions } from "@/lib/active-role";
 import { createAccessToken, createRefreshToken, setAuthCookies } from "@/lib/auth";
 import { setActiveRefreshJti } from "@/lib/refresh-session";
+import { cacheTokenVersion } from "@/lib/session-invalidation";
 import { consumeRateLimit, getClientIp } from "@/lib/security";
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const throttle = await consumeRateLimit(`merchant-login:${ip}`, 10, 10 * 60 * 1000);
-  if (!throttle.allowed) {
+  const ipThrottle = await consumeRateLimit(`merchant-login:${ip}`, 10, 10 * 60 * 1000);
+  if (!ipThrottle.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
-      { status: 429, headers: { "Retry-After": `${throttle.retryAfterSeconds}` } },
+      { status: 429, headers: { "Retry-After": `${ipThrottle.retryAfterSeconds}` } },
     );
   }
 
@@ -24,6 +25,18 @@ export async function POST(request: NextRequest) {
   }
 
   const username = normalizeMerchantUsername(parsed.data.username);
+  const identityThrottle = await consumeRateLimit(
+    `merchant-login:user:${username}`,
+    8,
+    10 * 60 * 1000,
+  );
+  if (!identityThrottle.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": `${identityThrottle.retryAfterSeconds}` } },
+    );
+  }
+
   const user = await prisma.user.findFirst({
     where: { username },
     include: { userRoles: { include: { role: true } } },
@@ -43,11 +56,13 @@ export async function POST(request: NextRequest) {
     sub: user.id,
     email: user.email,
     roles,
+    tv: user.tokenVersion,
   };
 
   const accessToken = await createAccessToken(payload);
   const { token: refreshToken, jti } = await createRefreshToken(payload);
   await setActiveRefreshJti(payload.sub, jti);
+  await cacheTokenVersion(user.id, user.tokenVersion);
   await prisma.user.update({
     where: { id: user.id },
     data: { lastLoginAt: new Date() },
@@ -55,13 +70,8 @@ export async function POST(request: NextRequest) {
 
   const response = NextResponse.json({ ok: true });
   response.headers.set("Cache-Control", "no-store");
-  setAuthCookies(response, accessToken, refreshToken);
-  response.cookies.set(ACTIVE_ROLE_COOKIE, "VENDOR", {
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-  });
+  await setAuthCookies(response, accessToken, refreshToken);
+  response.cookies.set(ACTIVE_ROLE_COOKIE, "VENDOR", activeRoleCookieOptions());
 
   return response;
 }

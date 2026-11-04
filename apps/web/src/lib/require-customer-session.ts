@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { ACTIVE_ROLE_COOKIE, resolveActiveRole } from "@/lib/active-role";
 import { getAccessTokenFromRequest, verifyAccessToken } from "@/lib/auth";
 
 export type CustomerSessionAuth =
@@ -15,6 +16,12 @@ export async function requireCustomerSession(request: NextRequest): Promise<Cust
 
   const roles = session.roles ?? [];
   if (!roles.includes("CUSTOMER")) {
+    return { userId: session.sub, authorized: false };
+  }
+
+  // Dual-role users must be in customer mode for customer APIs (Phase 3).
+  const active = resolveActiveRole(roles, request.cookies.get(ACTIVE_ROLE_COOKIE)?.value);
+  if (active && active !== "CUSTOMER" && active !== "AFFILIATE") {
     return { userId: session.sub, authorized: false };
   }
 

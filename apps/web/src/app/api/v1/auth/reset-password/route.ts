@@ -7,7 +7,7 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sendPasswordChangedEmail } from "@/lib/mail";
-import { clearRefreshSession } from "@/lib/refresh-session";
+import { invalidateUserSessions } from "@/lib/session-invalidation";
 import {
   consumeRateLimit,
   getClientIp,
@@ -70,9 +70,9 @@ export async function POST(request: NextRequest) {
     });
 
     try {
-      await clearRefreshSession(result.userId);
+      await invalidateUserSessions(result.userId);
     } catch {
-      /* Redis may be unavailable in some local setups; password is already changed. */
+      /* Redis/DB race — password is already changed; next verify will hit DB. */
     }
 
     const notified = await sendPasswordChangedEmail({

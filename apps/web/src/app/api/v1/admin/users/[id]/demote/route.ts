@@ -1,6 +1,7 @@
 import { AdminUserError, demoteAdminUser } from "@mlm/domain";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdminSession } from "@/lib/require-super-admin-session";
+import { invalidateUserSessions } from "@/lib/session-invalidation";
 
 function errorResponse(error: AdminUserError) {
   const status =
@@ -35,6 +36,11 @@ export async function POST(
       actorUserId: auth.userId,
       targetUserId,
     });
+    try {
+      await invalidateUserSessions(targetUserId);
+    } catch {
+      /* Role already removed; session kill is best-effort. */
+    }
     return NextResponse.json({ user }, { status: 200, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof AdminUserError) return errorResponse(error);
