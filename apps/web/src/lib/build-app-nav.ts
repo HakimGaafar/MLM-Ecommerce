@@ -57,6 +57,7 @@ export type ShellNavDict = {
     home: string;
     shop: string;
     cart: string;
+    wishlist: string;
     checkout: string;
     orders: string;
     returns: string;
@@ -76,6 +77,7 @@ export type ShellNavDict = {
     orders: string;
     coupons: string;
     payout: string;
+    payoutInvoices: string;
     operations: string;
     kyc: string;
     store: string;
@@ -89,11 +91,16 @@ export type ShellNavDict = {
     returns: string;
     users: string;
     vendors: string;
+    vendorOnboarding: string;
     pendingProducts: string;
+    marketOffers: string;
     withdrawals: string;
+    payoutInvoices: string;
     kyc: string;
     settlements: string;
     settlementsReleased: string;
+    fxRates: string;
+    platformCoupons: string;
     affiliates: string;
     settings: string;
     configAudit: string;
@@ -200,6 +207,7 @@ export function buildAdminSidebarSections(
       label: labels.commerce,
       items: [
         item("/admin/products/pending", dict.adminNav.pendingProducts),
+        item("/admin/products/market-offers", dict.adminNav.marketOffers),
         item("/admin/orders", dict.adminNav.orders),
         item("/admin/returns", dict.adminNav.returns),
       ],
@@ -220,6 +228,7 @@ export function buildAdminSidebarSections(
       items: [
         item("/admin/users", dict.adminNav.users),
         item("/admin/vendors", dict.adminNav.vendors),
+        item("/admin/vendors/onboarding", dict.adminNav.vendorOnboarding),
         item("/admin/affiliates", dict.adminNav.affiliates),
         ...(allRoles.includes("SUPER_ADMIN")
           ? [
@@ -235,7 +244,10 @@ export function buildAdminSidebarSections(
       items: [
         item("/admin/settlements", dict.adminNav.settlements),
         item("/admin/settlements/released", dict.adminNav.settlementsReleased),
+        item("/admin/fx-rates", dict.adminNav.fxRates),
+        item("/admin/platform-coupons", dict.adminNav.platformCoupons),
         item("/admin/withdrawals", dict.adminNav.withdrawals),
+        item("/admin/payout-invoices", dict.adminNav.payoutInvoices),
       ],
     },
   ];
@@ -271,6 +283,7 @@ export function buildVendorSidebarSections(
     orders: dict.vendorNav.orders,
     coupons: dict.vendorNav.coupons,
     payout: dict.vendorNav.payout,
+    payoutInvoices: dict.vendorNav.payoutInvoices,
     operations: dict.vendorNav.operations,
     kyc: dict.vendorNav.kyc,
     store: dict.vendorNav.store,
@@ -308,7 +321,7 @@ export function buildVendorSidebarSections(
     {
       id: "vendor-finance",
       label: sectionLabels.finance,
-      items: take(["plans", "payout", "operations"]),
+      items: take(["plans", "payout", "payoutInvoices", "operations"]),
     },
     {
       id: "vendor-team",
@@ -331,6 +344,7 @@ export function buildCustomerSidebarSections(
   const sections = dict.shell.customerNavSections;
   const shopItems: ShellNavItem[] = [
     { href: "/cart", label: dict.customerNav.cart, activeMatchStartsWith: true },
+    { href: "/wishlist", label: dict.customerNav.wishlist, activeMatchStartsWith: true },
   ];
   if (options.cartHasItems) {
     shopItems.push({ href: "/checkout", label: dict.customerNav.checkout, activeMatchStartsWith: true });

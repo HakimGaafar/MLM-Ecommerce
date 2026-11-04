@@ -31,6 +31,12 @@ type Ui = {
   loading: string;
   loadError: string;
   saveError: string;
+  settlementRiskTitle: string;
+  settlementRiskBody: string;
+  settlementRiskAccept: string;
+  settlementRiskAccepted: string;
+  settlementRiskSaving: string;
+  settlementRiskError: string;
 };
 
 export default function VendorStoreForm({ locale, ui }: { locale: Locale; ui: Ui }) {
@@ -44,6 +50,11 @@ export default function VendorStoreForm({ locale, ui }: { locale: Locale; ui: Ui
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [onboardingStatus, setOnboardingStatus] = useState<string | null>(null);
+  const [settlementRiskConsentAt, setSettlementRiskConsentAt] = useState<string | null>(null);
+  const [savingSettlementRisk, setSavingSettlementRisk] = useState(false);
+  const [changeNote, setChangeNote] = useState("");
+  const [requestingChange, setRequestingChange] = useState(false);
 
   const primaryLabel = useMemo(() => {
     const code = primaryMarketFromCountry(countryCode);
@@ -65,6 +76,8 @@ export default function VendorStoreForm({ locale, ui }: { locale: Locale; ui: Ui
             countryCode: string;
             metaTitle: string | null;
             metaDescription: string | null;
+            onboardingStatus?: string;
+            settlementRiskConsentAt?: string | null;
           };
         };
         if (!cancelled) {
@@ -72,6 +85,8 @@ export default function VendorStoreForm({ locale, ui }: { locale: Locale; ui: Ui
           setCountryCode(data.store.countryCode || "SA");
           setMetaTitle(data.store.metaTitle ?? "");
           setMetaDescription(data.store.metaDescription ?? "");
+          setOnboardingStatus(data.store.onboardingStatus ?? null);
+          setSettlementRiskConsentAt(data.store.settlementRiskConsentAt ?? null);
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : ui.loadError);
@@ -182,9 +197,109 @@ export default function VendorStoreForm({ locale, ui }: { locale: Locale; ui: Ui
         </label>
       </fieldset>
 
+      <section className="space-y-3 rounded-lg border border-[var(--border)] p-4">
+        <h2 className="text-sm font-semibold">{ui.settlementRiskTitle}</h2>
+        <p className="text-sm text-[var(--muted)]">{ui.settlementRiskBody}</p>
+        {settlementRiskConsentAt ? (
+          <p className="text-sm font-medium text-[var(--foreground)]">{ui.settlementRiskAccepted}</p>
+        ) : (
+          <button
+            type="button"
+            disabled={savingSettlementRisk}
+            className="btn-secondary btn-press w-full disabled:opacity-50"
+            onClick={() => {
+              void (async () => {
+                setSavingSettlementRisk(true);
+                setError(null);
+                try {
+                  const res = await fetch("/api/v1/vendor/settlement-risk-consent", {
+                    method: "POST",
+                    credentials: "include",
+                  });
+                  if (!res.ok) {
+                    const p = (await res.json().catch(() => null)) as { error?: string } | null;
+                    throw new Error(p?.error ?? ui.settlementRiskError);
+                  }
+                  const data = (await res.json()) as { consentedAt?: string };
+                  setSettlementRiskConsentAt(data.consentedAt ?? new Date().toISOString());
+                  toast.success(ui.settlementRiskAccepted);
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : ui.settlementRiskError;
+                  setError(msg);
+                  toast.error(msg);
+                } finally {
+                  setSavingSettlementRisk(false);
+                }
+              })();
+            }}
+          >
+            {savingSettlementRisk ? ui.settlementRiskSaving : ui.settlementRiskAccept}
+          </button>
+        )}
+      </section>
+
       <button type="submit" disabled={saving} className="btn-primary btn-press w-full">
         {saving ? ui.submitting : ui.submit}
       </button>
+
+      {onboardingStatus === "ACTIVE" ? (
+        <div className="space-y-3 rounded-lg border border-[var(--border-strong)] p-4">
+          <p className="text-sm font-medium">
+            {locale === "ar" ? "طلب تغيير ملف المتجر (مراجعة إدارية)" : "Request store profile change (admin review)"}
+          </p>
+          <textarea
+            className="app-input"
+            rows={2}
+            value={changeNote}
+            onChange={(ev) => setChangeNote(ev.target.value)}
+            placeholder={locale === "ar" ? "ملاحظة للمشرف (اختياري)" : "Note for admin (optional)"}
+          />
+          <button
+            type="button"
+            disabled={requestingChange}
+            className="btn-secondary btn-press w-full disabled:opacity-50"
+            onClick={() => {
+              void (async () => {
+                setRequestingChange(true);
+                setError(null);
+                try {
+                  const res = await fetch("/api/v1/seller/onboarding/profile-change", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      proposed: { storeName, countryCode },
+                      vendorNote: changeNote.trim() || null,
+                    }),
+                  });
+                  if (!res.ok) {
+                    const p = (await res.json().catch(() => null)) as { error?: string } | null;
+                    throw new Error(p?.error ?? ui.saveError);
+                  }
+                  setOnboardingStatus("UNDER_REVIEW");
+                  toast.success(
+                    locale === "ar" ? "تم إرسال طلب التغيير للمراجعة" : "Change request submitted for review",
+                  );
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : ui.saveError;
+                  setError(msg);
+                  toast.error(msg);
+                } finally {
+                  setRequestingChange(false);
+                }
+              })();
+            }}
+          >
+            {requestingChange
+              ? locale === "ar"
+                ? "جارٍ الإرسال…"
+                : "Submitting…"
+              : locale === "ar"
+                ? "إرسال للمراجعة"
+                : "Submit for review"}
+          </button>
+        </div>
+      ) : null}
     </form>
   );
 }

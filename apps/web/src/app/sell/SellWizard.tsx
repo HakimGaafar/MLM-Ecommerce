@@ -52,6 +52,8 @@ export default function SellWizard({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [storeName, setStoreName] = useState("");
   const [slug, setSlug] = useState("");
+  /** Once the user edits the slug field, stop overwriting it from store name. */
+  const [slugManual, setSlugManual] = useState(false);
   const [countryCode, setCountryCode] = useState("SA");
   const [addressLine1, setAddressLine1] = useState("");
   const [addressLine2, setAddressLine2] = useState("");
@@ -118,28 +120,43 @@ export default function SellWizard({
     return Object.keys(nextErrors).length === 0;
   }
 
-  const checkSlug = useCallback(
-    async (nextSlug: string, nextStoreName: string) => {
-      const q = new URLSearchParams();
-      if (nextSlug) q.set("slug", nextSlug);
-      if (nextStoreName) q.set("storeName", nextStoreName);
-      const res = await fetch(`/api/v1/public/seller/check-slug?${q}`, { cache: "no-store" });
-      if (!res.ok) {
-        setSlugStatus("bad");
-        return;
-      }
-      const data = (await res.json()) as { available: boolean; suggestion?: string };
-      setSlugStatus(data.available ? "ok" : "bad");
-      if (!nextSlug && data.suggestion) setSlug(data.suggestion);
-    },
-    [],
-  );
+  const checkSlugAvailability = useCallback(async (nextSlug: string, nextStoreName: string) => {
+    const q = new URLSearchParams();
+    if (nextSlug) q.set("slug", nextSlug);
+    if (nextStoreName) q.set("storeName", nextStoreName);
+    const res = await fetch(`/api/v1/public/seller/check-slug?${q}`, { cache: "no-store" });
+    if (!res.ok) {
+      setSlugStatus("bad");
+      return null;
+    }
+    return (await res.json()) as { available: boolean; suggestion?: string };
+  }, []);
 
   useEffect(() => {
     if (step !== 2 || !storeName.trim()) return;
-    const t = setTimeout(() => void checkSlug(slug, storeName), 400);
-    return () => clearTimeout(t);
-  }, [step, slug, storeName, checkSlug]);
+    let cancelled = false;
+    const t = setTimeout(() => {
+      void (async () => {
+        if (!slugManual) {
+          // Always rebuild from the full store name (fixes “first letter only” lock-in).
+          const suggested = await checkSlugAvailability("", storeName);
+          if (cancelled || !suggested?.suggestion) return;
+          setSlug(suggested.suggestion);
+          const availability = await checkSlugAvailability(suggested.suggestion, storeName);
+          if (cancelled || !availability) return;
+          setSlugStatus(availability.available ? "ok" : "bad");
+          return;
+        }
+        const availability = await checkSlugAvailability(slug, storeName);
+        if (cancelled || !availability) return;
+        setSlugStatus(availability.available ? "ok" : "bad");
+      })();
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [step, slug, storeName, slugManual, checkSlugAvailability]);
 
   const storePayload = () => ({
     storeName,
@@ -402,7 +419,15 @@ export default function SellWizard({
           <label className="block text-sm font-medium">{ui.storeSlug}</label>
           <div className="flex gap-2">
             <span className="shrink-0 rounded-lg border border-[var(--border-strong)] px-2 py-2 text-sm text-[var(--muted)]">/stores/</span>
-            <input className={inputClass} required value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} />
+              <input
+              className={inputClass}
+              required
+              value={slug}
+              onChange={(e) => {
+                setSlugManual(true);
+                setSlug(e.target.value.toLowerCase());
+              }}
+            />
           </div>
           <p className="text-xs text-[var(--muted)]">
             {ui.storeSlugHint.replace("{slug}", slug || "…")}{" "}

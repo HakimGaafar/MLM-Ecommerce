@@ -14,8 +14,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ available: false, suggestion, reason: "empty" });
   }
 
+  const suggestionFromName = suggestSlugFromStoreName(storeName || slug);
+
   if (!STORE_SLUG_REGEX.test(slug)) {
-    return NextResponse.json({ available: false, suggestion: suggestSlugFromStoreName(slug), reason: "format" });
+    return NextResponse.json({ available: false, suggestion: suggestionFromName, reason: "format" });
   }
 
   const market = await resolveRequestMarket();
@@ -33,6 +35,7 @@ export async function GET(request: NextRequest) {
   const available = await isStoreSlugAvailable(slug, excludeVendorId, market.id);
   return NextResponse.json({
     available,
-    suggestion: available ? slug : suggestSlugFromStoreName(slug),
+    // Prefer full store name for alternatives when the typed slug is taken/invalid.
+    suggestion: available ? slug : suggestionFromName,
   });
 }

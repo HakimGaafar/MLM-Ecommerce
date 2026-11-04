@@ -17,9 +17,14 @@ export default async function AdminVendorsPage() {
           <h1 className="text-2xl font-semibold">{ui.title}</h1>
           <p className="mt-2 text-sm text-[var(--muted)]">{ui.subtitle}</p>
         </div>
-        <Link href="/dashboard" className="text-sm text-link font-medium">
-          {ui.backToDashboard}
-        </Link>
+        <div className="flex flex-wrap gap-4">
+          <Link href="/admin/vendors/onboarding" className="text-sm text-link font-medium">
+            {locale === "ar" ? "مراجعة التسجيل" : "Onboarding review"}
+          </Link>
+          <Link href="/dashboard" className="text-sm text-link font-medium">
+            {ui.backToDashboard}
+          </Link>
+        </div>
       </div>
       <AdminVendorsList locale={locale} ui={ui.list} />
     </main>

@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   hasAcceptedInternationalSalesAgreement,
@@ -5,6 +6,11 @@ import {
 } from "@mlm/domain";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
+import {
+  ACTIVE_ROLE_COOKIE,
+  homePathForActiveRole,
+  resolveActiveRole,
+} from "@/lib/active-role";
 import { getCustomerPreferredLocale } from "@/lib/customer-locale";
 import { getActiveMarket } from "@/lib/market-server";
 import { requirePageAuth } from "@/lib/require-page-auth";
@@ -18,6 +24,14 @@ export default async function VendorLayout({
   children: React.ReactNode;
 }>) {
   const session = await requirePageAuth("VENDOR");
+  const cookieStore = await cookies();
+  const activeRole = resolveActiveRole(
+    session.roles ?? [],
+    cookieStore.get(ACTIVE_ROLE_COOKIE)?.value,
+  );
+  if (activeRole && activeRole !== "VENDOR" && activeRole !== "ADMIN") {
+    redirect(homePathForActiveRole(activeRole));
+  }
   const market = await getActiveMarket();
 
   const access = await resolveVendorAccessForUser(session.sub, market.id);

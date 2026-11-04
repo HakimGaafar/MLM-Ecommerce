@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import SellWizard from "@/app/sell/SellWizard";
+import VendorOnboardingWizard from "@/app/sell/VendorOnboardingWizard";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { PageHeader, PageShell } from "@/components/ui/PageShell";
@@ -7,7 +7,7 @@ import { getAppLocale } from "@/lib/ui-locale";
 import { getActiveMarket } from "@/lib/market-server";
 import { getServerSession } from "@/lib/server-session";
 import { firstAllowedVendorHrefForUser } from "@/lib/vendor-access";
-import { resolveVendorAccessForUser } from "@mlm/domain";
+import { getVendorOnboardingState, resolveVendorAccessForUser } from "@mlm/domain";
 
 export default async function SellPage({
   searchParams,
@@ -23,15 +23,26 @@ export default async function SellPage({
   const market = await getActiveMarket();
 
   const session = await getServerSession();
+  let mode: "guest" | "loggedIn" = "guest";
+  let initialStep = 1;
+  let needsStoreBootstrap = false;
+
   if (session) {
     const access = await resolveVendorAccessForUser(session.sub, market.id);
     if (access) {
-      const href = (await firstAllowedVendorHrefForUser(session.sub, market.id)) ?? "/vendor/products";
-      redirect(href);
+      const state = await getVendorOnboardingState(session.sub, market.id);
+      if (state?.onboardingStatus === "ACTIVE" && state.storeApprovalStatus === "APPROVED") {
+        const href = (await firstAllowedVendorHrefForUser(session.sub, market.id)) ?? "/vendor/products";
+        redirect(href);
+      }
+      mode = "loggedIn";
+      initialStep = state?.onboardingStep ?? 2;
+    } else {
+      mode = "loggedIn";
+      needsStoreBootstrap = true;
+      initialStep = 1;
     }
   }
-
-  const mode = session ? "loggedIn" : "guest";
 
   return (
     <PageShell dir={direction} maxWidth="3xl">
@@ -39,11 +50,12 @@ export default async function SellPage({
         title={mode === "loggedIn" ? ui.loggedInTitle : ui.title}
         subtitle={mode === "loggedIn" ? ui.loggedInSubtitle : ui.subtitle}
       />
-      <SellWizard
+      <VendorOnboardingWizard
         locale={locale}
-        ui={ui}
         mode={mode}
         initialReferralCode={ref ?? ""}
+        initialStep={initialStep}
+        needsStoreBootstrap={needsStoreBootstrap}
         internationalNotice={market.code === "GLOBAL" ? internationalVendorUi : null}
       />
     </PageShell>
