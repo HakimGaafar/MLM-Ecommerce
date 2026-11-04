@@ -12,9 +12,11 @@ export async function downloadInvoicePdf(url: string): Promise<void> {
     disposition?.match(/filename="([^"]+)"/)?.[1] ??
     (url.includes("summary-pdf")
       ? "order-summary.pdf"
-      : url.includes("commission")
-        ? "commission-invoice.pdf"
-        : "vendor-invoice.pdf");
+      : url.includes("shipping")
+        ? "shipping-invoice.pdf"
+        : url.includes("commission")
+          ? "commission-invoice.pdf"
+          : "vendor-invoice.pdf");
 
   const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement("a");

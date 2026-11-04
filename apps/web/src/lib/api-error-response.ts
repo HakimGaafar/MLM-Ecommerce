@@ -45,7 +45,16 @@ const INTERNAL_MESSAGE_PATTERNS = [
   /INCONSISTENT/i,
   /JWT_SECRET/i,
   /STRIPE_SECRET/i,
+  /TAP_SECRET/i,
   /not configured on this server/i,
+  /Stripe did not return/i,
+  /Stripe is not configured/i,
+  /Stripe is disabled/i,
+  /Tap is not configured/i,
+  /Tap did not return/i,
+  /Could not send verification code/i,
+  /testing emails/i,
+  /resend\.com/i,
   /at\s+\S+\.(ts|js):\d+/i,
 ];
 

@@ -32,8 +32,9 @@ export function invoicePdfFonts(locale: InvoicePdfLocale): InvoicePdfFonts {
       rtl: true,
       label: ARABIC_REGULAR,
       labelBold: ARABIC_BOLD,
-      data: "Helvetica",
-      dataBold: "Helvetica-Bold",
+      // Use Arabic-capable fonts for data too — Helvetica mojibakes Arabic names/addresses (N-038).
+      data: ARABIC_REGULAR,
+      dataBold: ARABIC_BOLD,
     };
   }
   return {
@@ -44,6 +45,14 @@ export function invoicePdfFonts(locale: InvoicePdfLocale): InvoicePdfFonts {
     data: "Helvetica",
     dataBold: "Helvetica-Bold",
   };
+}
+
+/** Pick a font that can render the string (Arabic content even on EN invoices). */
+export function fontForText(fonts: InvoicePdfFonts, text: string, bold = false): string {
+  if (/[\u0600-\u06FF]/.test(text)) {
+    return bold ? ARABIC_BOLD : ARABIC_REGULAR;
+  }
+  return bold ? fonts.dataBold : fonts.data;
 }
 
 export function textAlign(fonts: InvoicePdfFonts): "left" | "right" | "center" {

@@ -25,12 +25,9 @@ export async function GET(
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  if (!order.invoiceEligible) {
-    return NextResponse.json({ error: "Order summary is not available yet." }, { status: 403 });
-  }
-
-  if (!order.finalInvoiceAllowed) {
-    return NextResponse.json({ error: "Order summary is available after the return window closes." }, { status: 403 });
+  // DEV-009: order summary is available immediately after the order is placed (not a tax invoice).
+  if (order.status === "CANCELLED" || !order.orderSummaryAvailable) {
+    return NextResponse.json({ error: "Order summary is not available for this order." }, { status: 403 });
   }
 
   const locale = ACTIVE_INVOICE_LOCALE;

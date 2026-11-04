@@ -1,0 +1,118 @@
+import {
+  CheckoutError,
+  getPaymentGateway,
+  StripeCheckoutError,
+  TapCheckoutError,
+} from "@mlm/domain";
+import { CheckoutPostSchema } from "@mlm/shared";
+import { NextRequest, NextResponse } from "next/server";
+import { enforceUserRateLimit } from "@/lib/rate-limit-response";
+import { resolveCheckoutBaseUrl } from "@/lib/resolve-checkout-base-url";
+import { requireCustomerSession } from "@/lib/require-customer-session";
+import { resolveRequestMarket } from "@/lib/request-market";
+import {
+  internalServerErrorResponse,
+  publicErrorPayload,
+  PUBLIC_API_ERRORS,
+} from "@/lib/api-error-response";
+
+type GatewayCheckoutError = StripeCheckoutError | TapCheckoutError;
+
+function gatewayErrorResponse(error: GatewayCheckoutError) {
+  const status =
+    error.code === "NOT_CONFIGURED" || error.code === "NOT_IMPLEMENTED"
+      ? 503
+      : error.code === "FORBIDDEN"
+        ? 403
+        : error.code === "ALREADY_PAID"
+          ? 409
+          : 400;
+  return NextResponse.json(
+    publicErrorPayload(error, { context: "customer/checkout/payment-session", code: error.code }),
+    { status },
+  );
+}
+
+/** Card checkout session (active PSP from PAYMENT_GATEWAY; default Tap). */
+export async function POST(request: NextRequest) {
+  const auth = await requireCustomerSession(request);
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!auth.authorized) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const limited = await enforceUserRateLimit(
+    request,
+    auth.userId,
+    "checkout-payment-session",
+    10,
+    5 * 60 * 1000,
+  );
+  if (limited) return limited;
+
+  const raw = await request.json().catch(() => ({}));
+  const parsed = CheckoutPostSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", issues: parsed.error.flatten() },
+      { status: 400 },
+    );
+  }
+
+  const appBaseUrl = resolveCheckoutBaseUrl(request);
+
+  try {
+    const market = await resolveRequestMarket();
+    const result = await getPaymentGateway().createCheckout(
+      auth.userId,
+      market.id,
+      {
+        idempotencyKey: parsed.data.idempotencyKey,
+        shippingAddressId: parsed.data.shippingAddressId,
+        couponCodes:
+          parsed.data.couponCodes ??
+          (parsed.data.couponCode ? [parsed.data.couponCode] : undefined),
+        useWalletBalance: parsed.data.useWalletBalance,
+        buyingForCompany: parsed.data.buyingForCompany,
+        companyName: parsed.data.companyName,
+        companyTaxId: parsed.data.companyTaxId,
+        companyCrNumber: parsed.data.companyCrNumber,
+        companyHqAddressLine1: parsed.data.companyHqAddressLine1,
+        companyHqCity: parsed.data.companyHqCity,
+        companyHqCountryCode: parsed.data.companyHqCountryCode,
+        settlementRiskAccepted: parsed.data.settlementRiskAccepted,
+      },
+      { appBaseUrl },
+    );
+    return NextResponse.json(
+      {
+        checkoutUrl: result.checkoutUrl,
+        orderId: result.orderId,
+        sessionId: result.providerReference,
+        paidWithoutGateway: result.paidWithoutGateway,
+      },
+      { status: 201, headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    if (error instanceof StripeCheckoutError || error instanceof TapCheckoutError) {
+      return gatewayErrorResponse(error);
+    }
+    if (error instanceof CheckoutError) {
+      const status = error.code === "EMAIL_VERIFICATION_REQUIRED" ? 403 : 400;
+      return NextResponse.json(
+        publicErrorPayload(error, {
+          context: "customer/checkout/payment-session",
+          code: error.code,
+        }),
+        { status },
+      );
+    }
+    return internalServerErrorResponse(
+      "customer/checkout/payment-session",
+      error,
+      PUBLIC_API_ERRORS.checkoutFailed,
+    );
+  }
+}

@@ -5,6 +5,7 @@ export type InvoicePdfLocale = "en" | "ar";
 export type InvoicePdfLabels = {
   taxInvoice: string;
   commissionInvoice: string;
+  shippingInvoice: string;
   invoiceNo: string;
   date: string;
   order: string;
@@ -32,12 +33,14 @@ export type InvoicePdfLabels = {
   footerMarketplace: string;
   footerCommission: (platform: string) => string;
   footerCommissionSimple: string;
+  footerShipping: (platform: string) => string;
   forseiz: string;
 };
 
 const EN: InvoicePdfLabels = {
   taxInvoice: "Tax Invoice",
   commissionInvoice: "Commission Invoice",
+  shippingInvoice: "Shipping Invoice",
   invoiceNo: "Invoice No",
   date: "Date",
   order: "Order",
@@ -65,12 +68,14 @@ const EN: InvoicePdfLabels = {
   footerMarketplace: "Issued via Fources Marketplace",
   footerCommission: (platform) => `Commission invoice from ${platform}. Retain for your records.`,
   footerCommissionSimple: "Commission invoice. Retain for your records.",
+  footerShipping: (platform) => `Shipping invoice from ${platform}. Retain for your records.`,
   forseiz: BRAND_NAME_EN,
 };
 
 const AR: InvoicePdfLabels = {
   taxInvoice: "فاتورة ضريبية",
   commissionInvoice: "فاتورة عمولة",
+  shippingInvoice: "فاتورة شحن",
   invoiceNo: "رقم الفاتورة",
   date: "التاريخ",
   order: "الطلب",
@@ -98,6 +103,7 @@ const AR: InvoicePdfLabels = {
   footerMarketplace: "صادرة عبر منصة فورسيز",
   footerCommission: (platform) => `فاتورة عمولة من ${platform}. احتفظ بها لسجلاتك.`,
   footerCommissionSimple: "فاتورة عمولة. احتفظ بها لسجلاتك.",
+  footerShipping: (platform) => `فاتورة شحن من ${platform}. احتفظ بها لسجلاتك.`,
   forseiz: BRAND_NAME_AR,
 };
 

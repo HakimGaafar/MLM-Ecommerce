@@ -22,6 +22,9 @@ type ConfigState = {
   affiliateLevel4Percent: number;
   vendorPercent: number;
   platformPercent: number;
+  vendorPercentCross: number;
+  platformPercentCross: number;
+  codEnabled: boolean;
   vatPercent: number;
   minWithdrawalAmount: number;
   returnWindowDays: number;
@@ -87,6 +90,7 @@ type Ui = {
     policies: string;
     footerContact: string;
     paymentGateways: string;
+    cod?: string;
   };
   fields: {
     cashbackPercent: string;
@@ -97,6 +101,9 @@ type Ui = {
     affiliateLevel4Percent: string;
     vendorPercent: string;
     platformPercent: string;
+    vendorPercentCross?: string;
+    platformPercentCross?: string;
+    codEnabled?: string;
     vatPercent: string;
     minWithdrawalAmount: string;
     returnWindowDays: string;
@@ -127,6 +134,7 @@ type Ui = {
     commissionSum: string;
     commissionSumOk: string;
     commissionSumBad: string;
+    commissionCrossIntro?: string;
     vatIntro: string;
     vatExample: string;
     appliesToNewOrders: string;
@@ -149,12 +157,20 @@ function toFormState(config: ApiConfigState): ConfigState {
     config.affiliateLevel3Percent ?? 0,
     config.affiliateLevel4Percent ?? 0,
   ];
+  const api = config as ApiConfigState & {
+    vendorPercentCross?: number;
+    platformPercentCross?: number;
+    codEnabled?: boolean;
+  };
   return {
     ...config,
     affiliateLevel1Percent: levels[0] ?? 0,
     affiliateLevel2Percent: levels[1] ?? 0,
     affiliateLevel3Percent: levels[2] ?? 0,
     affiliateLevel4Percent: levels[3] ?? 0,
+    vendorPercentCross: api.vendorPercentCross ?? 90,
+    platformPercentCross: api.platformPercentCross ?? 10,
+    codEnabled: api.codEnabled ?? true,
     termsUrl: config.termsUrl ?? "",
     termsText: config.termsText ?? "",
     privacyUrl: config.privacyUrl ?? "",
@@ -292,6 +308,10 @@ export default function AdminPlatformSettingsForm({
     ? Math.round((form.vendorPercent + form.platformPercent) * 100) / 100
     : 0;
   const commissionOk = Math.abs(commissionSum - 100) < 0.011;
+  const commissionCrossSum = form
+    ? Math.round((form.vendorPercentCross + form.platformPercentCross) * 100) / 100
+    : 0;
+  const commissionCrossOk = Math.abs(commissionCrossSum - 100) < 0.011;
 
   return (
     <div className="mt-8 space-y-8" dir={direction}>
@@ -467,6 +487,65 @@ export default function AdminPlatformSettingsForm({
               {ui.hints.commissionSum.replace("{sum}", String(commissionSum))} —{" "}
               {commissionOk ? ui.hints.commissionSumOk : ui.hints.commissionSumBad}
             </p>
+
+            <p className="mt-6 text-xs leading-5 text-[var(--muted)]">
+              {ui.hints.commissionCrossIntro ??
+                "Cross-market / International split (default platform 10% / vendor 90%)."}
+            </p>
+            <div className="mt-3 grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+              <SettingsField
+                label={ui.fields.vendorPercentCross ?? "Vendor % (cross / intl)"}
+                alignLabelHeights
+              >
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  className="app-input"
+                  value={form.vendorPercentCross}
+                  onChange={(e) => setNumber("vendorPercentCross", e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
+                />
+              </SettingsField>
+              <SettingsField
+                label={ui.fields.platformPercentCross ?? "Platform % (cross / intl)"}
+                alignLabelHeights
+              >
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  className="app-input"
+                  value={form.platformPercentCross}
+                  onChange={(e) => setNumber("platformPercentCross", e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
+                />
+              </SettingsField>
+            </div>
+            <p
+              className={`mt-3 text-sm font-medium ${
+                commissionCrossOk
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-red-600 dark:text-red-400"
+              }`}
+            >
+              {ui.hints.commissionSum.replace("{sum}", String(commissionCrossSum))} —{" "}
+              {commissionCrossOk ? ui.hints.commissionSumOk : ui.hints.commissionSumBad}
+            </p>
+          </section>
+
+          <section className="rounded-xl border border-[var(--border)] p-6">
+            <h2 className="text-lg font-medium">{ui.sections.cod ?? "Cash on delivery"}</h2>
+            <label className="mt-4 flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={form.codEnabled}
+                onChange={(e) => setBoolean("codEnabled", e.target.checked)}
+              />
+              <span>{ui.fields.codEnabled ?? "Allow COD (global kill-switch)"}</span>
+            </label>
           </section>
 
           <section className="rounded-xl border border-[var(--border)] p-6">

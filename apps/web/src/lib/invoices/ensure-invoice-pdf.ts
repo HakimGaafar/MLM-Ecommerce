@@ -1,8 +1,10 @@
 import type { InvoiceDocumentType } from "@mlm/db";
 import {
   buildCommissionInvoiceRender,
+  buildShippingInvoiceRender,
   buildVendorSaleInvoiceRender,
   getStoredInvoice,
+  getStoredShippingInvoice,
   logInvoiceDownload,
   OrderInvoiceError,
   saveGeneratedInvoice,
@@ -10,7 +12,11 @@ import {
 import { readInvoicePdf, storeInvoicePdf } from "./document-storage";
 import type { InvoicePdfLocale } from "./invoice-pdf-locale";
 import { normalizeInvoicePdfLocale } from "./invoice-pdf-locale";
-import { renderCommissionInvoicePdf, renderVendorSaleInvoicePdf } from "./render-pdf";
+import {
+  renderCommissionInvoicePdf,
+  renderShippingInvoicePdf,
+  renderVendorSaleInvoicePdf,
+} from "./render-pdf";
 
 export type { InvoicePdfLocale };
 export { normalizeInvoicePdfLocale };
@@ -98,6 +104,45 @@ export async function ensureCommissionInvoicePdf(
       storageKey: stored.storageKey,
       fileUrl: stored.fileUrl,
       subtotal: render.commissionSubtotal,
+      vatTotal: render.vatTotal,
+      totalAmount: render.totalAmount,
+    }));
+
+  await logInvoiceDownload(row.id, userId);
+  return { buffer, invoiceNo: render.invoiceNo, filename: fileName };
+}
+
+export async function ensureShippingInvoicePdf(
+  orderId: string,
+  userId: string,
+  _locale?: InvoicePdfLocale,
+): Promise<{ buffer: Buffer; invoiceNo: string; filename: string }> {
+  const locale = ACTIVE_INVOICE_LOCALE;
+  const existing = await getStoredShippingInvoice(orderId);
+  if (existing) {
+    const key = storageKeyFor(existing.invoiceNo);
+    const buffer = await readInvoicePdf(key);
+    if (buffer) {
+      await logInvoiceDownload(existing.id, userId);
+      return { buffer, invoiceNo: existing.invoiceNo, filename: storageFileName(existing.invoiceNo) };
+    }
+  }
+
+  const render = await buildShippingInvoiceRender(orderId);
+  const buffer = await renderShippingInvoicePdf(render, locale);
+  const fileName = storageFileName(render.invoiceNo);
+  const stored = await storeInvoicePdf(fileName, buffer);
+
+  const row =
+    existing ??
+    (await saveGeneratedInvoice({
+      orderId,
+      vendorId: render.vendorId,
+      documentType: "SHIPPING",
+      invoiceNo: render.invoiceNo,
+      storageKey: stored.storageKey,
+      fileUrl: stored.fileUrl,
+      subtotal: render.subtotal,
       vatTotal: render.vatTotal,
       totalAmount: render.totalAmount,
     }));

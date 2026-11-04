@@ -1,8 +1,8 @@
-import { getPaymentGateway, StripeCheckoutError } from "@mlm/domain";
+import { getPaymentGateway, StripeCheckoutError, TapCheckoutError } from "@mlm/domain";
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { requireCustomerSession } from "@/lib/require-customer-session";
-import { publicErrorMessage, publicErrorPayload, PUBLIC_API_ERRORS } from "@/lib/api-error-response";
+import { publicErrorPayload } from "@/lib/api-error-response";
 
 const BodySchema = z.object({
   sessionId: z.string().trim().min(1),
@@ -33,9 +33,11 @@ export async function POST(request: NextRequest) {
     );
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    if (error instanceof StripeCheckoutError) {
+    if (error instanceof StripeCheckoutError || error instanceof TapCheckoutError) {
       const status = error.code === "FORBIDDEN" ? 403 : error.code === "NOT_FOUND" ? 404 : 400;
-      return NextResponse.json(publicErrorPayload(error, { context: "api", code: error.code }), { status });
+      return NextResponse.json(publicErrorPayload(error, { context: "api", code: error.code }), {
+        status,
+      });
     }
     throw error;
   }

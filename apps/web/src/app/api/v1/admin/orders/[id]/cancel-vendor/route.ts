@@ -32,7 +32,7 @@ export async function POST(
       const status =
         e.code === "NOT_FOUND"
           ? 404
-          : e.code === "STRIPE_REFUND_FAILED"
+          : e.code === "CARD_REFUND_FAILED"
             ? 502
             : 400;
       return NextResponse.json(publicErrorPayload(e, { context: "api", code: e.code }), { status });

@@ -1,8 +1,12 @@
 import PDFDocument from "pdfkit";
-import type { CommissionInvoiceRenderDto, VendorSaleInvoiceRenderDto } from "@mlm/domain";
+import type {
+  CommissionInvoiceRenderDto,
+  ShippingInvoiceRenderDto,
+  VendorSaleInvoiceRenderDto,
+} from "@mlm/domain";
 import { getInvoicePdfLabels, invoiceVatLabel, type InvoicePdfLabels, type InvoicePdfLocale } from "./invoice-pdf-locale";
 import { hasArabic, labelTextOptions } from "./pdf-arabic-text";
-import { invoicePdfFonts, registerInvoiceFonts, textAlign, type InvoicePdfFonts } from "./pdf-fonts";
+import { fontForText, invoicePdfFonts, registerInvoiceFonts, textAlign, type InvoicePdfFonts } from "./pdf-fonts";
 import { loadInvoiceLogo } from "./pdf-assets";
 
 type PdfDoc = InstanceType<typeof PDFDocument>;
@@ -77,8 +81,12 @@ function drawPartyBlock(
   for (const line of lines) {
     if (typeof line === "string") {
       if (!line.trim()) continue;
-      doc.font(fonts.data).fontSize(10).fillColor("#171717");
-      doc.text(line, x, cursor, { width, align: fonts.rtl ? "right" : "left" });
+      doc.font(fontForText(fonts, line)).fontSize(10).fillColor("#171717");
+      doc.text(line, x, cursor, {
+        width,
+        align: fonts.rtl ? "right" : "left",
+        ...(hasArabic(line) ? { features: ["rtla"] as const } : {}),
+      });
       cursor += doc.heightOfString(line, { width, align: fonts.rtl ? "right" : "left" }) + 2;
       continue;
     }
@@ -101,19 +109,23 @@ function drawLabelValue(
   const labelText = `${label}: `;
   doc.font(fonts.label).fontSize(10).fillColor("#525252");
   const labelW = doc.widthOfString(labelText, labelTextOptions(fonts));
-  doc.font(fonts.data).fontSize(10).fillColor("#171717");
-  const valueW = doc.widthOfString(value);
+  const valueFont = fontForText(fonts, value);
+  doc.font(valueFont).fontSize(10).fillColor("#171717");
+  const valueW = doc.widthOfString(value, hasArabic(value) ? { features: ["rtla"] } : undefined);
   const totalW = labelW + valueW;
 
   if (fonts.rtl || side === "right") {
     const startX = side === "right" ? x + width - totalW : x;
     doc.font(fonts.label).fillColor("#525252").text(labelText, startX, y, { lineBreak: false, ...labelTextOptions(fonts) });
-    doc.font(fonts.data).fillColor("#171717").text(value, startX + labelW, y, { lineBreak: false });
+    doc.font(valueFont).fillColor("#171717").text(value, startX + labelW, y, {
+      lineBreak: false,
+      ...(hasArabic(value) ? { features: ["rtla"] as const } : {}),
+    });
     return;
   }
 
   doc.font(fonts.label).fillColor("#525252").text(labelText, x, y, { continued: true, width });
-  doc.font(fonts.data).fillColor("#171717").text(value);
+  doc.font(valueFont).fillColor("#171717").text(value, hasArabic(value) ? { features: ["rtla"] } : undefined);
 }
 
 function drawMetaBlock(
@@ -203,13 +215,25 @@ function drawLineRow(
         { text: line.lineTotal, x: MARGIN + 374, w: 72 },
       ];
 
-  doc.font(fonts.data).fontSize(9).fillColor("#171717");
   let rowHeight = 0;
   for (const col of cols) {
-    rowHeight = Math.max(rowHeight, doc.heightOfString(col.text, { width: col.w, align }));
+    doc.font(fontForText(fonts, col.text)).fontSize(9);
+    rowHeight = Math.max(
+      rowHeight,
+      doc.heightOfString(col.text, {
+        width: col.w,
+        align,
+        ...(hasArabic(col.text) ? { features: ["rtla"] as const } : {}),
+      }),
+    );
   }
   for (const col of cols) {
-    doc.text(col.text, col.x, y, { width: col.w, align });
+    doc.font(fontForText(fonts, col.text)).fontSize(9).fillColor("#171717");
+    doc.text(col.text, col.x, y, {
+      width: col.w,
+      align,
+      ...(hasArabic(col.text) ? { features: ["rtla"] as const } : {}),
+    });
   }
   return y + rowHeight + 10;
 }
@@ -443,6 +467,115 @@ export async function renderCommissionInvoicePdf(
         );
 
         drawFooterBlock(doc, fonts, [labels.footerCommission(data.seller.legalName)], totalsEnd);
+        doc.end();
+      } catch (e) {
+        reject(e);
+      }
+    })();
+  });
+}
+
+export async function renderShippingInvoicePdf(
+  data: ShippingInvoiceRenderDto,
+  locale: InvoicePdfLocale,
+): Promise<Buffer> {
+  const labels = getInvoicePdfLabels(locale);
+  const fonts = invoicePdfFonts(locale);
+
+  return new Promise((resolve, reject) => {
+    void (async () => {
+      try {
+        const doc = new PDFDocument({ margin: MARGIN, size: "A4" });
+        if (fonts.locale === "ar") registerInvoiceFonts(doc);
+
+        const chunks: Buffer[] = [];
+        doc.on("data", (c: Buffer) => chunks.push(c));
+        doc.on("end", () => resolve(Buffer.concat(chunks)));
+        doc.on("error", reject);
+
+        const leftLogoX = fonts.rtl ? MARGIN + CONTENT_WIDTH - 130 : MARGIN;
+
+        const headerBottom = await drawLogoSlot(
+          doc,
+          fonts,
+          data.seller.logoUrl,
+          labels.forseiz,
+          leftLogoX,
+          MARGIN,
+          fonts.rtl ? "right" : "left",
+        );
+
+        let metaY = drawTitle(doc, fonts, labels.shippingInvoice, headerBottom);
+        metaY = drawMetaRow(
+          doc,
+          fonts,
+          { label: labels.invoiceNo, value: data.invoiceNo },
+          { label: labels.date, value: data.issuedAt.slice(0, 10) },
+          metaY,
+        );
+        metaY = drawMetaBlock(doc, fonts, [{ label: labels.order, value: data.orderNo }], metaY);
+
+        const partiesY = metaY + 12;
+        drawDivider(doc, partiesY - 6);
+
+        const fromLines: PartyLine[] = [
+          data.seller.legalName,
+          ...(data.seller.vatTrn ? [{ label: labels.vatTrn, value: data.seller.vatTrn }] : []),
+          data.seller.addressLine1,
+          data.seller.addressLine2 ?? "",
+          `${data.seller.city}, ${data.seller.postalCode}, ${data.seller.countryCode}`,
+        ].filter((line) => (typeof line === "string" ? line.trim() : true));
+        const toLines: PartyLine[] = [
+          data.buyer.name,
+          data.buyer.email,
+          data.buyer.addressLine1,
+          data.buyer.addressLine2 ?? "",
+          `${data.buyer.city}, ${data.buyer.postalCode}, ${data.buyer.countryCode}`,
+          ...(data.buyer.phone ? [data.buyer.phone] : []),
+        ].filter((line) => (typeof line === "string" ? line.trim() : true));
+
+        const colWidth = CONTENT_WIDTH / 2 - 12;
+        const fromX = fonts.rtl ? MARGIN + CONTENT_WIDTH / 2 + 12 : MARGIN;
+        const toX = fonts.rtl ? MARGIN : MARGIN + CONTENT_WIDTH / 2 + 12;
+
+        const fromBottom = drawPartyBlock(doc, fonts, labels.fromPlatform, fromLines, fromX, partiesY, colWidth);
+        const toBottom = drawPartyBlock(doc, fonts, labels.billTo, toLines, toX, partiesY, colWidth);
+
+        let linesY = Math.max(fromBottom, toBottom) + 20;
+        drawDivider(doc, linesY - 8);
+        doc.font(fonts.labelBold).fontSize(10).fillColor("#525252");
+        doc.text(labels.shipping, MARGIN, linesY, {
+          width: CONTENT_WIDTH,
+          align: textAlign(fonts),
+          ...labelTextOptions(fonts),
+        });
+        linesY += 16;
+
+        for (const line of data.lines) {
+          doc.font(fontForText(fonts, line.description)).fontSize(10).fillColor("#171717");
+          const descH = doc.heightOfString(line.description, { width: CONTENT_WIDTH - 120 });
+          doc.text(line.description, MARGIN, linesY, { width: CONTENT_WIDTH - 120 });
+          doc.font(fonts.data).text(money(line.amount, data.currency), MARGIN + CONTENT_WIDTH - 110, linesY, {
+            width: 110,
+            align: "right",
+          });
+          linesY += Math.max(descH, 12) + 8;
+        }
+
+        const totalsY = linesY + 12;
+        drawDivider(doc, totalsY - 8);
+        const totalsEnd = drawTotals(
+          doc,
+          fonts,
+          [
+            { label: labels.subtotal, value: money(data.subtotal, data.currency) },
+            { label: invoiceVatLabel(labels, data.vatPercent), value: money(data.vatTotal, data.currency) },
+            { label: labels.total, value: money(data.totalAmount, data.currency), bold: true },
+          ],
+          totalsY,
+        );
+
+        drawFooterBlock(doc, fonts, [labels.footerShipping(data.seller.legalName)], totalsEnd);
         doc.end();
       } catch (e) {
         reject(e);

@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
       parsed.data.quantity,
       market.id,
       market.defaultCurrency,
+      parsed.data.variantId,
     );
     return NextResponse.json(cart, {
       headers: { "Cache-Control": "no-store" },
@@ -37,6 +38,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof Error && error.message === "PRODUCT_NOT_FOUND") {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+    if (error instanceof Error && error.message === "VARIANT_REQUIRED") {
+      return NextResponse.json({ error: "Select a product option." }, { status: 400 });
+    }
+    if (error instanceof Error && error.message === "VARIANT_NOT_FOUND") {
+      return NextResponse.json({ error: "Selected option is not available." }, { status: 404 });
     }
     throw error;
   }

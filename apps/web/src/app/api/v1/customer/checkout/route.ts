@@ -46,6 +46,14 @@ export async function POST(request: NextRequest) {
         parsed.data.couponCodes ??
         (parsed.data.couponCode ? [parsed.data.couponCode] : undefined),
       useWalletBalance: parsed.data.useWalletBalance,
+      buyingForCompany: parsed.data.buyingForCompany,
+      companyName: parsed.data.companyName,
+      companyTaxId: parsed.data.companyTaxId,
+      companyCrNumber: parsed.data.companyCrNumber,
+      companyHqAddressLine1: parsed.data.companyHqAddressLine1,
+      companyHqCity: parsed.data.companyHqCity,
+      companyHqCountryCode: parsed.data.companyHqCountryCode,
+      settlementRiskAccepted: parsed.data.settlementRiskAccepted,
     });
     return NextResponse.json(
       { order },

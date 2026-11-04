@@ -82,6 +82,8 @@ type InvoiceTilesUi = {
   title: string;
   orderSummary: string;
   downloadVendorInvoice: string;
+  downloadShippingInvoice: string;
+  shippingInvoiceLabel: string;
   unavailable: string;
   gateClosed: string;
   orderNotEligible: string;
@@ -229,11 +231,9 @@ export default function OrderDetailContent({
 
         <OrderInvoiceRow
           orderId={order.id}
-          invoiceEligible={order.invoiceEligible}
-          finalInvoiceAllowed={order.finalInvoiceAllowed}
+          orderSummaryAvailable={order.orderSummaryAvailable}
           title={ui.invoiceRowTitle}
           viewSummary={ui.invoiceRowViewSummary}
-          pendingMessage={ui.invoiceRowPending}
           notEligibleMessage={ui.invoiceRowNotEligible}
         />
       </div>

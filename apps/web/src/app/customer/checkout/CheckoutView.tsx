@@ -57,12 +57,23 @@ type QuoteShippingLine = {
   fee: string;
 };
 
+type QuoteVatLine = {
+  kind: "VENDOR_GOODS" | "WAREHOUSE_SHIPPING";
+  vendorId: string | null;
+  label: string;
+  taxableBase: string;
+  vatRatePercent: number;
+  vatAmount: string;
+};
+
 type QuotePayload = {
   cart: CartPayload;
   shippingFee: string;
   shippingBreakdown: QuoteShippingLine[];
   discountTotal: string;
   vatTotal: string;
+  vatBreakdown?: QuoteVatLine[];
+  displayVatPercent?: number | null;
   totalAmount: string;
   profileComplete: boolean;
   shippingAddresses: CustomerShippingAddressDto[];
@@ -71,6 +82,7 @@ type QuotePayload = {
   deliveryMismatchMarketCode?: string | null;
   coupons: QuoteCoupons | null;
   cardPaymentsEnabled?: boolean;
+  activePaymentGateway?: "stripe" | "hyperpay" | "tap" | "myfatoorah";
   plannedPaymentGateways?: {
     tap: boolean;
     hyperpay: boolean;
@@ -110,8 +122,21 @@ type CheckoutUi = {
   subtotal: string;
   shippingLine: string;
   vatLine: string;
+  vatLineDynamic?: string;
+  vatBreakdownVendor?: string;
+  vatBreakdownWarehouse?: string;
   totalLine: string;
   shippingVatNote: string;
+  b2bTitle?: string;
+  b2bToggle?: string;
+  b2bHint?: string;
+  b2bCompanyName?: string;
+  b2bTaxId?: string;
+  b2bCrNumber?: string;
+  b2bHqAddress?: string;
+  b2bHqCity?: string;
+  b2bHqCountry?: string;
+  b2bCompanyRequired?: string;
   paymentTitle: string;
   paymentCod: string;
   paymentCodHint: string;
@@ -121,6 +146,11 @@ type CheckoutUi = {
   paymentCoveredByWalletHint: string;
   payWithCard: string;
   redirectingToStripe: string;
+  redirectingToPayment?: string;
+  settlementRiskTitle?: string;
+  settlementRiskCheckbox?: string;
+  settlementRiskHint?: string;
+  settlementRiskRequired?: string;
   gatewayPickerTitle: string;
   gatewayPickerSubtitle: string;
   gatewayStripe: string;
@@ -167,6 +197,7 @@ type CheckoutUi = {
   deliveryIssueVendor: string;
   deliveryIssuesCheckoutBlocked: string;
   deliveryIssuesBackToCart: string;
+  deliveryIssuesChangeAddress?: string;
 };
 
 export default function CheckoutView({
@@ -206,7 +237,7 @@ export default function CheckoutView({
   const cancelled = searchParams.get("cancelled") === "1";
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "ONLINE_CARD">("COD");
   const [gatewayPickerOpen, setGatewayPickerOpen] = useState(false);
-  const [selectedGateway, setSelectedGateway] = useState<"stripe">("stripe");
+  const [selectedGateway, setSelectedGateway] = useState<"stripe" | "tap">("tap");
   const [quote, setQuote] = useState<QuotePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -219,6 +250,14 @@ export default function CheckoutView({
   const appliedCouponCodesRef = useRef<string[]>([]);
   const [useWalletBalance, setUseWalletBalance] = useState(false);
   const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
+  const [buyingForCompany, setBuyingForCompany] = useState(false);
+  const [settlementRiskAccepted, setSettlementRiskAccepted] = useState(false);
+  const [companyName, setCompanyName] = useState("");
+  const [companyTaxId, setCompanyTaxId] = useState("");
+  const [companyCrNumber, setCompanyCrNumber] = useState("");
+  const [companyHqAddressLine1, setCompanyHqAddressLine1] = useState("");
+  const [companyHqCity, setCompanyHqCity] = useState("");
+  const [companyHqCountryCode, setCompanyHqCountryCode] = useState("");
 
   function syncAppliedCouponCodes(codes: string[]) {
     appliedCouponCodesRef.current = codes;
@@ -375,6 +414,14 @@ export default function CheckoutView({
       shippingAddressId?: string;
       couponCodes?: string[];
       useWalletBalance?: boolean;
+      buyingForCompany?: boolean;
+      companyName?: string;
+      companyTaxId?: string;
+      companyCrNumber?: string;
+      companyHqAddressLine1?: string;
+      companyHqCity?: string;
+      companyHqCountryCode?: string;
+      settlementRiskAccepted?: boolean;
     } = { idempotencyKey };
     if (quote?.shippingAddresses?.length && selectedShippingAddressId) {
       body.shippingAddressId = selectedShippingAddressId;
@@ -385,6 +432,18 @@ export default function CheckoutView({
     if (useWalletBalance) {
       body.useWalletBalance = true;
     }
+    if (buyingForCompany) {
+      body.buyingForCompany = true;
+      body.companyName = companyName.trim();
+      body.companyTaxId = companyTaxId.trim() || undefined;
+      body.companyCrNumber = companyCrNumber.trim() || undefined;
+      body.companyHqAddressLine1 = companyHqAddressLine1.trim() || undefined;
+      body.companyHqCity = companyHqCity.trim() || undefined;
+      body.companyHqCountryCode = companyHqCountryCode.trim().toUpperCase() || undefined;
+    }
+    if (settlementRiskAccepted) {
+      body.settlementRiskAccepted = true;
+    }
     return body;
   }
 
@@ -393,19 +452,25 @@ export default function CheckoutView({
     setSubmitting(true);
     setGatewayPickerOpen(false);
     try {
-      const res = await fetch("/api/v1/customer/checkout/stripe-session", {
+      const res = await fetch("/api/v1/customer/checkout/payment-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(checkoutBody()),
       });
       const payload = (await res.json().catch(() => null)) as
-        | { checkoutUrl?: string | null; orderId?: string; paidWithoutStripe?: boolean; error?: string }
+        | {
+            checkoutUrl?: string | null;
+            orderId?: string;
+            paidWithoutGateway?: boolean;
+            error?: string;
+            code?: string;
+          }
         | null;
       if (!res.ok) {
         throw new Error(payload?.error ?? ui.placeOrderError);
       }
-      if (payload?.paidWithoutStripe && payload.orderId) {
+      if (payload?.paidWithoutGateway && payload.orderId) {
         toast.success(toastOrderPlaced);
         router.replace(`/orders/${payload.orderId}`);
         router.refresh();
@@ -423,19 +488,11 @@ export default function CheckoutView({
     }
   }
 
-  const plannedGateways = quote?.plannedPaymentGateways;
-  const hasVisiblePlannedGateways = Boolean(
-    plannedGateways?.tap || plannedGateways?.hyperpay || plannedGateways?.myfatoorah,
-  );
-
   async function placeOrder() {
     setError(null);
     if (paymentMethod === "ONLINE_CARD" && cardEnabled) {
-      setSelectedGateway("stripe");
-      if (hasVisiblePlannedGateways) {
-        setGatewayPickerOpen(true);
-        return;
-      }
+      // Single live PSP (Tap default): pay immediately — no gateway picker.
+      setSelectedGateway(quote?.activePaymentGateway === "stripe" ? "stripe" : "tap");
       await startCardPayment();
       return;
     }
@@ -507,8 +564,18 @@ export default function CheckoutView({
   const deliveryOk = !quote?.deliveryMismatchMarketCode;
   const verificationOk = emailVerified !== false;
   const cartDeliveryOk = (quote?.deliveryIssues?.length ?? 0) === 0;
+  const b2bOk = !buyingForCompany || companyName.trim().length > 0;
+  const settlementRiskOk = settlementRiskAccepted;
   const canSubmit =
-    profileOk && addressOk && deliveryOk && verificationOk && cartDeliveryOk && !submitting && !applyingCoupon;
+    profileOk &&
+    addressOk &&
+    deliveryOk &&
+    verificationOk &&
+    cartDeliveryOk &&
+    b2bOk &&
+    settlementRiskOk &&
+    !submitting &&
+    !applyingCoupon;
 
   return (
     <div className="mt-6 space-y-6 animate-page-enter" dir={direction}>
@@ -525,7 +592,7 @@ export default function CheckoutView({
       ) : null}
 
       {profileOk && hasSavedAddresses ? (
-        <section className="app-card p-4">
+        <section id="checkout-ship-to" className="app-card p-4 scroll-mt-24">
           <h2 className="text-sm font-semibold text-[var(--foreground)]">{ui.shipToTitle}</h2>
           <p className="mt-1 text-xs text-[var(--muted)]">{ui.shipToHint}</p>
           <ul className="mt-3 space-y-2">
@@ -724,10 +791,45 @@ export default function CheckoutView({
           <dt className="text-start text-[var(--muted)]">{ui.shippingLine}</dt>
           <dd>{quote ? formatMoney(quote.shippingFee, cart.currency, locale) : "—"}</dd>
         </div>
+        {(quote?.shippingBreakdown?.length ?? 0) > 0 ? (
+          <ul className="space-y-1 text-xs text-[var(--muted)]">
+            {quote!.shippingBreakdown.map((line) => (
+              <li key={`${line.vendorId}-${line.fulfillmentType}`} className="flex justify-between gap-3">
+                <span className="text-start">
+                  {line.vendorName} · {line.fulfillmentType}
+                </span>
+                <span className="tabular-nums">
+                  {formatMoney(line.fee, cart.currency, locale)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div className="flex justify-between gap-4">
-          <dt className="text-start text-[var(--muted)]">{ui.vatLine}</dt>
+          <dt className="text-start text-[var(--muted)]">
+            {quote?.displayVatPercent != null && ui.vatLineDynamic
+              ? ui.vatLineDynamic.replace("{percent}", String(quote.displayVatPercent))
+              : ui.vatLine}
+          </dt>
           <dd>{quote ? formatMoney(quote.vatTotal, cart.currency, locale) : "—"}</dd>
         </div>
+        {(quote?.vatBreakdown?.length ?? 0) > 1 ||
+        (quote?.vatBreakdown?.some((line) => line.vatRatePercent === 0) ?? false) ? (
+          <ul className="space-y-1 text-xs text-[var(--muted)]">
+            {quote!.vatBreakdown!.map((line, idx) => (
+              <li key={`${line.kind}-${line.vendorId ?? "wh"}-${idx}`} className="flex justify-between gap-3">
+                <span className="text-start">
+                  {line.kind === "WAREHOUSE_SHIPPING"
+                    ? (ui.vatBreakdownWarehouse ?? line.label)
+                    : `${ui.vatBreakdownVendor ?? "VAT"} · ${line.label} (${line.vatRatePercent}%)`}
+                </span>
+                <span className="tabular-nums">
+                  {formatMoney(line.vatAmount, cart.currency, locale)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div className="flex justify-between gap-4 border-t border-[var(--border)] pt-2 text-base font-semibold">
           <dt className="text-start">{ui.totalLine}</dt>
           <dd>{quote ? formatMoney(quote.totalAmount, cart.currency, locale) : "—"}</dd>
@@ -747,6 +849,114 @@ export default function CheckoutView({
       </dl>
 
       <p className="text-sm text-[var(--muted)]">{ui.shippingVatNote}</p>
+
+      <section className="app-card space-y-3 p-4">
+        <h2 className="text-sm font-semibold text-[var(--foreground)]">
+          {ui.b2bTitle ?? "Business purchase"}
+        </h2>
+        <label className="flex cursor-pointer items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={buyingForCompany}
+            onChange={(e) => setBuyingForCompany(e.target.checked)}
+          />
+          <span>
+            <span className="font-medium text-[var(--foreground)]">
+              {ui.b2bToggle ?? "Buying for a company?"}
+            </span>
+            <span className="mt-1 block text-[var(--muted)]">
+              {ui.b2bHint ?? "Company details appear on your order. Tax amount does not change."}
+            </span>
+          </span>
+        </label>
+        {buyingForCompany ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block space-y-1 text-sm sm:col-span-2">
+              <span className="font-medium">{ui.b2bCompanyName ?? "Company name"}</span>
+              <input
+                className="app-input"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                required
+              />
+            </label>
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">{ui.b2bTaxId ?? "Tax ID / TRN"}</span>
+              <input
+                className="app-input"
+                value={companyTaxId}
+                onChange={(e) => setCompanyTaxId(e.target.value)}
+              />
+            </label>
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">{ui.b2bCrNumber ?? "Commercial registration"}</span>
+              <input
+                className="app-input"
+                value={companyCrNumber}
+                onChange={(e) => setCompanyCrNumber(e.target.value)}
+              />
+            </label>
+            <label className="block space-y-1 text-sm sm:col-span-2">
+              <span className="font-medium">{ui.b2bHqAddress ?? "HQ address"}</span>
+              <input
+                className="app-input"
+                value={companyHqAddressLine1}
+                onChange={(e) => setCompanyHqAddressLine1(e.target.value)}
+              />
+            </label>
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">{ui.b2bHqCity ?? "HQ city"}</span>
+              <input
+                className="app-input"
+                value={companyHqCity}
+                onChange={(e) => setCompanyHqCity(e.target.value)}
+              />
+            </label>
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">{ui.b2bHqCountry ?? "HQ country (ISO)"}</span>
+              <input
+                className="app-input uppercase"
+                maxLength={2}
+                value={companyHqCountryCode}
+                onChange={(e) => setCompanyHqCountryCode(e.target.value.toUpperCase())}
+              />
+            </label>
+            {!b2bOk ? (
+              <p className="text-xs text-amber-700 dark:text-amber-400 sm:col-span-2">
+                {ui.b2bCompanyRequired ?? "Company name is required."}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+
+      <section className="app-card space-y-3 p-4">
+        <h2 className="text-sm font-semibold text-[var(--foreground)]">
+          {ui.settlementRiskTitle}
+        </h2>
+        <label className="flex cursor-pointer items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={settlementRiskAccepted}
+            onChange={(e) => setSettlementRiskAccepted(e.target.checked)}
+          />
+          <span>
+            <span className="font-medium text-[var(--foreground)]">
+              {ui.settlementRiskCheckbox}
+            </span>
+            <span className="mt-1 block text-[var(--muted)]">
+              {ui.settlementRiskHint}
+            </span>
+          </span>
+        </label>
+        {!settlementRiskOk ? (
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            {ui.settlementRiskRequired}
+          </p>
+        ) : null}
+      </section>
 
       <section className="app-card space-y-3 p-4">
         <h2 className="text-sm font-semibold text-[var(--foreground)]">{ui.paymentTitle}</h2>
@@ -818,9 +1028,20 @@ export default function CheckoutView({
             ))}
           </ul>
           <p className="mt-3 text-[var(--muted)]">{ui.deliveryIssuesCheckoutBlocked}</p>
-          <Link href="/cart" className="btn-secondary btn-press mt-3 inline-flex text-sm">
-            {ui.deliveryIssuesBackToCart}
-          </Link>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn-primary btn-press inline-flex text-sm"
+              onClick={() => {
+                document.getElementById("checkout-ship-to")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              {ui.deliveryIssuesChangeAddress ?? "Change delivery address"}
+            </button>
+            <Link href="/cart" className="btn-secondary btn-press inline-flex text-sm">
+              {ui.deliveryIssuesBackToCart}
+            </Link>
+          </div>
         </section>
       ) : null}
 
@@ -842,7 +1063,7 @@ export default function CheckoutView({
             ? fullyCoveredByWallet
               ? ui.placingOrder
               : paymentMethod === "ONLINE_CARD"
-              ? ui.redirectingToStripe
+              ? (ui.redirectingToPayment ?? ui.redirectingToStripe)
               : ui.placingOrder
             : fullyCoveredByWallet
               ? ui.placeOrder
@@ -917,41 +1138,64 @@ export default function CheckoutView({
                   </div>
 
                   <div className="mt-6 space-y-2.5">
-                    <label className="group flex cursor-pointer items-center gap-4 rounded-2xl border border-primary/60 bg-primary/8 p-4 shadow-sm ring-1 ring-primary/15 transition hover:border-primary hover:bg-primary/12">
-                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#635bff] text-sm font-bold text-white shadow-sm">
-                        S
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="font-semibold text-foreground">{ui.gatewayStripe}</span>
-                        <span className="mt-0.5 block text-xs leading-5 text-(--muted)">
-                          {ui.gatewayStripeHint}
+                    {quote?.activePaymentGateway === "tap" || !quote?.activePaymentGateway ? (
+                      <label className="group flex cursor-pointer items-center gap-4 rounded-2xl border border-primary/60 bg-primary/8 p-4 shadow-sm ring-1 ring-primary/15 transition hover:border-primary hover:bg-primary/12">
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-700 text-sm font-bold text-white shadow-sm">
+                          T
                         </span>
-                      </span>
-                      <input
-                        type="radio"
-                        name="paymentGateway"
-                        checked={selectedGateway === "stripe"}
-                        onChange={() => setSelectedGateway("stripe")}
-                        className="h-4 w-4 accent-primary"
-                      />
-                    </label>
+                        <span className="min-w-0 flex-1">
+                          <span className="font-semibold text-foreground">{ui.gatewayTap}</span>
+                          <span className="mt-0.5 block text-xs leading-5 text-(--muted)">
+                            {ui.gatewayStripeHint}
+                          </span>
+                        </span>
+                        <input
+                          type="radio"
+                          name="paymentGateway"
+                          checked={selectedGateway === "tap"}
+                          onChange={() => setSelectedGateway("tap")}
+                          className="h-4 w-4 accent-primary"
+                        />
+                      </label>
+                    ) : (
+                      <label className="group flex cursor-pointer items-center gap-4 rounded-2xl border border-primary/60 bg-primary/8 p-4 shadow-sm ring-1 ring-primary/15 transition hover:border-primary hover:bg-primary/12">
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#635bff] text-sm font-bold text-white shadow-sm">
+                          S
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="font-semibold text-foreground">{ui.gatewayStripe}</span>
+                          <span className="mt-0.5 block text-xs leading-5 text-(--muted)">
+                            {ui.gatewayStripeHint}
+                          </span>
+                        </span>
+                        <input
+                          type="radio"
+                          name="paymentGateway"
+                          checked={selectedGateway === "stripe"}
+                          onChange={() => setSelectedGateway("stripe")}
+                          className="h-4 w-4 accent-primary"
+                        />
+                      </label>
+                    )}
 
                     {(
                       [
                         {
-                          id: "tap",
+                          id: "tap" as const,
                           label: ui.gatewayTap,
                           mark: "T",
-                          visible: quote?.plannedPaymentGateways?.tap ?? true,
+                          visible:
+                            (quote?.plannedPaymentGateways?.tap ?? true) &&
+                            quote?.activePaymentGateway === "stripe",
                         },
                         {
-                          id: "hyperpay",
+                          id: "hyperpay" as const,
                           label: ui.gatewayHyperPay,
                           mark: "H",
                           visible: quote?.plannedPaymentGateways?.hyperpay ?? true,
                         },
                         {
-                          id: "myfatoorah",
+                          id: "myfatoorah" as const,
                           label: ui.gatewayMyFatoorah,
                           mark: "M",
                           visible: quote?.plannedPaymentGateways?.myfatoorah ?? true,
@@ -996,10 +1240,12 @@ export default function CheckoutView({
                     <button
                       type="button"
                       className="btn-primary btn-press justify-center sm:min-w-44"
-                      disabled={submitting || selectedGateway !== "stripe"}
+                      disabled={submitting}
                       onClick={() => void startCardPayment()}
                     >
-                      {submitting ? ui.redirectingToStripe : ui.gatewayContinue}
+                      {submitting
+                        ? (ui.redirectingToPayment ?? ui.redirectingToStripe)
+                        : ui.gatewayContinue}
                     </button>
                   </div>
                 </div>
