@@ -591,16 +591,16 @@ export default function VendorProductForm({ productId }: { productId?: string })
           onChange={setVariantDrafts}
           markets={variantMarkets}
           ui={{
-            title: "Variants / SKUs",
-            hint: "Optional. Set price and stock per market for each option. Leave empty for a simple single-SKU product.",
-            add: "Add variant",
-            remove: "Remove",
-            variantTitle: "Option label",
-            sku: "SKU",
-            quantity: "Qty",
-            price: "Price",
-            empty: "No variants — selling as a single SKU.",
-            enableMarketsFirst: "Enable at least one sell market above before adding variants.",
+            title: ui.formVariantsTitle,
+            hint: ui.formVariantsHint,
+            add: ui.formVariantsAdd,
+            remove: ui.formVariantsRemove,
+            variantTitle: ui.formVariantsOptionLabel,
+            sku: ui.formVariantsSku,
+            quantity: ui.formVariantsQty,
+            price: ui.formVariantsPrice,
+            empty: ui.formVariantsEmpty,
+            enableMarketsFirst: ui.formVariantsEnableMarketsFirst,
           }}
         />
       </section>
