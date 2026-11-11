@@ -2,7 +2,7 @@ import { promises as dns } from "node:dns";
 import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@mlm/db";
 import {
-  getMarketHostCheckToken,
+  getMarketHostCheckTokens,
   isMarketCodeFormat,
   MARKET_HOST_CHECK_PATH,
 } from "@mlm/shared";
@@ -207,13 +207,14 @@ function tokensEqual(a: string, b: string): boolean {
 
 /**
  * Probes `/.well-known/vandsoq-host-check` on the market host.
- * Passes only when response token matches MARKET_HOST_CHECK_TOKEN.
+ * Passes when response token matches MARKET_HOST_CHECK_TOKEN
+ * or MARKET_HOST_CHECK_TOKEN_PREV (rotate window).
  */
 async function probeHostCheckToken(
   hostname: string,
 ): Promise<{ ok: boolean; detail: string }> {
-  const expected = getMarketHostCheckToken();
-  if (!expected) {
+  const expected = getMarketHostCheckTokens();
+  if (expected.length === 0) {
     return {
       ok: false,
       detail:
@@ -248,7 +249,7 @@ async function probeHostCheckToken(
     const bodyToken = typeof body?.token === "string" ? body.token.trim() : "";
     const got = headerToken || bodyToken;
 
-    if (!got || !tokensEqual(got, expected)) {
+    if (!got || !expected.some((token) => tokensEqual(got, token))) {
       return {
         ok: false,
         detail: `Host token mismatch at ${url} — host did not return MARKET_HOST_CHECK_TOKEN.`,

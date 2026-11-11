@@ -18,6 +18,7 @@ import {
 } from "@/lib/build-app-nav";
 import { getVendorPermissionsForOwner } from "@/lib/vendor-access";
 import { getAppLocale } from "@/lib/ui-locale";
+import { resolveMarketSwitcherLabel } from "@/lib/market-i18n";
 import { getActiveMarket, listMarketsForPicker } from "@/lib/market-server";
 import { getThemePreference } from "@/lib/theme-preference";
 import { getServerSession } from "@/lib/server-session";
@@ -132,7 +133,12 @@ export default async function SiteShell({ children }: { children: React.ReactNod
         activeMarketCode: activeMarket.code,
         options: marketRows.map((m) => ({
           code: m.code,
-          label: locale === "ar" ? m.nameAr : m.nameEn,
+          label: resolveMarketSwitcherLabel(
+            m.code,
+            dict.marketSwitcher.markets,
+            locale,
+            m,
+          ),
           currency: m.defaultCurrency,
         })),
         labels: dict.marketSwitcher,

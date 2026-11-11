@@ -4,10 +4,10 @@ import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import MarketPickerView from "@/app/market/MarketPickerView";
 import { getAppLocale } from "@/lib/ui-locale";
+import { resolveMarketPickerDescription } from "@/lib/market-i18n";
 import { getSuggestedMarketCode, listMarketsForPicker } from "@/lib/market-server";
 import { getServerSession } from "@/lib/server-session";
 import { resolveDefaultVendorMarketCode } from "@mlm/domain";
-import type { MarketCode } from "@mlm/shared";
 
 type PageProps = {
   searchParams: Promise<{ returnTo?: string }>;
@@ -41,18 +41,17 @@ export default async function MarketPickerPage({ searchParams }: PageProps) {
   const markets = await listMarketsForPicker();
   const suggestedCode = await getSuggestedMarketCode();
 
-  const options = markets.map((m) => {
-    const seedUi =
-      dict.marketPicker.markets[
-        m.code as keyof typeof dict.marketPicker.markets
-      ];
-    return {
-      code: m.code,
-      name: locale === "ar" ? m.nameAr : m.nameEn,
-      currency: m.defaultCurrency,
-      description: seedUi?.description ?? "",
-    };
-  });
+  const options = markets.map((m) => ({
+    code: m.code,
+    name: locale === "ar" ? m.nameAr : m.nameEn,
+    currency: m.defaultCurrency,
+    description: resolveMarketPickerDescription(
+      m.code,
+      m.defaultCurrency,
+      dict.marketPicker.markets,
+      locale,
+    ),
+  }));
 
   return (
     <Suspense fallback={<div className="p-8 text-center text-sm text-[var(--muted)]">…</div>}>

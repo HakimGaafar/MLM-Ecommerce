@@ -99,7 +99,7 @@
       "loading": "Checking verification status…"
     },
     "cashbackTitle": "Activate your wallet",
-    "cashbackBody": "Email verification is required once — the first time you activate your wallet (or place your first order). After that you can use cashback for purchases.",
+    "cashbackBody": "Verify your email once to unlock wallet cashback for purchases. The same check also covers your first order — after that, cashback stays available for shopping (not for cash withdrawal).",
     "checkoutTitle": "Verify before your first order",
     "checkoutBody": "Confirm your email with a one-time code before placing your first order. This is only required once."
   },
@@ -249,7 +249,7 @@
     "pending": "Pending",
     "locked": "Locked",
     "rulesTitle": "How you earn cashback",
-    "rulesBody": "When an order is marked delivered (completed) and paid, you receive {rate}% of the order total as cashback in your wallet. Approved returns refund the order total to this wallet and reverse any cashback from that order.",
+    "rulesBody": "Cashback is {rate}% of the paid order total, credited after the order is delivered (completed) and marked paid. Use it on future purchases in this marketplace. Approved returns credit the refund to this wallet and reverse cashback earned on that order. Marketing commissions are separate and withdrawable after marketer verification.",
     "rulesAffiliateTitle": "Affiliate commissions",
     "rulesAffiliateBody": "When a referred customer’s order is completed and paid, upline affiliates earn a share of the eligible order amount. Pending commissions appear in your history until they are approved.",
     "historyTitle": "Transaction history",
@@ -317,7 +317,7 @@
   "homePage": {
     "badge": "Multi-vendor marketplace",
     "heroTitle": "Shop trusted sellers. Earn rewards as you grow.",
-    "heroSubtitle": "Discover products from independent stores, pay securely at checkout, and unlock wallet cashback on every completed order.",
+    "heroSubtitle": "Shop independent stores, pay securely, and earn wallet cashback when orders are delivered and paid.",
     "shopNow": "Browse products",
     "exploreStores": "Explore stores",
     "signIn": "Sign in",
@@ -328,7 +328,7 @@
     "valueMultiVendor": "Many stores, one checkout",
     "valueMultiVendorDesc": "Browse catalogs from verified marketplace vendors in a single cart.",
     "valueCashback": "Wallet & cashback",
-    "valueCashbackDesc": "Earn cashback on delivered orders and manage balance in your customer wallet.",
+    "valueCashbackDesc": "Earn purchase cashback on delivered paid orders; spend it at checkout. Commissions withdraw separately after marketer verification.",
     "valueCheckout": "Simple checkout",
     "valueCheckoutDesc": "Review your cart, choose shipping, and place orders with clear totals.",
     "valueSeller": "Open your store",
@@ -504,6 +504,86 @@
       "GLOBAL": {
         "name": "International",
         "locationText": "Contact our international support team for the global store."
+      },
+      "AE": {
+        "name": "United Arab Emirates",
+        "locationText": "Support and office details for the UAE market."
+      },
+      "BH": {
+        "name": "Bahrain",
+        "locationText": "Support and office details for the Bahrain market."
+      },
+      "KW": {
+        "name": "Kuwait",
+        "locationText": "Support and office details for the Kuwait market."
+      },
+      "QA": {
+        "name": "Qatar",
+        "locationText": "Support and office details for the Qatar market."
+      },
+      "JO": {
+        "name": "Jordan",
+        "locationText": "Support and office details for the Jordan market."
+      },
+      "IQ": {
+        "name": "Iraq",
+        "locationText": "Support and office details for the Iraq market."
+      },
+      "LB": {
+        "name": "Lebanon",
+        "locationText": "Support and office details for the Lebanon market."
+      },
+      "YE": {
+        "name": "Yemen",
+        "locationText": "Support and office details for the Yemen market."
+      },
+      "MA": {
+        "name": "Morocco",
+        "locationText": "Support and office details for the Morocco market."
+      },
+      "TN": {
+        "name": "Tunisia",
+        "locationText": "Support and office details for the Tunisia market."
+      },
+      "DZ": {
+        "name": "Algeria",
+        "locationText": "Support and office details for the Algeria market."
+      },
+      "LY": {
+        "name": "Libya",
+        "locationText": "Support and office details for the Libya market."
+      },
+      "SD": {
+        "name": "Sudan",
+        "locationText": "Support and office details for the Sudan market."
+      },
+      "TR": {
+        "name": "Türkiye",
+        "locationText": "Support and office details for the Türkiye market."
+      },
+      "GB": {
+        "name": "United Kingdom",
+        "locationText": "Support and office details for the UK market."
+      },
+      "US": {
+        "name": "United States",
+        "locationText": "Support and office details for the US market."
+      },
+      "DE": {
+        "name": "Germany",
+        "locationText": "Support and office details for the Germany market."
+      },
+      "FR": {
+        "name": "France",
+        "locationText": "Support and office details for the France market."
+      },
+      "IN": {
+        "name": "India",
+        "locationText": "Support and office details for the India market."
+      },
+      "PK": {
+        "name": "Pakistan",
+        "locationText": "Support and office details for the Pakistan market."
       }
     },
     "openMaps": "Open in Google Maps",
@@ -867,8 +947,8 @@
     "acceptShippingLink": "Shipping policy",
     "policyConsentRequired": "Accept Terms, Returns, and Shipping to continue.",
     "paymentCurrencyTitle": "Pay in",
-    "paymentCurrencyHint": "International checkout can be charged in OMR or USD. The FX rate is locked when you place the order.",
-    "lockedFxNote": "Locked rate {from} → {to}: {rate}",
+    "paymentCurrencyHint": "International orders settle on the Omani ledger (OMR + Oman VAT). You may pay in OMR or USD; the FX rate locks when you place the order and does not change afterward.",
+    "lockedFxNote": "Order FX locked: 1 {from} = {rate} {to}",
     "codUnavailableHint": "Cash on delivery is only available for same-city direct vendor delivery (and when enabled for this market).",
     "gatewayPickerTitle": "Choose a payment gateway",
     "gatewayPickerSubtitle": "Select how you want to pay online. More regional gateways are planned next.",
@@ -1058,18 +1138,98 @@
       },
       "GLOBAL": {
         "description": "International store — prices in USD"
+      },
+      "AE": {
+        "description": "Shop in the United Arab Emirates — prices in AED"
+      },
+      "BH": {
+        "description": "Shop in Bahrain — prices in BHD"
+      },
+      "KW": {
+        "description": "Shop in Kuwait — prices in KWD"
+      },
+      "QA": {
+        "description": "Shop in Qatar — prices in QAR"
+      },
+      "JO": {
+        "description": "Shop in Jordan — prices in JOD"
+      },
+      "IQ": {
+        "description": "Shop in Iraq — prices in IQD"
+      },
+      "LB": {
+        "description": "Shop in Lebanon — prices in LBP"
+      },
+      "YE": {
+        "description": "Shop in Yemen — prices in YER"
+      },
+      "MA": {
+        "description": "Shop in Morocco — prices in MAD"
+      },
+      "TN": {
+        "description": "Shop in Tunisia — prices in TND"
+      },
+      "DZ": {
+        "description": "Shop in Algeria — prices in DZD"
+      },
+      "LY": {
+        "description": "Shop in Libya — prices in LYD"
+      },
+      "SD": {
+        "description": "Shop in Sudan — prices in SDG"
+      },
+      "TR": {
+        "description": "Shop in Türkiye — prices in TRY"
+      },
+      "GB": {
+        "description": "Shop in the United Kingdom — prices in GBP"
+      },
+      "US": {
+        "description": "Shop in the United States — prices in USD"
+      },
+      "DE": {
+        "description": "Shop in Germany — prices in EUR"
+      },
+      "FR": {
+        "description": "Shop in France — prices in EUR"
+      },
+      "IN": {
+        "description": "Shop in India — prices in INR"
+      },
+      "PK": {
+        "description": "Shop in Pakistan — prices in PKR"
       }
     }
   },
   "marketSwitcher": {
     "label": "Marketplace",
-    "current": "Marketplace updated",
+    "current": "Marketplace updated — prices, shipping, and wallet now follow this market.",
     "error": "Could not switch marketplace",
     "markets": {
       "SA": "Saudi Arabia",
       "OM": "Oman",
       "EG": "Egypt",
-      "GLOBAL": "Global"
+      "GLOBAL": "Global",
+      "AE": "United Arab Emirates",
+      "BH": "Bahrain",
+      "KW": "Kuwait",
+      "QA": "Qatar",
+      "JO": "Jordan",
+      "IQ": "Iraq",
+      "LB": "Lebanon",
+      "YE": "Yemen",
+      "MA": "Morocco",
+      "TN": "Tunisia",
+      "DZ": "Algeria",
+      "LY": "Libya",
+      "SD": "Sudan",
+      "TR": "Türkiye",
+      "GB": "United Kingdom",
+      "US": "United States",
+      "DE": "Germany",
+      "FR": "France",
+      "IN": "India",
+      "PK": "Pakistan"
     }
   },
   "customerOrderStep": {
@@ -1709,6 +1869,8 @@
     "formOfferMarketOM": "Oman",
     "formOfferMarketEG": "Egypt",
     "formOfferMarketGLOBAL": "International",
+    "formOfferSecondaryOmrHint": "OMR mirror (admin FX): {amount} {currency}",
+    "formOfferSecondaryOmrPending": "Enter the International USD price. OMR mirror fills when admin sets a USD→OMR FX rate — customers may still choose OMR or USD at checkout.",
     "formOfferQuantity": "Quantity",
     "formOfferStock": "Product location",
     "formOfferStockMerchant": "From my stock",
@@ -2843,6 +3005,7 @@
     "stepIdentity": "Identity",
     "stepAnnex": "Company",
     "stepCommercial": "Commercial",
+    "stepShipping": "Shipping",
     "stepPayments": "Payments",
     "stepLegal": "Legal",
     "stepPapers": "Papers",
@@ -2853,9 +3016,33 @@
     "paymentCurrencies": "Payment currencies",
     "geoCountries": "Geo country codes",
     "saveIdentity": "Save identity",
-    "annexHint": "Edit the representative company annex (legal name, CR, address, contact) in Legal foundations.",
-    "openAnnex": "Open annex editor",
-    "openLegal": "Open legal policies",
+    "annexHint": "Edit the representative company annex for this market (legal name, CR, address, contact). Full Legal foundations page remains available for advanced fields.",
+    "openAnnex": "Open full annex page",
+    "openLegal": "Open full legal page",
+    "saveAnnex": "Save company annex",
+    "legalNameEn": "Legal name (EN)",
+    "legalNameAr": "Legal name (AR)",
+    "cr": "Commercial registration",
+    "unifiedNumber": "Unified number",
+    "address": "Address",
+    "city": "City",
+    "countryCode": "Country code",
+    "phone": "Phone",
+    "email": "Email",
+    "shippingHint": "Adjust cloned shipping rates for this market. Inactive rates are not offered at checkout.",
+    "shippingAmount": "Amount",
+    "shippingActive": "Active",
+    "saveRate": "Save rate",
+    "shippingEmpty": "No shipping rates yet — they appear after the Oman pack clone.",
+    "legalHintInline": "Edit cloned policy titles and bodies here. Publish/versioning stays on the full Legal page.",
+    "savePolicy": "Save policy draft",
+    "titleEn": "Title (EN)",
+    "titleAr": "Title (AR)",
+    "bodyEn": "Body (EN)",
+    "bodyAr": "Body (AR)",
+    "draft": "Draft",
+    "published": "Published",
+    "selectDoc": "Document",
     "platformRate": "Home commission",
     "platformRateCross": "Cross / international commission",
     "returnDays": "Return window (days)",
@@ -2963,7 +3150,7 @@
   },
   "adminFxRates": {
     "title": "FX rates",
-    "subtitle": "Manual exchange rates for cross-currency settlement. Within-market payouts stay in the wallet currency; rates are referenced when currencies differ.",
+    "subtitle": "Manual rates for International OMR↔USD display/checkout lock and cross-currency settlement. Catalog prices stay vendor-entered per market — FX does not auto-convert other markets. Within-market wallets stay in that market’s currency.",
     "backToDashboard": "Back to dashboard",
     "panel": {
       "loading": "Loading rates…",

@@ -12,7 +12,7 @@ export type MarketSwitcherLabels = {
   label: string;
   current: string;
   error: string;
-  markets: Record<MarketCode, string>;
+  markets: Record<string, string>;
 };
 
 export type MarketOption = {

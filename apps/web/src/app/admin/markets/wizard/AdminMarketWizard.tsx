@@ -6,6 +6,9 @@ import {
   isPaymentCurrencyGatewaySupported,
 } from "@mlm/shared";
 import { useToast } from "@/components/toast/ToastProvider";
+import WizardAnnexEditor from "./WizardAnnexEditor";
+import WizardLegalEditor from "./WizardLegalEditor";
+import WizardShippingEditor from "./WizardShippingEditor";
 
 type Locale = "en" | "ar";
 
@@ -88,10 +91,35 @@ type Ui = {
   stepIdentity: string;
   stepAnnex: string;
   stepCommercial: string;
+  stepShipping: string;
   stepPayments: string;
   stepLegal: string;
   stepPapers: string;
   stepReview: string;
+  saveAnnex: string;
+  legalNameEn: string;
+  legalNameAr: string;
+  cr: string;
+  unifiedNumber: string;
+  address: string;
+  city: string;
+  countryCode: string;
+  phone: string;
+  email: string;
+  shippingHint: string;
+  shippingAmount: string;
+  shippingActive: string;
+  saveRate: string;
+  shippingEmpty: string;
+  legalHintInline: string;
+  savePolicy: string;
+  titleEn: string;
+  titleAr: string;
+  bodyEn: string;
+  bodyAr: string;
+  draft: string;
+  published: string;
+  selectDoc: string;
   nameEn: string;
   nameAr: string;
   defaultCurrency: string;
@@ -154,6 +182,7 @@ const STEPS = [
   "identity",
   "annex",
   "commercial",
+  "shipping",
   "payments",
   "legal",
   "papers",
@@ -398,6 +427,8 @@ export default function AdminMarketWizard({
         return ui.stepAnnex;
       case "commercial":
         return ui.stepCommercial;
+      case "shipping":
+        return ui.stepShipping;
       case "payments":
         return ui.stepPayments;
       case "legal":
@@ -696,13 +727,27 @@ export default function AdminMarketWizard({
 
           {step === "annex" ? (
             <section className="space-y-3 rounded-xl border border-[var(--border)] p-4">
-              <p className="text-sm text-[var(--muted)]">{ui.annexHint}</p>
-              <a
-                href={`/admin/legal?marketCode=${state.marketCode}`}
-                className="text-sm text-link font-medium"
-              >
-                {ui.openAnnex}
-              </a>
+              <WizardAnnexEditor
+                marketCode={state.marketCode}
+                labels={{
+                  loading: ui.loading,
+                  loadError: ui.loadError,
+                  saveError: ui.saveError,
+                  saved: ui.saved,
+                  saveAnnex: ui.saveAnnex,
+                  legalNameEn: ui.legalNameEn,
+                  legalNameAr: ui.legalNameAr,
+                  cr: ui.cr,
+                  unifiedNumber: ui.unifiedNumber,
+                  address: ui.address,
+                  city: ui.city,
+                  countryCode: ui.countryCode,
+                  phone: ui.phone,
+                  email: ui.email,
+                  annexHint: ui.annexHint,
+                  openAnnex: ui.openAnnex,
+                }}
+              />
             </section>
           ) : null}
 
@@ -764,6 +809,25 @@ export default function AdminMarketWizard({
             </section>
           ) : null}
 
+          {step === "shipping" ? (
+            <section className="space-y-3 rounded-xl border border-[var(--border)] p-4">
+              <WizardShippingEditor
+                marketCode={state.marketCode}
+                labels={{
+                  loading: ui.loading,
+                  loadError: ui.loadError,
+                  saveError: ui.saveError,
+                  saved: ui.saved,
+                  shippingHint: ui.shippingHint,
+                  amount: ui.shippingAmount,
+                  active: ui.shippingActive,
+                  saveRate: ui.saveRate,
+                  empty: ui.shippingEmpty,
+                }}
+              />
+            </section>
+          ) : null}
+
           {step === "payments" ? (
             <section className="space-y-3 rounded-xl border border-[var(--border)] p-4">
               <h2 className="text-sm font-semibold">{ui.gatewayMatrix}</h2>
@@ -792,13 +856,25 @@ export default function AdminMarketWizard({
 
           {step === "legal" ? (
             <section className="space-y-3 rounded-xl border border-[var(--border)] p-4">
-              <p className="text-sm text-[var(--muted)]">{ui.cloneFromOm}</p>
-              <a
-                href={`/admin/legal?marketCode=${state.marketCode}`}
-                className="text-sm text-link font-medium"
-              >
-                {ui.openLegal}
-              </a>
+              <WizardLegalEditor
+                marketCode={state.marketCode}
+                labels={{
+                  loading: ui.loading,
+                  loadError: ui.loadError,
+                  saveError: ui.saveError,
+                  saved: ui.saved,
+                  legalHint: ui.legalHintInline,
+                  openLegal: ui.openLegal,
+                  savePolicy: ui.savePolicy,
+                  titleEn: ui.titleEn,
+                  titleAr: ui.titleAr,
+                  bodyEn: ui.bodyEn,
+                  bodyAr: ui.bodyAr,
+                  draft: ui.draft,
+                  published: ui.published,
+                  selectDoc: ui.selectDoc,
+                }}
+              />
             </section>
           ) : null}
 

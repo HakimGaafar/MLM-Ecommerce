@@ -45,6 +45,8 @@ export function vendorProductFormUi(dict: VendorProductsDict, mode: "create" | "
     formOfferMarketOM: dict.formOfferMarketOM,
     formOfferMarketEG: dict.formOfferMarketEG,
     formOfferMarketGLOBAL: dict.formOfferMarketGLOBAL,
+    formOfferSecondaryOmrHint: dict.formOfferSecondaryOmrHint,
+    formOfferSecondaryOmrPending: dict.formOfferSecondaryOmrPending,
     formOfferQuantity: dict.formOfferQuantity,
     formOfferStock: dict.formOfferStock,
     formOfferStockMerchant: dict.formOfferStockMerchant,

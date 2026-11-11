@@ -564,6 +564,8 @@ export default function VendorProductForm({ productId }: { productId?: string })
             marketOM: ui.formOfferMarketOM,
             marketEG: ui.formOfferMarketEG,
             marketGLOBAL: ui.formOfferMarketGLOBAL,
+            secondaryOmrHint: ui.formOfferSecondaryOmrHint,
+            secondaryOmrPending: ui.formOfferSecondaryOmrPending,
             price: ui.price,
             currency: ui.currency,
             quantity: ui.formOfferQuantity,

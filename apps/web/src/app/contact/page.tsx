@@ -5,6 +5,7 @@ import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { SocialIcon } from "@/components/SiteFooter";
 import { BRAND_LINKS, BRAND_LOGO_PATH, getBrandName, getMarketContact } from "@/lib/brand";
+import { resolveContactMarketCopy } from "@/lib/market-i18n";
 import { getActiveMarket } from "@/lib/market-server";
 import { getAppLocale } from "@/lib/ui-locale";
 import ContactForm from "./ContactForm";
@@ -21,8 +22,12 @@ export default async function ContactPage() {
   const direction = locale === "ar" ? "rtl" : "ltr";
   const brandName = getBrandName(locale);
   const contact = getMarketContact(market.code);
-  const marketCopy =
-    ui.markets[market.code as keyof typeof ui.markets] ?? ui.markets.GLOBAL;
+  const marketCopy = resolveContactMarketCopy(
+    market.code,
+    ui.markets,
+    locale,
+    market,
+  );
   const platformConfig = await getPlatformConfig(market.id);
   const locationText =
     (locale === "ar"
