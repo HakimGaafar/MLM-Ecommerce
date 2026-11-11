@@ -13,6 +13,7 @@ type MarketRow = {
   nameEn: string;
   nameAr: string;
   defaultCurrency: string;
+  paymentCurrencies?: string[];
   geoCountryCodes: string[];
   isActive: boolean;
   sortOrder: number;
@@ -43,6 +44,9 @@ type Ui = {
   geoHint: string;
   saveDetails: string;
   editDetails: string;
+  paymentCurrencies: string;
+  paymentCurrenciesHint: string;
+  legalLink: string;
 };
 
 type EditDraft = {
@@ -50,6 +54,7 @@ type EditDraft = {
   nameAr: string;
   sortOrder: string;
   geoCountryCodes: string;
+  paymentCurrencies: string;
 };
 
 export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: Ui }) {
@@ -87,6 +92,7 @@ export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: U
         nameAr: market.nameAr,
         sortOrder: String(market.sortOrder),
         geoCountryCodes: market.geoCountryCodes.join(", "),
+        paymentCurrencies: (market.paymentCurrencies ?? [market.defaultCurrency]).join(", "),
       },
     }));
   }
@@ -100,6 +106,10 @@ export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: U
         .split(/[,\s]+/)
         .map((c) => c.trim().toUpperCase())
         .filter((c) => c.length === 2);
+      const paymentCurrencies = draft.paymentCurrencies
+        .split(/[,\s]+/)
+        .map((c) => c.trim().toUpperCase())
+        .filter((c) => /^[A-Z]{3}$/.test(c));
       const res = await fetch(`/api/v1/admin/markets?marketCode=${market.code}`, {
         method: "PATCH",
         credentials: "include",
@@ -109,6 +119,7 @@ export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: U
           nameAr: draft.nameAr,
           sortOrder: Number(draft.sortOrder),
           geoCountryCodes,
+          paymentCurrencies,
         }),
       });
       const data = (await res.json().catch(() => null)) as { market?: MarketRow; error?: string } | null;
@@ -168,12 +179,18 @@ export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: U
   return (
     <div className="mt-8 space-y-4">
       <p className="text-sm text-[var(--muted)]">{ui.defaultMarketNote}</p>
+      <p className="text-sm">
+        <a href="/admin/legal" className="text-link">
+          {ui.legalLink}
+        </a>
+      </p>
       <div className="space-y-4">
         {markets.map((market) => {
           const label = locale === "ar" ? market.nameAr : market.nameEn;
           const busy = savingCode === market.code;
           const editing = editingCode === market.code;
           const draft = drafts[market.code];
+          const payCurrencies = (market.paymentCurrencies ?? [market.defaultCurrency]).join(", ");
           return (
             <div key={market.code} className="rounded-xl border border-[var(--border)] p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -181,6 +198,9 @@ export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: U
                   <div className="font-medium">{label}</div>
                   <div className="mt-1 text-xs text-[var(--muted)]">
                     {market.code} · {ui.subdomain}: {market.subdomain} · {ui.currency}: {market.defaultCurrency}
+                  </div>
+                  <div className="mt-1 text-xs text-[var(--muted)]">
+                    {ui.paymentCurrencies}: {payCurrencies || "—"}
                   </div>
                   <div className="mt-1 text-xs text-[var(--muted)]">
                     {ui.sortOrder}: {market.sortOrder} · {ui.geoCountries}: {market.geoCountryCodes.join(", ") || "—"}
@@ -244,6 +264,21 @@ export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: U
                     <span className="text-[var(--muted)]">{ui.geoCountries}</span>
                     <input className="app-input" value={draft.geoCountryCodes} placeholder="SA, AE" onChange={(e) => setDrafts((prev) => ({ ...prev, [market.code]: { ...draft, geoCountryCodes: e.target.value } }))} />
                     <span className="text-xs text-[var(--muted)]">{ui.geoHint}</span>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+                    <span className="text-[var(--muted)]">{ui.paymentCurrencies}</span>
+                    <input
+                      className="app-input"
+                      value={draft.paymentCurrencies}
+                      placeholder="OMR, USD"
+                      onChange={(e) =>
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [market.code]: { ...draft, paymentCurrencies: e.target.value },
+                        }))
+                      }
+                    />
+                    <span className="text-xs text-[var(--muted)]">{ui.paymentCurrenciesHint}</span>
                   </label>
                   <button
                     type="button"

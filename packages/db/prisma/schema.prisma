@@ -1572,7 +1572,10 @@ model Market {
   nameEn          String            @map("name_en")
   nameAr          String            @map("name_ar")
   defaultCurrency String            @map("default_currency") @db.Char(3)
+  /// Checkout currencies accepted in this market (e.g. OMR, or OMR+USD for International).
+  paymentCurrencies String[]        @default([]) @map("payment_currencies")
   geoCountryCodes String[]          @map("geo_country_codes")
+  /// Closed/hidden when false — not shown to customers or merchants.
   isActive        Boolean           @default(true) @map("is_active")
   sortOrder       Int               @default(0) @map("sort_order")
   createdAt       DateTime          @default(now()) @map("created_at")
@@ -1595,6 +1598,10 @@ model Market {
   platformCoupons PlatformCoupon[]
   wishlistItems   WishlistItem[]
   vendorPayoutInvoices VendorPayoutInvoice[]
+  legalPolicyVersions LegalPolicyVersion[]
+  refundFeeRules  RefundFeeRule[]
+  sellerInvoicingRules MarketInvoicingRule[] @relation("InvoicingSellerMarket")
+  buyerInvoicingRules  MarketInvoicingRule[] @relation("InvoicingBuyerMarket")
 
   @@map("markets")
 }
@@ -1684,17 +1691,24 @@ model InvoiceSerialCounter {
 }
 
 /// Market representative company that issues commission / cross-market / shipping invoices.
+/// Also holds market-annex contact/legal fields (editable settings; not hard-coded in policy text).
 model MarketInvoiceIssuer {
   id              String   @id @default(cuid())
   marketId        String   @unique @map("market_id")
   code            String   @db.VarChar(32)
   legalNameEn     String   @map("legal_name_en") @db.VarChar(200)
   legalNameAr     String   @map("legal_name_ar") @db.VarChar(200)
+  commercialRegistration String? @map("commercial_registration") @db.VarChar(64)
+  unifiedNumber   String?  @map("unified_number") @db.VarChar(64)
   addressLine1    String   @map("address_line_1") @db.VarChar(200)
   addressLine2    String?  @map("address_line_2") @db.VarChar(200)
   city            String   @db.VarChar(100)
   postalCode      String?  @map("postal_code") @db.VarChar(32)
   countryCode     String   @map("country_code") @db.Char(2)
+  phone           String?  @db.VarChar(32)
+  email           String?  @db.VarChar(254)
+  consumerProtectionAuthorityEn String? @map("consumer_protection_authority_en") @db.VarChar(300)
+  consumerProtectionAuthorityAr String? @map("consumer_protection_authority_ar") @db.VarChar(300)
   vatRegistered   Boolean  @default(true) @map("vat_registered")
   vatTrn          String?  @map("vat_trn") @db.VarChar(64)
   vatPercent      Decimal  @default(0) @map("vat_percent") @db.Decimal(5, 2)
@@ -1705,6 +1719,94 @@ model MarketInvoiceIssuer {
   market          Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
 
   @@map("market_invoice_issuers")
+}
+
+enum LegalDocumentType {
+  ABOUT
+  TERMS
+  PRIVACY
+  RETURNS
+  SHIPPING
+  PRICING_PAYMENT
+  CASHBACK_REFERRAL
+  MERCHANT_COOPERATION
+  MERCHANT_OPERATIONAL
+  MERCHANT_COMMISSION
+  MERCHANT_DATA_CONFIRMATION
+}
+
+/// Versioned legal/policy document per market (public + merchant packs).
+model LegalPolicyVersion {
+  id          String            @id @default(cuid())
+  marketId    String            @map("market_id")
+  documentType LegalDocumentType @map("document_type")
+  version     String            @db.VarChar(32)
+  titleEn     String            @map("title_en") @db.VarChar(200)
+  titleAr     String            @map("title_ar") @db.VarChar(200)
+  bodyEn      String?           @map("body_en") @db.Text
+  bodyAr      String?           @map("body_ar") @db.Text
+  /// Null until publish — public pages only show published versions.
+  publishedAt DateTime?         @map("published_at")
+  isCurrent   Boolean           @default(false) @map("is_current")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  market      Market            @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@unique([marketId, documentType, version])
+  @@index([marketId, documentType, isCurrent])
+  @@index([marketId, documentType, publishedAt])
+  @@map("legal_policy_versions")
+}
+
+enum InvoicingParty {
+  MERCHANT
+  PLATFORM
+}
+
+/// Who invoices the customer for a seller-market × buyer-market pair (configurable).
+model MarketInvoicingRule {
+  id              String         @id @default(cuid())
+  sellerMarketId  String         @map("seller_market_id")
+  buyerMarketId   String         @map("buyer_market_id")
+  invoicingParty  InvoicingParty @map("invoicing_party")
+  /// Optional override; null → use PlatformConfig home/cross rates.
+  commissionRate  Decimal?       @map("commission_rate") @db.Decimal(8, 6)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  sellerMarket    Market         @relation("InvoicingSellerMarket", fields: [sellerMarketId], references: [id], onDelete: Cascade)
+  buyerMarket     Market         @relation("InvoicingBuyerMarket", fields: [buyerMarketId], references: [id], onDelete: Cascade)
+
+  @@unique([sellerMarketId, buyerMarketId])
+  @@index([buyerMarketId])
+  @@map("market_invoicing_rules")
+}
+
+enum RefundFeeCause {
+  PRODUCT_DEFECT
+  MERCHANT_MISTAKE
+  PLATFORM_MISTAKE
+  CUSTOMER_CHANGE_OF_MIND
+  CUSTOMER_REFUSED_DELIVERY
+}
+
+enum RefundFeePayer {
+  MERCHANT
+  PLATFORM
+  CUSTOMER
+}
+
+/// Who bears payment-gateway fees on refund, by cause (configurable per market).
+model RefundFeeRule {
+  id        String          @id @default(cuid())
+  marketId  String          @map("market_id")
+  cause     RefundFeeCause
+  payer     RefundFeePayer
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  market    Market          @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@unique([marketId, cause])
+  @@map("refund_fee_rules")
 }
 
 model PlatformConfigChangeLog {

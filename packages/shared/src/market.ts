@@ -44,13 +44,29 @@ export const MARKET_DEFINITIONS: readonly MarketDefinition[] = [
   {
     code: "GLOBAL",
     subdomain: "global",
-    defaultCurrency: "USD",
+    defaultCurrency: "OMR",
     geoCountryCodes: [],
-    nameEn: "Global",
+    nameEn: "International",
     nameAr: "عالمي",
     sortOrder: 4,
   },
 ] as const;
+
+/** Checkout currencies accepted per market (Phase 1 legal foundations). */
+export const MARKET_PAYMENT_CURRENCIES = {
+  SA: ["SAR"],
+  OM: ["OMR"],
+  EG: ["EGP"],
+  GLOBAL: ["OMR", "USD"],
+} as const satisfies Record<MarketCode, readonly string[]>;
+
+/** Launch visibility defaults: Egypt built but closed/hidden. */
+export const MARKET_LAUNCH_ACTIVE = {
+  SA: true,
+  OM: true,
+  EG: false,
+  GLOBAL: true,
+} as const satisfies Record<MarketCode, boolean>;
 
 export const DEFAULT_MARKET_CODE: MarketCode = "SA";
 

@@ -58,6 +58,12 @@ export async function PATCH(request: NextRequest) {
         { status: 400 },
       );
     }
+    if (error.message === "DEFAULT_CURRENCY_NOT_IN_PAYMENT_CURRENCIES") {
+      return NextResponse.json(
+        { error: "Default currency must be one of the payment currencies." },
+        { status: 400 },
+      );
+    }
     throw error;
   }
 }

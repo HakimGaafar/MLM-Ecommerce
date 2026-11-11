@@ -105,6 +105,7 @@ export type ShellNavDict = {
     settings: string;
     configAudit: string;
     markets: string;
+    legalFoundations: string;
     shippingRates: string;
     shippingRequests: string;
     categories: string;
@@ -258,6 +259,7 @@ export function buildAdminSidebarSections(
       label: labels.platform,
       items: [
         item("/admin/markets", dict.adminNav.markets),
+        item("/admin/legal", dict.adminNav.legalFoundations),
         item("/admin/settings", dict.adminNav.settings),
         item("/admin/settings/audit", dict.adminNav.configAudit),
         item("/admin/catalog/categories", dict.adminNav.categories),

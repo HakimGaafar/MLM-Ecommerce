@@ -90,6 +90,17 @@ export const AdminMarketUpdateSchema = z.object({
   sortOrder: z.coerce.number().int().min(0).max(999).optional(),
   geoCountryCodes: z.array(z.string().trim().toUpperCase().length(2)).max(20).optional(),
   isActive: z.boolean().optional(),
+  paymentCurrencies: z
+    .array(z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/))
+    .min(1)
+    .max(8)
+    .optional(),
+  defaultCurrency: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{3}$/)
+    .optional(),
 });
 
 export type AdminMarketUpdateInput = z.infer<typeof AdminMarketUpdateSchema>;

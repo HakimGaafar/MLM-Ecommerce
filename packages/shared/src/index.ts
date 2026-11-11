@@ -74,6 +74,8 @@ export * from "./validation/vendor-shipping";
 export * from "./validation/admin-vendor-shipping";
 export * from "./validation/admin-platform-config";
 export * from "./validation/admin-markets";
+export * from "./validation/admin-legal-foundations";
+export * from "./legal-policy";
 export * from "./validation/security";
 export * from "./validation/order-ops";
 export * from "./validation/contact-inquiry";

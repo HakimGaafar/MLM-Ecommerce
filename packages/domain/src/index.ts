@@ -160,6 +160,7 @@ export * from "./kyc/vendor-kyc-context.service";
 export * from "./kyc/kyc-withdraw-gate";
 export * from "./admin/admin-kyc.service";
 export * from "./admin/admin-markets.service";
+export * from "./admin/admin-legal-foundations.service";
 export * from "./admin/admin-product-categories.service";
 export * from "./admin/admin-market-banners.service";
 export * from "./admin/vendor-form-list-options.service";

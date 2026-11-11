@@ -14,6 +14,7 @@ export type AdminMarketDto = {
   nameEn: string;
   nameAr: string;
   defaultCurrency: string;
+  paymentCurrencies: string[];
   geoCountryCodes: string[];
   isActive: boolean;
   sortOrder: number;
@@ -27,6 +28,7 @@ function mapRow(row: {
   nameEn: string;
   nameAr: string;
   defaultCurrency: string;
+  paymentCurrencies?: string[];
   geoCountryCodes: string[];
   isActive: boolean;
   sortOrder: number;
@@ -41,6 +43,7 @@ function mapRow(row: {
     nameEn: row.nameEn,
     nameAr: row.nameAr,
     defaultCurrency: row.defaultCurrency,
+    paymentCurrencies: row.paymentCurrencies ?? [row.defaultCurrency],
     geoCountryCodes: row.geoCountryCodes,
     isActive: row.isActive,
     sortOrder: row.sortOrder,
@@ -59,6 +62,7 @@ export async function listAdminMarkets(): Promise<AdminMarketDto[]> {
         nameEn: true,
         nameAr: true,
         defaultCurrency: true,
+        paymentCurrencies: true,
         geoCountryCodes: true,
         isActive: true,
         sortOrder: true,
@@ -71,7 +75,8 @@ export async function listAdminMarkets(): Promise<AdminMarketDto[]> {
     // Table may not exist before migrate — fall back to static definitions.
   }
 
-  const { listActiveMarketDefinitions } = await import("@mlm/shared");
+  const { listActiveMarketDefinitions, MARKET_PAYMENT_CURRENCIES, MARKET_LAUNCH_ACTIVE } =
+    await import("@mlm/shared");
   return listActiveMarketDefinitions().map((def) => ({
     id: `market_${def.code.toLowerCase()}`,
     code: def.code,
@@ -79,8 +84,9 @@ export async function listAdminMarkets(): Promise<AdminMarketDto[]> {
     nameEn: def.nameEn,
     nameAr: def.nameAr,
     defaultCurrency: def.defaultCurrency,
+    paymentCurrencies: [...MARKET_PAYMENT_CURRENCIES[def.code]],
     geoCountryCodes: [...def.geoCountryCodes],
-    isActive: true,
+    isActive: MARKET_LAUNCH_ACTIVE[def.code],
     sortOrder: def.sortOrder,
     canDisable: def.code !== DEFAULT_MARKET_CODE,
   }));
@@ -104,6 +110,18 @@ export async function updateAdminMarket(params: {
     await setMarketActive({ marketCode: params.marketCode, isActive: true });
   }
 
+  if (params.input.paymentCurrencies || params.input.defaultCurrency) {
+    const current = await prisma.market.findUnique({
+      where: { id: market.id },
+      select: { paymentCurrencies: true, defaultCurrency: true },
+    });
+    const paymentCurrencies = params.input.paymentCurrencies ?? current?.paymentCurrencies ?? [];
+    const defaultCurrency = params.input.defaultCurrency ?? current?.defaultCurrency ?? "";
+    if (paymentCurrencies.length > 0 && defaultCurrency && !paymentCurrencies.includes(defaultCurrency)) {
+      throw new Error("DEFAULT_CURRENCY_NOT_IN_PAYMENT_CURRENCIES");
+    }
+  }
+
   const updated = await prisma.market.update({
     where: { id: market.id },
     data: {
@@ -113,6 +131,12 @@ export async function updateAdminMarket(params: {
       ...(params.input.geoCountryCodes !== undefined
         ? { geoCountryCodes: params.input.geoCountryCodes }
         : {}),
+      ...(params.input.paymentCurrencies !== undefined
+        ? { paymentCurrencies: params.input.paymentCurrencies }
+        : {}),
+      ...(params.input.defaultCurrency !== undefined
+        ? { defaultCurrency: params.input.defaultCurrency }
+        : {}),
     },
     select: {
       id: true,
@@ -121,6 +145,7 @@ export async function updateAdminMarket(params: {
       nameEn: true,
       nameAr: true,
       defaultCurrency: true,
+      paymentCurrencies: true,
       geoCountryCodes: true,
       isActive: true,
       sortOrder: true,
@@ -167,6 +192,7 @@ export async function setMarketActive(params: {
       nameEn: true,
       nameAr: true,
       defaultCurrency: true,
+      paymentCurrencies: true,
       geoCountryCodes: true,
       isActive: true,
       sortOrder: true,

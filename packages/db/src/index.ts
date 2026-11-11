@@ -59,6 +59,7 @@ export {
   REQUIRED_ROLE_CODES,
   bootstrapRequiredReferenceData,
   ensureRequiredReferenceData,
+  ensureLegalFoundationsData,
   isRequiredReferenceDataPresent,
 } from "./bootstrap";
 export { ensureSuperAdminUser } from "./super-admin-bootstrap";
