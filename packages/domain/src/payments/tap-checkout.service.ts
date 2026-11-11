@@ -146,6 +146,7 @@ export async function createTapCheckoutSession(
     couponCodes: input.couponCodes,
     useWalletBalance: input.useWalletBalance,
     shippingAddressId: input.shippingAddressId,
+    paymentCurrency: input.paymentCurrency,
   });
   if (!quote.cart.items.length) {
     throw new CheckoutError("EMPTY_CART");
@@ -160,7 +161,7 @@ export async function createTapCheckoutSession(
     return { checkoutUrl: null, orderId, providerReference: null, paidWithoutGateway: true };
   }
 
-  const currency = quote.cart.currency.toUpperCase();
+  const currency = (quote.paymentCurrency || quote.cart.currency).toUpperCase();
   const amountMajor = Number(formatTapAmount(remaining.toString(), currency));
   const idempotencyKey = input.idempotencyKey?.trim().slice(0, 120) || randomUUID();
   const profile = await getCustomerProfile(buyerUserId);

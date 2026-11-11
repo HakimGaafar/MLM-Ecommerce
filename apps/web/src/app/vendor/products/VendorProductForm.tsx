@@ -181,6 +181,8 @@ export default function VendorProductForm({ productId }: { productId?: string })
               marketId: string;
               price: string;
               currency: string;
+              secondaryPrice?: string | null;
+              secondaryCurrency?: string | null;
               stockLocation: "MERCHANT" | "VANDSOQ_WAREHOUSE";
               vandsoqMode?: "FORSEIZ_STOCK" | "ON_ORDER" | null;
               quantity: number;
@@ -206,6 +208,8 @@ export default function VendorProductForm({ productId }: { productId?: string })
                 enabled: true,
                 price: offer.price,
                 currency: offer.currency,
+                secondaryPrice: offer.secondaryPrice ?? null,
+                secondaryCurrency: offer.secondaryCurrency ?? null,
                 stockLocation: offer.stockLocation,
                 vandsoqMode: offer.vandsoqMode === "ON_ORDER" ? "ON_ORDER" : "FORSEIZ_STOCK",
                 quantity: String(offer.quantity ?? 0),

@@ -106,6 +106,7 @@ export async function createStripeCheckoutSession(
     couponCodes: input.couponCodes,
     useWalletBalance: input.useWalletBalance,
     shippingAddressId: input.shippingAddressId,
+    paymentCurrency: input.paymentCurrency,
   });
   if (!quote.cart.items.length) {
     throw new CheckoutError("EMPTY_CART");
@@ -127,11 +128,7 @@ export async function createStripeCheckoutSession(
     };
   }
 
-  const market = await prisma.market.findUnique({
-    where: { id: marketId },
-    select: { defaultCurrency: true },
-  });
-  const currencyCode = market?.defaultCurrency ?? "SAR";
+  const currencyCode = quote.paymentCurrency || quote.cart.currency || "SAR";
   const amountMinor = stripeAmountForCurrency(remaining.toFixed(2), currencyCode);
 
   const buyer = await prisma.user.findUnique({

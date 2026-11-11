@@ -27,6 +27,11 @@ export async function GET(request: NextRequest) {
   const rawCode = request.nextUrl.searchParams.get("couponCode");
   const useWalletBalanceRaw = request.nextUrl.searchParams.get("useWalletBalance");
   const shippingAddressId = request.nextUrl.searchParams.get("shippingAddressId");
+  const paymentCurrencyRaw = request.nextUrl.searchParams.get("paymentCurrency");
+  const paymentCurrency =
+    paymentCurrencyRaw && /^[A-Za-z]{3}$/.test(paymentCurrencyRaw.trim())
+      ? paymentCurrencyRaw.trim().toUpperCase()
+      : null;
   const useWalletBalance = useWalletBalanceRaw === "1" || useWalletBalanceRaw === "true";
   let couponCodes: string[] | undefined;
 
@@ -61,6 +66,7 @@ export async function GET(request: NextRequest) {
       couponCodes,
       useWalletBalance,
       shippingAddressId,
+      paymentCurrency,
     });
     return NextResponse.json(quote, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

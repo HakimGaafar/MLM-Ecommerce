@@ -423,6 +423,12 @@ model Order {
   discountTotal            Decimal         @default(0) @db.Decimal(18, 2) @map("discount_total")
   vatTotal                 Decimal         @default(0) @db.Decimal(18, 2) @map("vat_total")
   totalAmount              Decimal         @db.Decimal(18, 2) @map("total_amount")
+  /// Currency charged to the customer (may be USD on International while ledger stays OMR).
+  chargeCurrency           String          @default("SAR") @map("charge_currency") @db.Char(3)
+  /// Wallet / commission ledger currency for this order (market default; OMR on International).
+  ledgerCurrency           String          @default("SAR") @map("ledger_currency") @db.Char(3)
+  /// Locked charge→ledger FX at order time (1 when same currency).
+  lockedFxRate             Decimal?        @map("locked_fx_rate") @db.Decimal(18, 8)
   shippingRecipientName    String?         @map("shipping_recipient_name")
   shippingPhone            String?         @map("shipping_phone")
   shippingCountryCode      String?         @map("shipping_country_code")
@@ -1157,6 +1163,9 @@ model ProductMarketOffer {
   marketId         String                   @map("market_id")
   price            Decimal                  @db.Decimal(18, 2)
   currency         String                   @db.Char(3)
+  /// Phase 4 — International dual price: OMR mirror of USD-fixed `price` (synced from admin FX).
+  secondaryPrice   Decimal?                 @map("secondary_price") @db.Decimal(18, 2)
+  secondaryCurrency String?                 @map("secondary_currency") @db.Char(3)
   stockLocation    ProductStockLocation     @map("stock_location")
   warehouseId      String?                  @map("warehouse_id")
   /// VANDSOQ A (pre-stocked) vs B (on-order). Null when stock is at merchant.

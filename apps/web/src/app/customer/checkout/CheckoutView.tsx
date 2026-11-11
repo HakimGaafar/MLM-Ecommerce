@@ -99,6 +99,12 @@ type QuotePayload = {
     cities: string[];
     reason: "PRODUCT_SPECIFIC" | "VENDOR_SHIPPING";
   }>;
+  codAvailable?: boolean;
+  paymentCurrencies?: string[];
+  paymentCurrency?: string;
+  ledgerCurrency?: string;
+  lockedFxRate?: string | null;
+  cartCurrency?: string;
 };
 
 type OrderDetail = {
@@ -159,6 +165,10 @@ type CheckoutUi = {
   acceptShippingPrefix?: string;
   acceptShippingLink?: string;
   policyConsentRequired?: string;
+  paymentCurrencyTitle?: string;
+  paymentCurrencyHint?: string;
+  lockedFxNote?: string;
+  codUnavailableHint?: string;
   gatewayPickerTitle: string;
   gatewayPickerSubtitle: string;
   gatewayStripe: string;
@@ -244,6 +254,8 @@ export default function CheckoutView({
   const direction = locale === "ar" ? "rtl" : "ltr";
   const cancelled = searchParams.get("cancelled") === "1";
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "ONLINE_CARD">("COD");
+  const [paymentCurrency, setPaymentCurrency] = useState<string | null>(null);
+  const paymentCurrencyRef = useRef<string | null>(null);
   const [gatewayPickerOpen, setGatewayPickerOpen] = useState(false);
   const [selectedGateway, setSelectedGateway] = useState<"stripe" | "tap">("tap");
   const [quote, setQuote] = useState<QuotePayload | null>(null);
@@ -281,6 +293,7 @@ export default function CheckoutView({
       useWalletBalance?: boolean;
       couponAction?: boolean;
       shippingAddressId?: string | null;
+      paymentCurrency?: string | null;
     }) => {
       const couponCodes =
         options?.couponCodes === undefined ? appliedCouponCodesRef.current : options.couponCodes ?? [];
@@ -289,6 +302,10 @@ export default function CheckoutView({
         options?.shippingAddressId !== undefined
           ? options.shippingAddressId
           : selectedShippingAddressIdRef.current;
+      const payCurrency =
+        options?.paymentCurrency !== undefined
+          ? options.paymentCurrency
+          : paymentCurrencyRef.current;
       setError(null);
       setLoading(true);
       try {
@@ -296,6 +313,7 @@ export default function CheckoutView({
         if (couponCodes.length > 0) params.set("couponCodes", couponCodes.join(","));
         if (useWallet) params.set("useWalletBalance", "1");
         if (shipId) params.set("shippingAddressId", shipId);
+        if (payCurrency) params.set("paymentCurrency", payCurrency);
         const qs = params.toString();
         const res = await fetch(`/api/v1/customer/checkout/quote${qs ? `?${qs}` : ""}`, {
           credentials: "include",
@@ -309,6 +327,10 @@ export default function CheckoutView({
         }
         const q = payload as QuotePayload;
         setQuote(q);
+        if (q.paymentCurrency) {
+          paymentCurrencyRef.current = q.paymentCurrency;
+          setPaymentCurrency(q.paymentCurrency);
+        }
         setEmailVerified(q.emailVerified !== false);
         if (q.coupons) {
           syncAppliedCouponCodes(q.coupons.codes.map((c) => c.code));
@@ -361,13 +383,17 @@ export default function CheckoutView({
   }, [selectedShippingAddressId, loadQuote]);
 
   const cardEnabled = quote?.cardPaymentsEnabled === true;
+  const codAvailable = quote?.codAvailable === true;
+  const paymentCurrencies = quote?.paymentCurrencies ?? [];
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
 
   useEffect(() => {
-    if (!cardEnabled && paymentMethod === "ONLINE_CARD") {
+    if (!codAvailable && paymentMethod === "COD") {
+      setPaymentMethod(cardEnabled ? "ONLINE_CARD" : "COD");
+    } else if (!cardEnabled && paymentMethod === "ONLINE_CARD" && codAvailable) {
       setPaymentMethod("COD");
     }
-  }, [cardEnabled, paymentMethod]);
+  }, [cardEnabled, codAvailable, paymentMethod]);
 
   useEffect(() => {
     if (!gatewayPickerOpen) return;
@@ -436,6 +462,7 @@ export default function CheckoutView({
       acceptTerms?: true;
       acceptReturns?: true;
       acceptShipping?: true;
+      paymentCurrency?: string;
     } = { idempotencyKey };
     if (quote?.shippingAddresses?.length && selectedShippingAddressId) {
       body.shippingAddressId = selectedShippingAddressId;
@@ -461,6 +488,8 @@ export default function CheckoutView({
     if (acceptTerms) body.acceptTerms = true;
     if (acceptReturns) body.acceptReturns = true;
     if (acceptShipping) body.acceptShipping = true;
+    const currency = paymentCurrencyRef.current ?? paymentCurrency ?? quote?.paymentCurrency;
+    if (currency) body.paymentCurrency = currency;
     return body;
   }
 
@@ -584,6 +613,10 @@ export default function CheckoutView({
   const b2bOk = !buyingForCompany || companyName.trim().length > 0;
   const settlementRiskOk = settlementRiskAccepted;
   const policyConsentOk = acceptTerms && acceptReturns && acceptShipping;
+  const paymentMethodOk =
+    fullyCoveredByWallet ||
+    (paymentMethod === "COD" && codAvailable) ||
+    (paymentMethod === "ONLINE_CARD" && cardEnabled);
   const canSubmit =
     profileOk &&
     addressOk &&
@@ -593,6 +626,7 @@ export default function CheckoutView({
     b2bOk &&
     settlementRiskOk &&
     policyConsentOk &&
+    paymentMethodOk &&
     !submitting &&
     !applyingCoupon;
 
@@ -1030,6 +1064,45 @@ export default function CheckoutView({
         ) : null}
       </section>
 
+      {paymentCurrencies.length > 1 ? (
+        <section className="app-card space-y-3 p-4">
+          <h2 className="text-sm font-semibold text-[var(--foreground)]">
+            {ui.paymentCurrencyTitle ?? "Pay in"}
+          </h2>
+          <p className="text-xs text-[var(--muted)]">
+            {ui.paymentCurrencyHint ?? "International checkout can be charged in OMR or USD. The FX rate is locked when you place the order."}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {paymentCurrencies.map((code) => (
+              <label
+                key={code}
+                className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"
+              >
+                <input
+                  type="radio"
+                  name="paymentCurrency"
+                  checked={(paymentCurrency ?? quote?.paymentCurrency) === code}
+                  onChange={() => {
+                    paymentCurrencyRef.current = code;
+                    setPaymentCurrency(code);
+                    void loadQuote({ paymentCurrency: code });
+                  }}
+                />
+                <span className="font-medium">{code}</span>
+              </label>
+            ))}
+          </div>
+          {quote?.lockedFxRate && quote.paymentCurrency !== quote.ledgerCurrency ? (
+            <p className="text-xs text-[var(--muted)]">
+              {(ui.lockedFxNote ?? "Locked rate {from} → {to}: {rate}")
+                .replace("{from}", quote.paymentCurrency ?? "")
+                .replace("{to}", quote.ledgerCurrency ?? "")
+                .replace("{rate}", quote.lockedFxRate)}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className="app-card space-y-3 p-4">
         <h2 className="text-sm font-semibold text-[var(--foreground)]">{ui.paymentTitle}</h2>
         {fullyCoveredByWallet ? (
@@ -1039,18 +1112,25 @@ export default function CheckoutView({
           </div>
         ) : (
           <>
-            <label className="flex cursor-pointer gap-3 rounded-lg border border-[var(--border)] p-3 text-sm">
-              <input
-                type="radio"
-                name="paymentMethod"
-                checked={paymentMethod === "COD"}
-                onChange={() => setPaymentMethod("COD")}
-              />
-              <span>
-                <span className="font-medium text-[var(--foreground)]">{ui.paymentCod}</span>
-                <span className="mt-1 block text-[var(--muted)]">{ui.paymentCodHint}</span>
-              </span>
-            </label>
+            {codAvailable ? (
+              <label className="flex cursor-pointer gap-3 rounded-lg border border-[var(--border)] p-3 text-sm">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  checked={paymentMethod === "COD"}
+                  onChange={() => setPaymentMethod("COD")}
+                />
+                <span>
+                  <span className="font-medium text-[var(--foreground)]">{ui.paymentCod}</span>
+                  <span className="mt-1 block text-[var(--muted)]">{ui.paymentCodHint}</span>
+                </span>
+              </label>
+            ) : (
+              <p className="text-xs text-[var(--muted)]">
+                {ui.codUnavailableHint ??
+                  "Cash on delivery is only available for same-city direct vendor delivery (and when enabled for this market)."}
+              </p>
+            )}
             {cardEnabled ? (
               <label className="flex cursor-pointer gap-3 rounded-lg border border-[var(--border)] p-3 text-sm">
                 <input

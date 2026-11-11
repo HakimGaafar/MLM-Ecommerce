@@ -116,6 +116,8 @@ type ProductRow = {
     marketId: string;
     price: { toString(): string };
     currency: string;
+    secondaryPrice: { toString(): string } | null;
+    secondaryCurrency: string | null;
     stockLocation: string;
     warehouseId: string | null;
     vandsoqMode?: string | null;
@@ -138,6 +140,8 @@ function toOffersDto(row: ProductRow): ProductMarketOfferDto[] {
     marketCode: offer.market.code,
     price: offer.price.toString(),
     currency: offer.currency,
+    secondaryPrice: offer.secondaryPrice?.toString() ?? null,
+    secondaryCurrency: offer.secondaryCurrency ?? null,
     stockLocation: offer.stockLocation as ProductMarketOfferDto["stockLocation"],
     warehouseId: offer.warehouseId,
     vandsoqMode: (offer.vandsoqMode as ProductMarketOfferDto["vandsoqMode"]) ?? null,

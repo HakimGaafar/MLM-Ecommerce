@@ -193,6 +193,9 @@ export async function accrueVendorEarningsForCompletedOrder(orderId: string): Pr
       paymentStatus: true,
       status: true,
       marketId: true,
+      chargeCurrency: true,
+      ledgerCurrency: true,
+      lockedFxRate: true,
       vendorShippingLines: {
         select: { vendorId: true, fulfillmentType: true, fee: true },
       },
@@ -214,15 +217,25 @@ export async function accrueVendorEarningsForCompletedOrder(orderId: string): Pr
     return;
   }
 
-  const orderSubtotal = Number(order.subtotal);
-  const orderDiscountTotal = Number(order.discountTotal);
-  const orderShippingFee = Number(order.shippingFee);
   const platformConfig = await getPlatformConfig(order.marketId);
   const market = await prisma.market.findUnique({
     where: { id: order.marketId },
     select: { code: true, defaultCurrency: true },
   });
-  const orderCurrency = market?.defaultCurrency ?? undefined;
+  const chargeCurrency = order.chargeCurrency || market?.defaultCurrency || undefined;
+  const ledgerCurrency = order.ledgerCurrency || market?.defaultCurrency || chargeCurrency;
+  const chargeToLedgerRate =
+    chargeCurrency && ledgerCurrency && chargeCurrency !== ledgerCurrency
+      ? Number(order.lockedFxRate ?? 1)
+      : 1;
+  const toLedger = (amount: number) =>
+    Math.round(amount * chargeToLedgerRate * 100) / 100;
+
+  const orderSubtotal = Number(order.subtotal);
+  const orderDiscountTotal = Number(order.discountTotal);
+  const orderShippingFee = Number(order.shippingFee);
+  /** Metadata + wallet postings use ledger currency after FX lock. */
+  const orderCurrency = ledgerCurrency;
   const shippingLines = order.vendorShippingLines.map((line) => ({
     vendorId: line.vendorId,
     fulfillmentType: line.fulfillmentType,
@@ -260,8 +273,9 @@ export async function accrueVendorEarningsForCompletedOrder(orderId: string): Pr
         orderMarketCode: market?.code,
         config: platformConfig,
       });
-      const amount = calculateVendorEarningAmount(vendorEligibleAmount, split.vendorRate);
-      if (amount <= 0) continue;
+      const amountCharge = calculateVendorEarningAmount(vendorEligibleAmount, split.vendorRate);
+      if (amountCharge <= 0) continue;
+      const amount = toLedger(amountCharge);
 
       const ownerUserId = item.vendor.ownerUserId;
       const vendorName = item.vendor.storeName ?? "Vendor";
@@ -282,8 +296,8 @@ export async function accrueVendorEarningsForCompletedOrder(orderId: string): Pr
         orderNo: order.orderNo,
         vendorId: item.vendorId,
         vendorName,
-        vendorLineTotal,
-        vendorEligibleAmount,
+        vendorLineTotal: toLedger(vendorLineTotal),
+        vendorEligibleAmount: toLedger(vendorEligibleAmount),
         vendorRate: split.vendorRate,
         orderItemId: item.id,
         unitLabel: item.unitLabel,
@@ -331,7 +345,7 @@ export async function accrueVendorEarningsForCompletedOrder(orderId: string): Pr
         tx,
         walletId: row.walletId,
         ownerUserId: row.ownerUserId,
-        amount: shippingShare,
+        amount: toLedger(shippingShare),
         orderId: order.id,
         orderNo: order.orderNo,
         vendorId: row.vendorId,

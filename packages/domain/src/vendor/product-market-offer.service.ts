@@ -11,6 +11,8 @@ export type ProductMarketOfferDto = {
   marketCode: string;
   price: string;
   currency: string;
+  secondaryPrice: string | null;
+  secondaryCurrency: string | null;
   stockLocation: "MERCHANT" | "VANDSOQ_WAREHOUSE";
   warehouseId: string | null;
   vandsoqMode: "FORSEIZ_STOCK" | "ON_ORDER" | null;
@@ -113,6 +115,16 @@ export async function replaceProductMarketOffers(
   if (offers.length === 0) return;
 
   const now = new Date();
+  let usdToOmr: number | null = null;
+  if (offers.some((o) => o.marketId === MARKET_IDS.GLOBAL && o.currency === "USD")) {
+    const { getLatestFxRate } = await import("../fx/fx-rate.service");
+    usdToOmr = await getLatestFxRate("USD", "OMR");
+    if (usdToOmr == null) {
+      const inverse = await getLatestFxRate("OMR", "USD");
+      if (inverse != null && inverse > 0) usdToOmr = 1 / inverse;
+    }
+  }
+
   await tx.productMarketOffer.createMany({
     data: offers.map((offer) => {
       const warehouseId =
@@ -155,11 +167,23 @@ export async function replaceProductMarketOffers(
         }
       }
 
+      const secondary =
+        offer.marketId === MARKET_IDS.GLOBAL &&
+        offer.currency === "USD" &&
+        usdToOmr != null
+          ? {
+              secondaryPrice: Math.round(offer.price * usdToOmr * 1000) / 1000,
+              secondaryCurrency: "OMR",
+            }
+          : { secondaryPrice: null, secondaryCurrency: null };
+
       return {
         productId,
         marketId: offer.marketId,
         price: offer.price,
         currency: offer.currency,
+        secondaryPrice: secondary.secondaryPrice,
+        secondaryCurrency: secondary.secondaryCurrency,
         stockLocation: offer.stockLocation,
         warehouseId,
         vandsoqMode,

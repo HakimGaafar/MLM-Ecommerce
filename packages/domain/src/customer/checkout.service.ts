@@ -54,6 +54,18 @@ import {
 } from "../shipping/product-service-area.service";
 import { isUserEmailVerified } from "../auth/otp-verification.service";
 import { isSameCityDelivery } from "../commission/commission-rate.service";
+import {
+  CheckoutCurrencyError,
+  convertMoneyString,
+  resolveCheckoutCurrencyPlan,
+} from "./checkout-currency.service";
+
+function rethrowCheckoutCurrency(error: unknown): never {
+  if (error instanceof CheckoutCurrencyError) {
+    throw new CheckoutError(error.code, error.message);
+  }
+  throw error;
+}
 
 export class CheckoutError extends Error {
   constructor(
@@ -77,6 +89,8 @@ export class CheckoutError extends Error {
       | "OFFER_NOT_FOUND"
       | "SETTLEMENT_RISK_REQUIRED"
       | "POLICY_CONSENT_REQUIRED"
+      | "FX_RATE_MISSING"
+      | "INVALID_PAYMENT_CURRENCY"
       | "AMOUNT_MISMATCH",
     message?: string,
   ) {
@@ -107,6 +121,8 @@ export type PlaceOrderInput = {
   /** Optional request metadata for consent ledger. */
   consentIpAddress?: string | null;
   consentUserAgent?: string | null;
+  /** Phase 4 — charge currency when market accepts more than one (e.g. GLOBAL OMR|USD). */
+  paymentCurrency?: string | null;
 };
 
 export type CheckoutDeliveryIssueDto = CartDeliveryIssueDto;
@@ -452,6 +468,7 @@ export async function getCheckoutQuoteForUser(
     couponCodes?: string[] | null;
     useWalletBalance?: boolean;
     shippingAddressId?: string | null;
+    paymentCurrency?: string | null;
   } = {},
 ): Promise<{
   cart: CustomerCartDto;
@@ -482,10 +499,16 @@ export async function getCheckoutQuoteForUser(
   remainingAmount: string;
   emailVerified: boolean;
   deliveryIssues: CheckoutDeliveryIssueDto[];
+  codAvailable: boolean;
+  paymentCurrencies: string[];
+  paymentCurrency: string;
+  ledgerCurrency: string;
+  lockedFxRate: string | null;
+  cartCurrency: string;
 }> {
   const market = await prisma.market.findUnique({
     where: { id: marketId },
-    select: { defaultCurrency: true, code: true },
+    select: { defaultCurrency: true, code: true, paymentCurrencies: true },
   });
   const defaultCurrency = market?.defaultCurrency ?? "SAR";
   const activeMarketCode = (market?.code ?? "SA") as MarketCode;
@@ -553,18 +576,85 @@ export async function getCheckoutQuoteForUser(
     })),
     discountTotal: Number(discountTotal) || 0,
   });
-  const subNum = Math.round((Number.parseFloat(cart.subtotal) || 0) * 100) / 100;
-  const shipNum = Math.round((Number.parseFloat(shippingFeeTotal) || 0) * 100) / 100;
-  const discNum = Math.round((Number.parseFloat(discountTotal) || 0) * 100) / 100;
-  const vatNum = Math.round((Number.parseFloat(vat.vatTotal) || 0) * 100) / 100;
+  const selectedAddr = addressPick.selectedAddressId
+    ? shippingAddresses.find((row) => row.id === addressPick.selectedAddressId)
+    : null;
+  const shipCity =
+    selectedAddr?.city?.trim() ?? profile?.shippingCity?.trim() ?? profile?.city?.trim() ?? "";
+  const shipCountry =
+    selectedAddr?.countryCode?.trim().toUpperCase() ??
+    profile?.shippingCountryCode?.trim().toUpperCase() ??
+    profile?.countryCode?.trim().toUpperCase() ??
+    addressPick.shippingCountryCode;
+
+  let codAvailable = false;
+  if (prepared.length > 0 && shipCity) {
+    codAvailable = await isCodAvailableForCheckout({
+      marketId,
+      shipToCity: shipCity,
+      lines: prepared,
+    });
+  }
+
+  const cartCurrency =
+    prepared.length > 0 ? prepared[0]!.currency.toUpperCase() : (cart.currency || defaultCurrency).toUpperCase();
+
+  let currencyPlan;
+  try {
+    currencyPlan = await resolveCheckoutCurrencyPlan({
+      marketId,
+      marketCode: activeMarketCode,
+      marketDefaultCurrency: defaultCurrency,
+      dbPaymentCurrencies: market?.paymentCurrencies,
+      cartCurrency,
+      requestedPaymentCurrency: options.paymentCurrency,
+    });
+  } catch (error) {
+    rethrowCheckoutCurrency(error);
+  }
+
+  const fx = currencyPlan.cartToChargeRate;
+  const subNum = Math.round((Number.parseFloat(cart.subtotal) || 0) * fx * 100) / 100;
+  const shipNum = Math.round((Number.parseFloat(shippingFeeTotal) || 0) * fx * 100) / 100;
+  const discNum = Math.round((Number.parseFloat(discountTotal) || 0) * fx * 100) / 100;
+  const vatNum = Math.round((Number.parseFloat(vat.vatTotal) || 0) * fx * 100) / 100;
   const totalNum = Math.round((subNum + shipNum - discNum + vatNum) * 100) / 100;
   const totals = {
     subtotal: subNum.toFixed(2),
     shippingFee: shipNum.toFixed(2),
     discountTotal: discNum.toFixed(2),
-    vatTotal: vat.vatTotal,
+    vatTotal: vatNum.toFixed(2),
     totalAmount: totalNum.toFixed(2),
   };
+  const chargedCart =
+    fx === 1
+      ? cart
+      : {
+          ...cart,
+          currency: currencyPlan.chargeCurrency,
+          subtotal: totals.subtotal,
+          items: cart.items.map((item) => ({
+            ...item,
+            currency: currencyPlan.chargeCurrency,
+            unitPrice: convertMoneyString(item.unitPrice, fx),
+            lineTotal: convertMoneyString(item.lineTotal, fx),
+          })),
+        };
+  const chargedShippingBreakdown =
+    fx === 1
+      ? shippingBreakdown
+      : shippingBreakdown.map((line) => ({
+          ...line,
+          fee: convertMoneyString(line.fee, fx),
+        }));
+  const chargedVatBreakdown =
+    fx === 1
+      ? vat.vatBreakdown
+      : vat.vatBreakdown.map((line) => ({
+          ...line,
+          taxableBase: convertMoneyString(line.taxableBase, fx),
+          vatAmount: convertMoneyString(line.vatAmount, fx),
+        }));
 
   const wallet = await prisma.wallet.findUnique({
     where: { userId_marketId: { userId: buyerUserId, marketId } },
@@ -575,61 +665,59 @@ export async function getCheckoutQuoteForUser(
     const buckets = await computeWalletBalanceBuckets(wallet.id);
     walletAvailable = new Prisma.Decimal(buckets.cashbackAvailable);
   }
+  // Wallet is held in ledger currency; convert available balance into charge currency for display/apply.
+  const ledgerToChargeRate =
+    currencyPlan.chargeToLedgerRate === 0 ? 0 : 1 / currencyPlan.chargeToLedgerRate;
+  const walletAvailableInCharge =
+    currencyPlan.chargeCurrency === currencyPlan.ledgerCurrency
+      ? walletAvailable
+      : new Prisma.Decimal(
+          convertMoneyString(walletAvailable.toString(), ledgerToChargeRate),
+        );
   const totalDec = new Prisma.Decimal(totals.totalAmount);
   const walletUseRequested = options.useWalletBalance === true;
-  if (walletUseRequested && walletAvailable.lte(0)) {
+  if (walletUseRequested && walletAvailableInCharge.lte(0)) {
     throw new CheckoutError(
       "INSUFFICIENT_WALLET_BALANCE",
       "No wallet balance available to use.",
     );
   }
   const walletApplied = walletUseRequested
-    ? Prisma.Decimal.min(walletAvailable, totalDec)
+    ? Prisma.Decimal.min(walletAvailableInCharge, totalDec)
     : new Prisma.Decimal(0);
   const remainingAmount = Prisma.Decimal.max(totalDec.sub(walletApplied), new Prisma.Decimal(0));
 
   let deliveryIssues: CheckoutDeliveryIssueDto[] = [];
-  if (prepared.length > 0) {
-    const selectedAddr = addressPick.selectedAddressId
-      ? shippingAddresses.find((row) => row.id === addressPick.selectedAddressId)
-      : null;
-    const shipCity = selectedAddr?.city?.trim() ?? profile?.shippingCity?.trim() ?? profile?.city?.trim();
-    const shipCountry =
-      selectedAddr?.countryCode?.trim().toUpperCase() ??
-      profile?.shippingCountryCode?.trim().toUpperCase() ??
-      profile?.countryCode?.trim().toUpperCase() ??
-      addressPick.shippingCountryCode;
-    if (shipCity && shipCountry) {
-      const warnings = await computeServiceAreaWarnings({
-        lines: prepared.map((line) => ({
-          itemId: line.cartItemId,
-          productId: line.productId,
-          productName: line.name,
-          vendorId: line.vendorId,
-          stockLocation: line.stockLocation,
-        })),
-        countryCode: shipCountry,
-        city: shipCity,
-      });
-      deliveryIssues = warnings
-        .map((warning) => {
-          const itemId =
-            warning.itemId ??
-            prepared.find((line) => line.productId === warning.productId)?.cartItemId;
-          if (!itemId) return null;
-          return { ...warning, itemId };
-        })
-        .filter((row): row is CheckoutDeliveryIssueDto => row !== null);
-    }
+  if (prepared.length > 0 && shipCity && shipCountry) {
+    const warnings = await computeServiceAreaWarnings({
+      lines: prepared.map((line) => ({
+        itemId: line.cartItemId,
+        productId: line.productId,
+        productName: line.name,
+        vendorId: line.vendorId,
+        stockLocation: line.stockLocation,
+      })),
+      countryCode: shipCountry,
+      city: shipCity,
+    });
+    deliveryIssues = warnings
+      .map((warning) => {
+        const itemId =
+          warning.itemId ??
+          prepared.find((line) => line.productId === warning.productId)?.cartItemId;
+        if (!itemId) return null;
+        return { ...warning, itemId };
+      })
+      .filter((row): row is CheckoutDeliveryIssueDto => row !== null);
   }
 
   return {
-    cart,
+    cart: chargedCart,
     shippingFee: totals.shippingFee,
-    shippingBreakdown,
+    shippingBreakdown: chargedShippingBreakdown,
     discountTotal: totals.discountTotal,
     vatTotal: totals.vatTotal,
-    vatBreakdown: vat.vatBreakdown,
+    vatBreakdown: chargedVatBreakdown,
     displayVatPercent: vat.displayVatPercent,
     totalAmount: totals.totalAmount,
     profileComplete,
@@ -647,11 +735,17 @@ export async function getCheckoutQuoteForUser(
       hyperpay: platformConfig.showHyperPayGateway,
       myfatoorah: platformConfig.showMyFatoorahGateway,
     },
-    walletAvailableBalance: walletAvailable.toFixed(2),
+    walletAvailableBalance: walletAvailableInCharge.toFixed(2),
     walletAppliedAmount: walletApplied.toFixed(2),
     remainingAmount: remainingAmount.toFixed(2),
     emailVerified,
     deliveryIssues,
+    codAvailable,
+    paymentCurrencies: currencyPlan.paymentCurrencies,
+    paymentCurrency: currencyPlan.chargeCurrency,
+    ledgerCurrency: currencyPlan.ledgerCurrency,
+    lockedFxRate: currencyPlan.chargeToLedgerRate.toFixed(8),
+    cartCurrency: currencyPlan.cartCurrency,
   };
 }
 
@@ -742,10 +836,40 @@ export async function createOrderFromCart(
     marketId,
   });
 
+  const marketRow = await prisma.market.findUnique({
+    where: { id: marketId },
+    select: { defaultCurrency: true, code: true, paymentCurrencies: true },
+  });
+
   return prisma.$transaction(async (tx) => {
-    const prepared = await loadPreparedCartLines(buyerUserId, marketId, tx);
-    if (prepared.length === 0) throw new CheckoutError("EMPTY_CART");
-    assertSingleCurrency(prepared);
+    const preparedRaw = await loadPreparedCartLines(buyerUserId, marketId, tx);
+    if (preparedRaw.length === 0) throw new CheckoutError("EMPTY_CART");
+    assertSingleCurrency(preparedRaw);
+
+    let currencyPlan;
+    try {
+      currencyPlan = await resolveCheckoutCurrencyPlan({
+        marketId,
+        marketCode: marketRow?.code ?? "SA",
+        marketDefaultCurrency: marketRow?.defaultCurrency ?? "SAR",
+        dbPaymentCurrencies: marketRow?.paymentCurrencies,
+        cartCurrency: preparedRaw[0]!.currency,
+        requestedPaymentCurrency: input.paymentCurrency,
+      });
+    } catch (error) {
+      rethrowCheckoutCurrency(error);
+    }
+
+    const cartFx = currencyPlan.cartToChargeRate;
+    const prepared =
+      cartFx === 1
+        ? preparedRaw
+        : preparedRaw.map((line) => ({
+            ...line,
+            currency: currencyPlan.chargeCurrency,
+            unitPrice: new Prisma.Decimal(convertMoneyString(line.unitPrice.toString(), cartFx)),
+            lineTotal: new Prisma.Decimal(convertMoneyString(line.lineTotal.toString(), cartFx)),
+          }));
 
     const deliveryIssues = await computeServiceAreaWarnings({
       lines: prepared.map((line) => ({
@@ -770,7 +894,7 @@ export async function createOrderFromCart(
       await assertCodAllowedForCart({
         marketId,
         shipToCity: shipping.shippingCity,
-        lines: prepared,
+        lines: preparedRaw,
       });
     }
 
@@ -798,10 +922,15 @@ export async function createOrderFromCart(
     }
 
     const couponCodes = input.couponCodes ?? (input.couponCode ? [input.couponCode] : undefined);
-    const coupons = await resolveOptionalCouponCodes(couponCodes, prepared, tx, marketId);
-    const discountTotal = coupons?.discountTotal ?? new Prisma.Decimal(0);
-    const shippingLines = await resolveShippingForCheckout(
-      prepared.map((line) => ({
+    const couponsRaw = await resolveOptionalCouponCodes(couponCodes, preparedRaw, tx, marketId);
+    const discountTotalRaw = couponsRaw?.discountTotal ?? new Prisma.Decimal(0);
+    const discountTotal =
+      cartFx === 1
+        ? discountTotalRaw
+        : new Prisma.Decimal(convertMoneyString(discountTotalRaw.toString(), cartFx));
+    const coupons = couponsRaw;
+    const shippingLinesRaw = await resolveShippingForCheckout(
+      preparedRaw.map((line) => ({
         vendorId: line.vendorId,
         fulfillmentType: line.fulfillmentType,
         stockLocation: line.stockLocation,
@@ -815,6 +944,13 @@ export async function createOrderFromCart(
       marketId,
       tx,
     );
+    const shippingLines =
+      cartFx === 1
+        ? shippingLinesRaw
+        : shippingLinesRaw.map((line) => ({
+            ...line,
+            fee: new Prisma.Decimal(convertMoneyString(line.fee.toString(), cartFx)),
+          }));
     const shippingFee = sumVendorShippingFees(shippingLines);
     const vatComputed = await computeCheckoutVat({
       marketId,
@@ -855,6 +991,12 @@ export async function createOrderFromCart(
         );
       }
     }
+    const ledgerToChargeRate =
+      currencyPlan.chargeToLedgerRate === 0 ? 0 : 1 / currencyPlan.chargeToLedgerRate;
+    const cashbackInCharge =
+      currencyPlan.chargeCurrency === currencyPlan.ledgerCurrency
+        ? cashbackAvailableDec
+        : new Prisma.Decimal(convertMoneyString(cashbackAvailableDec.toString(), ledgerToChargeRate));
     const wallet = walletRequested
       ? await tx.wallet.findUnique({
           where: { userId_marketId: { userId: buyerUserId, marketId } },
@@ -862,13 +1004,13 @@ export async function createOrderFromCart(
         })
       : null;
     const walletApplied = wallet
-      ? Prisma.Decimal.min(cashbackAvailableDec, totalAmount)
+      ? Prisma.Decimal.min(cashbackInCharge, totalAmount)
       : new Prisma.Decimal(0);
     const remainingAmount = Prisma.Decimal.max(totalAmount.sub(walletApplied), new Prisma.Decimal(0));
 
     const hasCardRef = Boolean(payment.tapChargeId || payment.stripeCheckoutSessionId);
     if (payment.method === "ONLINE_CARD" && payment.status === "PAID" && hasCardRef) {
-      const currency = prepared[0]!.currency.toUpperCase();
+      const currency = currencyPlan.chargeCurrency;
       const capturedCurrency = payment.capturedCardCurrency?.trim().toUpperCase() ?? "";
       const capturedRaw = payment.capturedCardAmount?.trim() ?? "";
       if (!capturedRaw || !capturedCurrency) {
@@ -933,6 +1075,9 @@ export async function createOrderFromCart(
         discountTotal,
         vatTotal,
         totalAmount,
+        chargeCurrency: currencyPlan.chargeCurrency,
+        ledgerCurrency: currencyPlan.ledgerCurrency,
+        lockedFxRate: new Prisma.Decimal(currencyPlan.chargeToLedgerRate.toFixed(8)),
         buyingForCompany,
         companyName: buyingForCompany ? input.companyName?.trim() || null : null,
         companyTaxId: buyingForCompany ? input.companyTaxId?.trim() || null : null,
@@ -990,12 +1135,18 @@ export async function createOrderFromCart(
     });
 
     if (walletRequested && walletApplied.gt(0)) {
-      if (!wallet || wallet.availableBalance.lt(walletApplied)) {
+      const walletDebitLedger =
+        currencyPlan.chargeCurrency === currencyPlan.ledgerCurrency
+          ? walletApplied
+          : new Prisma.Decimal(
+              convertMoneyString(walletApplied.toString(), currencyPlan.chargeToLedgerRate),
+            );
+      if (!wallet || wallet.availableBalance.lt(walletDebitLedger)) {
         throw new CheckoutError("INSUFFICIENT_WALLET_BALANCE", "Wallet balance is not enough.");
       }
       await tx.wallet.update({
         where: { id: wallet.id },
-        data: { availableBalance: { decrement: walletApplied } },
+        data: { availableBalance: { decrement: walletDebitLedger } },
       });
       await tx.walletTransaction.create({
         data: {
@@ -1003,7 +1154,7 @@ export async function createOrderFromCart(
           userId: buyerUserId,
           entryType: "ORDER_PAYMENT",
           direction: "DEBIT",
-          amount: walletApplied,
+          amount: walletDebitLedger,
           status: "APPROVED",
           referenceType: "order",
           referenceId: order.id,
@@ -1014,6 +1165,10 @@ export async function createOrderFromCart(
             kind: "checkout_wallet_payment",
             totalAmount: totalAmount.toFixed(2),
             remainingAmount: remainingAmount.toFixed(2),
+            chargeCurrency: currencyPlan.chargeCurrency,
+            ledgerCurrency: currencyPlan.ledgerCurrency,
+            lockedFxRate: currencyPlan.chargeToLedgerRate,
+            chargeWalletApplied: walletApplied.toFixed(2),
           },
         },
       });

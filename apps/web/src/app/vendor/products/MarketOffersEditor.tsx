@@ -7,6 +7,8 @@ export type OfferDraft = {
   enabled: boolean;
   price: string;
   currency: string;
+  secondaryPrice?: string | null;
+  secondaryCurrency?: string | null;
   stockLocation: "MERCHANT" | "VANDSOQ_WAREHOUSE";
   vandsoqMode: "FORSEIZ_STOCK" | "ON_ORDER";
   quantity: string;
@@ -42,6 +44,7 @@ type Labels = {
   marketGLOBAL: string;
   price: string;
   currency: string;
+  secondaryOmrHint?: string;
   quantity: string;
   stockLocation: string;
   stockMerchant: string;
@@ -130,7 +133,10 @@ export default function MarketOffersEditor({
                 <div className="mt-3 space-y-3 border-t border-[var(--border)] pt-3">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block space-y-1 text-sm">
-                      <span className="font-medium">{labels.price}</span>
+                      <span className="font-medium">
+                        {labels.price}
+                        {meta.code === "GLOBAL" ? ` (${draft.currency})` : ""}
+                      </span>
                       <input
                         required
                         type="number"
@@ -142,6 +148,18 @@ export default function MarketOffersEditor({
                         onChange={(e) => update(draft.marketId, { price: e.target.value })}
                         onWheel={(e) => e.currentTarget.blur()}
                       />
+                      {meta.code === "GLOBAL" && draft.secondaryPrice && draft.secondaryCurrency ? (
+                        <span className="text-xs text-[var(--muted)]">
+                          {(labels.secondaryOmrHint ?? "OMR (from admin FX): {amount} {currency}")
+                            .replace("{amount}", draft.secondaryPrice)
+                            .replace("{currency}", draft.secondaryCurrency)}
+                        </span>
+                      ) : meta.code === "GLOBAL" ? (
+                        <span className="text-xs text-[var(--muted)]">
+                          {labels.secondaryOmrHint ??
+                            "OMR mirror updates when admin sets USD→OMR FX."}
+                        </span>
+                      ) : null}
                     </label>
                     <label className="block space-y-1 text-sm">
                       <span className="font-medium">{labels.quantity}</span>

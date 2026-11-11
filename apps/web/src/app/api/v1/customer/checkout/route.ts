@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
       acceptTerms: parsed.data.acceptTerms,
       acceptReturns: parsed.data.acceptReturns,
       acceptShipping: parsed.data.acceptShipping,
+      paymentCurrency: parsed.data.paymentCurrency,
       consentIpAddress: getClientIp(request),
       consentUserAgent: request.headers.get("user-agent"),
     });

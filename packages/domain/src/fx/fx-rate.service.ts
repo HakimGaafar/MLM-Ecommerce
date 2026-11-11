@@ -138,5 +138,17 @@ export async function upsertManualFxRate(params: {
     },
   });
 
+  // Keep International dual prices in sync when USD↔OMR changes.
+  if (
+    (from === "USD" && to === "OMR") ||
+    (from === "OMR" && to === "USD")
+  ) {
+    const { syncGlobalOfferOmrFromUsd } = await import("./sync-global-offer-omr.service");
+    const usdToOmr = from === "USD" && to === "OMR" ? params.rate : 1 / params.rate;
+    await syncGlobalOfferOmrFromUsd({ usdToOmrRate: usdToOmr }).catch((err) => {
+      console.error("[fx] syncGlobalOfferOmrFromUsd failed", err);
+    });
+  }
+
   return toDto(row);
 }

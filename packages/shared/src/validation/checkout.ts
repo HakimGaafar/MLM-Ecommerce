@@ -63,6 +63,13 @@ export const CheckoutPostSchema = z
     acceptTerms: z.literal(true),
     acceptReturns: z.literal(true),
     acceptShipping: z.literal(true),
+    /** Phase 4 — charge currency when market accepts multiple (e.g. GLOBAL OMR|USD). */
+    paymentCurrency: z
+      .string()
+      .trim()
+      .length(3)
+      .toUpperCase()
+      .optional(),
   })
   .merge(CheckoutCompanySchema);
 
