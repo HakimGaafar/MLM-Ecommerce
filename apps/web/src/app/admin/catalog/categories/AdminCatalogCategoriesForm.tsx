@@ -66,7 +66,7 @@ export default function AdminCatalogCategoriesForm({
       const data = (await res.json()) as { categories: CategoryRow[] };
       setRows(data.categories);
     } catch {
-      toast.error(ui.loadError ?? "Load failed");
+      toast.error(ui.loadError);
     } finally {
       setLoading(false);
     }
@@ -95,7 +95,7 @@ export default function AdminCatalogCategoriesForm({
       const payload = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) throw new Error(payload?.error ?? ui.saveError);
       setNewRow({ slug: "", nameEn: "", nameAr: "", sortOrder: "0", parentId: "" });
-      toast.success(ui.saved ?? "Saved");
+      toast.success(ui.saved);
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : ui.saveError);
@@ -118,7 +118,7 @@ export default function AdminCatalogCategoriesForm({
       );
       const payload = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) throw new Error(payload?.error ?? ui.saveError);
-      toast.success(ui.saved ?? "Saved");
+      toast.success(ui.saved);
       setEditingId(null);
       setEditDraft(null);
       await load();
@@ -130,7 +130,7 @@ export default function AdminCatalogCategoriesForm({
   }
 
   async function removeCategory(row: CategoryRow) {
-    if (!window.confirm(ui.deleteConfirm ?? "Delete this category?")) return;
+    if (!window.confirm(ui.deleteConfirm)) return;
     setBusyId(row.id);
     try {
       const res = await fetch(
@@ -139,7 +139,7 @@ export default function AdminCatalogCategoriesForm({
       );
       const payload = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) throw new Error(payload?.error ?? ui.saveError);
-      toast.success(ui.deleted ?? "Deleted");
+      toast.success(ui.deleted);
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : ui.saveError);
@@ -228,13 +228,13 @@ export default function AdminCatalogCategoriesForm({
             onChange={(e) => setNewRow({ ...newRow, nameAr: e.target.value })}
           />
           <label className="block text-sm sm:col-span-2">
-            <span className="text-[var(--muted)]">Parent category</span>
+            <span className="text-[var(--muted)]">{ui.parentCategory}</span>
             <select
               className="app-input mt-1"
               value={newRow.parentId}
               onChange={(e) => setNewRow({ ...newRow, parentId: e.target.value })}
             >
-              <option value="">Top level</option>
+              <option value="">{ui.topLevel}</option>
               {rows.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.nameEn}
@@ -261,7 +261,7 @@ export default function AdminCatalogCategoriesForm({
             <thead className="bg-[var(--surface-elevated)]">
               <tr>
                 <th className="px-3 py-2 text-left">{ui.slug}</th>
-                <th className="px-3 py-2 text-left">Parent</th>
+                <th className="px-3 py-2 text-left">{ui.parentColumn}</th>
                 <th className="px-3 py-2 text-left">{ui.nameEn}</th>
                 <th className="px-3 py-2 text-left">{ui.nameAr}</th>
                 <th className="px-3 py-2 text-left">{ui.sortOrder}</th>

@@ -96,7 +96,8 @@
       "sendError": "تعذر إرسال رمز التحقق.",
       "verifyError": "فشل التحقق.",
       "invalidCode": "أدخل الرمز المكوّن من 6 أرقام من بريدك.",
-      "loading": "جارٍ التحقق من حالة التأكيد…"
+      "loading": "جارٍ التحقق من حالة التأكيد…",
+      "previewCodeLabel": "رمز المعاينة (تطوير):"
     },
     "cashbackTitle": "تفعيل محفظتك",
     "cashbackBody": "تحقق من بريدك مرة واحدة لفتح الاسترداد النقدي في المحفظة للمشتريات. نفس التحقق يغطي أول طلب أيضاً — وبعدها يبقى الاسترداد متاحاً للتسوق (وليس للسحب النقدي).",
@@ -118,7 +119,8 @@
     "phoneLabel": "رقم الجوال",
     "phonePlaceholder": "+966500000000",
     "disabledNotice": "التحقق عبر الهاتف معطّل مؤقتًا حتى تفعيل مزود SMS.",
-    "verifiedNotice": "تم التحقق من الهاتف: {phone}"
+    "verifiedNotice": "تم التحقق من الهاتف: {phone}",
+    "previewCodeLabel": "رمز المعاينة (تطوير):"
   },
   "guestDelivery": {
     "promptTitle": "إلى أين نوصل طلبك؟",
@@ -223,6 +225,7 @@
     "howItWorks4": "تُضاف العمولات إلى محفظتك قيد الانتظار، ثم تصبح متاحة بعد فترة التسوية ({settlementDays} أيام).",
     "levelsTitle": "مستويات العمولة (نسبة من حوض {poolPercent}%)",
     "levelsColLevel": "المستوى",
+    "levelLabel": "المستوى {level}",
     "levelsColShare": "نسبة الحوض",
     "levelsColExample": "مثال*",
     "levelsFootnote": "*مثال لكل {currency} 100 مبلغ مؤهل (المجموع الفرعي ناقص الخصومات، دون الشحن والضريبة). الحوض = {poolPercent}% من المبلغ المؤهل.",
@@ -312,7 +315,55 @@
     "stores": "المتاجر",
     "contact": "اتصل بنا",
     "menu": "القائمة",
-    "login": "تسجيل الدخول"
+    "login": "تسجيل الدخول",
+    "close": "إغلاق",
+    "closeMenu": "إغلاق القائمة",
+    "dismiss": "تجاهل"
+  },
+  "siteMeta": {
+    "description": "تسوّق من بائعين موثوقين واكسب مكافآت واستردادًا نقديًا."
+  },
+  "portalRoleGate": {
+    "cart": {
+      "title": "السلة",
+      "body": "السلة متاحة لحسابات العملاء فقط."
+    },
+    "checkout": {
+      "title": "إتمام الشراء",
+      "body": "إتمام الشراء متاح لحسابات العملاء فقط."
+    },
+    "orders": {
+      "title": "الطلبات",
+      "body": "صفحة الطلبات لهذا الدور غير متاحة بعد."
+    },
+    "ordersDetail": {
+      "title": "الطلب",
+      "body": "تفاصيل الطلب لهذا الدور غير متاحة بعد."
+    },
+    "profile": {
+      "title": "الملف الشخصي",
+      "body": "الملف الشخصي لهذا الدور غير متاح بعد."
+    },
+    "returns": {
+      "title": "المرتجعات",
+      "body": "المرتجعات لهذا الدور غير متاحة بعد."
+    },
+    "returnsDetail": {
+      "title": "المرتجع",
+      "body": "المرتجعات لهذا الدور غير متاحة بعد."
+    },
+    "affiliate": {
+      "title": "الإحالة",
+      "body": "برنامج الإحالة مخصص لحسابات العملاء."
+    },
+    "cashback": {
+      "title": "المحفظة",
+      "body": "المحفظة مخصصة لحسابات العملاء."
+    }
+  },
+  "addressMapPicker": {
+    "loading": "جارٍ تحميل الخريطة…",
+    "ariaLabel": "اختيار موقع على الخريطة"
   },
   "homePage": {
     "badge": "سوق متعدد البائعين",
@@ -403,7 +454,12 @@
     "copyright": "© {year} {name}. جميع الحقوق محفوظة.",
     "verificationBadgeOm": "معروف عُمان — منشأة موثقة",
     "verificationBadgeSa": "المركز السعودي للأعمال",
-    "verificationBadgeEg": "توثيق الأعمال في مصر"
+    "verificationBadgeEg": "توثيق الأعمال في مصر",
+    "socialLabelFacebook": "فيسبوك",
+    "socialLabelInstagram": "إنستغرام",
+    "socialLabelYouTube": "يوتيوب",
+    "socialLabelX": "X",
+    "socialLabelWhatsApp": "واتساب"
   },
   "accountPortal": {
     "announcementsTitle": "الأخبار والتحديثات",
@@ -608,7 +664,9 @@
     "invalidEmail": "أدخل بريدًا إلكترونيًا صالحًا.",
     "invalidName": "أدخل اسمًا صالحًا باستخدام الحروف فقط.",
     "invalidMessage": "يرجى كتابة 10 أحرف على الأقل.",
-    "fieldRequired": "هذا الحقل مطلوب."
+    "fieldRequired": "هذا الحقل مطلوب.",
+    "metaTitle": "اتصل بنا",
+    "metaDescription": "تواصل مع دعم عملاء فاندسوق لسوقك الحالي."
   },
   "internationalNotices": {
     "customer": {
@@ -684,6 +742,14 @@
     "fullNameEn": "الاسم الكامل (إنجليزي)",
     "fullNameOther": "الاسم الكامل (لغة أخرى)",
     "identityDocumentKind": "نوع وثيقة الهوية",
+    "identityKinds": {
+      "NATIONAL_ID": "الهوية الوطنية",
+      "PASSPORT": "جواز السفر",
+      "RESIDENCY": "الإقامة",
+      "DRIVING_LICENSE": "رخصة القيادة",
+      "TAX_ID": "الرقم الضريبي",
+      "OTHER": "أخرى"
+    },
     "documentNumber": "رقم الوثيقة",
     "documentExpiresAt": "تاريخ انتهاء الوثيقة (اختياري)",
     "addressOptional": "العنوان (اختياري)",
@@ -691,6 +757,13 @@
     "legalNameEn": "الاسم القانوني (إنجليزي)",
     "legalNameOther": "الاسم القانوني (لغة أخرى)",
     "entityType": "نوع الكيان",
+    "entityTypes": {
+      "INDIVIDUAL": "فرد",
+      "COMPANY": "شركة",
+      "ESTABLISHMENT": "مؤسسة",
+      "FREELANCE": "عمل حر",
+      "OTHER": "أخرى"
+    },
     "district": "الحي",
     "street": "الشارع",
     "landmark": "علامة مميزة (اختياري)",
@@ -833,7 +906,10 @@
     "ratingEmpty": "لا توجد تقييمات بعد",
     "ratingCount": "{count} تقييمات",
     "relatedTitle": "منتجات ذات صلة",
-    "selectOption": "اختر الخيار"
+    "selectOption": "اختر الخيار",
+    "expand": "توسيع",
+    "collapse": "طي",
+    "notFoundTitle": "المنتج غير موجود"
   },
   "wishlist": {
     "title": "المفضلة",
@@ -1021,7 +1097,9 @@
     "add": "أضف إلى السلة",
     "adding": "جارٍ الإضافة...",
     "error": "تعذر الإضافة إلى السلة",
-    "success": "تمت الإضافة إلى السلة"
+    "success": "تمت الإضافة إلى السلة",
+    "selectOption": "اختر الخيار",
+    "outOfStock": "غير متوفر"
   },
   "shell": {
     "theme": { "section": "المظهر", "light": "فاتح", "dark": "داكن" },
@@ -1898,6 +1976,12 @@
     "formVariantsPrice": "السعر",
     "formVariantsEmpty": "لا توجد متغيرات — البيع بوحدة تخزين واحدة.",
     "formVariantsEnableMarketsFirst": "فعّل سوق بيع واحداً على الأقل أعلاه قبل إضافة المتغيرات.",
+    "formVariantsMarket": "السوق",
+    "formVariantsTitlePlaceholder": "أحمر / M",
+    "formVariantsSkuPlaceholder": "SKU-RM",
+    "formSlug": "رابط URL",
+    "formSlugPlaceholder": "your-product-slug",
+    "formSlugHint": "اختياري. يُستخدم في /products/your-slug",
     "formServiceAreaTitle": "مدن الخدمة / التوصيل",
     "formServiceAreaHint": "اختر كل الدول وكل المدن، أو حدّد مدنًا معينة لهذا المنتج. يرى العملاء المنتجات من أي مكان؛ ويُنبّهون في السلة بالمنتجات غير المتوافقة ويجب إزالتها قبل إتمام الشراء.",
     "formServiceAreaAll": "كل الدول وكل المدن",
@@ -2149,7 +2233,9 @@
     "viewProduct": "عرض المنتج",
     "filteredByLine": "عرض تقييم بند طلب واحد.",
     "clearFilter": "عرض كل التقييمات",
-    "stars": "نجوم"
+    "stars": "نجوم",
+    "reviewCountOne": "تقييم واحد ({count})",
+    "reviewCountMany": "{count} تقييمات"
   },
   "vendorQuestions": {
     "title": "أسئلة المنتجات",
@@ -2345,7 +2431,12 @@
       "settlementRiskAccept": "أوافق على شروط مخاطر التسوية",
       "settlementRiskAccepted": "تم قبول شروط مخاطر التسوية",
       "settlementRiskSaving": "جارٍ الحفظ…",
-      "settlementRiskError": "تعذر حفظ الموافقة. حاول مرة أخرى."
+      "settlementRiskError": "تعذر حفظ الموافقة. حاول مرة أخرى.",
+      "profileChangeTitle": "طلب تغيير ملف المتجر (مراجعة إدارية)",
+      "profileChangeNotePlaceholder": "ملاحظة للمشرف (اختياري)",
+      "profileChangeSubmit": "إرسال للمراجعة",
+      "profileChangeSubmitting": "جارٍ الإرسال…",
+      "profileChangeSuccess": "تم إرسال طلب التغيير للمراجعة"
     }
   },
   "vendorInvoiceProfile": {
@@ -2534,7 +2625,23 @@
     "toastSaved": "تم حفظ قرار الحقل",
     "toastApproved": "تم اعتماد التاجر",
     "toastRejected": "أُعيد التاجر للتصحيح",
-    "notePlaceholder": "ملاحظة للتاجر (اختياري)"
+    "notePlaceholder": "ملاحظة للتاجر (اختياري)",
+    "pendingProfileChanges": "طلبات تغيير الملف المعلقة",
+    "vendorNoteLabel": "ملاحظة",
+    "fieldStatus": "الحالة",
+    "fieldLabels": {
+      "repNameEn": "اسم الممثل (إنجليزي)",
+      "repNameOther": "اسم الممثل (أخرى)",
+      "legalNameEn": "الاسم القانوني (إنجليزي)",
+      "legalNameOther": "الاسم القانوني (أخرى)",
+      "entityType": "نوع الكيان",
+      "address": "العنوان",
+      "storeName": "اسم المتجر",
+      "storeNameOther": "اسم المتجر (أخرى)",
+      "storeDescriptionEn": "الوصف (إنجليزي)",
+      "invoiceVatTrn": "الرقم الضريبي",
+      "payoutIban": "الآيبان"
+    }
   },
   "adminDashboard": {
     "title": "لوحة الإدارة",
@@ -2776,6 +2883,8 @@
       "cancelReason": "السبب (10 أحرف على الأقل)",
       "cancelConfirm": "إزالة هذا التاجر من الطلب؟ لا يمكن التراجع.",
       "cancelVendor": "إلغاء جزء التاجر",
+      "cancelDialogCancel": "إلغاء",
+      "cancelDialogCancelling": "جارٍ الإلغاء...",
       "slaBypassHint": "تجاوز SLA مفعّل.",
       "slaDemoHint": "وضع العرض التوضيحي للتأخير مفعّل.",
       "copied": "تم النسخ"
@@ -2838,7 +2947,19 @@
       "rejectionReason": "سبب الرفض",
       "rejectionReasonRequired": "سبب الرفض مطلوب عند رفض الإرجاع.",
       "rejectionReasonPlaceholder": "اشرح سبب رفض هذا الإرجاع (يظهر للعميل).",
-      "returnUnitsTitle": "عناصر هذا الإرجاع"
+      "returnUnitsTitle": "عناصر هذا الإرجاع",
+      "returnShipping": "شحن الإرجاع",
+      "hubInspect": "فحص المركز",
+      "finalReturnFee": "رسوم الإرجاع النهائية",
+      "shippingBearer": "متحمل تكلفة الشحن",
+      "bearerCustomer": "العميل",
+      "bearerVendor": "التاجر",
+      "bearerPlatform": "المنصة",
+      "goodsAfterAccept": "البضاعة بعد القبول",
+      "dispositionHoldAtHub": "الاحتفاظ في مركز سوق المشتري",
+      "dispositionReturnToVendor": "إعادة للتاجر",
+      "dispositionDispose": "إتلاف",
+      "hubInspectionNote": "ملاحظة فحص المركز"
     }
   },
   "adminPlatformSettings": {
@@ -2869,7 +2990,8 @@
       "referralStructure": "هيكل الإحالة",
       "policies": "السياسات والشروط",
       "footerContact": "تذييل الموقع ومعلومات التواصل",
-      "paymentGateways": "خطة بوابات الدفع"
+      "paymentGateways": "خطة بوابات الدفع",
+      "cod": "الدفع عند الاستلام"
     },
     "fields": {
       "cashbackPercent": "الكاش باك (% من مبلغ الطلب المؤهل)",
@@ -2880,6 +3002,9 @@
       "affiliateLevel4Percent": "المستوى 4 (% من الحوض)",
       "vendorPercent": "حصة التاجر (%)",
       "platformPercent": "عمولة المنصة / المتجر (%)",
+      "vendorPercentCross": "حصة التاجر % (عبر الأسواق / دولي)",
+      "platformPercentCross": "عمولة المنصة % (عبر الأسواق / دولي)",
+      "codEnabled": "السماح بالدفع عند الاستلام (مفتاح عام)",
       "vatPercent": "ضريبة القيمة المضافة على عمولة المنصة (%)",
       "minWithdrawalAmount": "الحد الأدنى للسحب ({currency})",
       "returnWindowDays": "نافذة الإرجاع (أيام بعد التسليم)",
@@ -2910,6 +3035,7 @@
       "commissionSum": "المجموع الحالي: {sum}%",
       "commissionSumOk": "المجموع 100% — جاهز للحفظ.",
       "commissionSumBad": "يجب أن يساوي 100% قبل الحفظ.",
+      "commissionCrossIntro": "تقسيم عبر الأسواق / الدولي (افتراضي المنصة 10% / التاجر 90%).",
       "vatIntro": "ضريبة القيمة المضافة هنا بين التاجر والمنصة على فاتورة عمولة المنصة (وليست ضريبة العميل عند الدفع وحدها).",
       "vatExample": "مثال: منتج 100، عمولة المنصة 10% → عمولة 10؛ ضريبة 15% على العمولة → 1.5؛ فاتورة المنصة 11.5. تبقى حصة التاجر من البضاعة حسب نسبته (مثلاً 90 إذا كانت حصة التاجر 90%).",
       "appliesToNewOrders": "تُطبَّق التغييرات على الطلبات الجديدة والحسابات المستقبلية فقط — وليس على الطلبات السابقة أو قيود الدفتر المعلّقة.",
@@ -3305,7 +3431,10 @@
     "activeNo": "معطّل",
     "delete": "حذف",
     "deleteConfirm": "حذف هذا التصنيف؟",
-    "deleted": "تم حذف التصنيف."
+    "deleted": "تم حذف التصنيف.",
+    "parentCategory": "التصنيف الأب",
+    "parentColumn": "الأب",
+    "topLevel": "المستوى الأعلى"
   },
   "adminCatalogBanners": {
     "title": "بانرات المتجر",
@@ -3395,6 +3524,7 @@
   "adminVendors": {
     "title": "التجار",
     "subtitle": "اعتمد المتاجر بعد اكتمال الإعداد والتوثيق. المتاجر غير المعتمدة تبقى مخفية عن الكتالوج العام.",
+    "onboardingReviewLink": "مراجعة التسجيل",
     "backToDashboard": "العودة للوحة",
     "list": {
       "loading": "جارٍ التحميل…",
@@ -3764,7 +3894,9 @@
       "subject": "الجهة",
       "document": "المستند",
       "status": "الحالة",
-      "submitted": "تاريخ الإرسال"
+      "submitted": "تاريخ الإرسال",
+      "ibanLabel": "الآيبان",
+      "expiryLabel": "الانتهاء"
     },
     "subjectTypes": {
       "CUSTOMER": "عميل",

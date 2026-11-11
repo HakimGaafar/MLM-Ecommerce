@@ -874,7 +874,7 @@ export default function CheckoutView({
                 <span className="text-start">
                   {line.kind === "WAREHOUSE_SHIPPING"
                     ? (ui.vatBreakdownWarehouse ?? line.label)
-                    : `${ui.vatBreakdownVendor ?? "VAT"} · ${line.label} (${line.vatRatePercent}%)`}
+                    : `${ui.vatBreakdownVendor} · ${line.label} (${line.vatRatePercent}%)`}
                 </span>
                 <span className="tabular-nums">
                   {formatMoney(line.vatAmount, cart.currency, locale)}
@@ -905,7 +905,7 @@ export default function CheckoutView({
 
       <section className="app-card space-y-3 p-4">
         <h2 className="text-sm font-semibold text-[var(--foreground)]">
-          {ui.b2bTitle ?? "Business purchase"}
+          {ui.b2bTitle}
         </h2>
         <label className="flex cursor-pointer items-start gap-3 text-sm">
           <input
@@ -916,17 +916,17 @@ export default function CheckoutView({
           />
           <span>
             <span className="font-medium text-[var(--foreground)]">
-              {ui.b2bToggle ?? "Buying for a company?"}
+              {ui.b2bToggle}
             </span>
             <span className="mt-1 block text-[var(--muted)]">
-              {ui.b2bHint ?? "Company details appear on your order. Tax amount does not change."}
+              {ui.b2bHint}
             </span>
           </span>
         </label>
         {buyingForCompany ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block space-y-1 text-sm sm:col-span-2">
-              <span className="font-medium">{ui.b2bCompanyName ?? "Company name"}</span>
+              <span className="font-medium">{ui.b2bCompanyName}</span>
               <input
                 className="app-input"
                 value={companyName}
@@ -935,7 +935,7 @@ export default function CheckoutView({
               />
             </label>
             <label className="block space-y-1 text-sm">
-              <span className="font-medium">{ui.b2bTaxId ?? "Tax ID / TRN"}</span>
+              <span className="font-medium">{ui.b2bTaxId}</span>
               <input
                 className="app-input"
                 value={companyTaxId}
@@ -943,7 +943,7 @@ export default function CheckoutView({
               />
             </label>
             <label className="block space-y-1 text-sm">
-              <span className="font-medium">{ui.b2bCrNumber ?? "Commercial registration"}</span>
+              <span className="font-medium">{ui.b2bCrNumber}</span>
               <input
                 className="app-input"
                 value={companyCrNumber}
@@ -951,7 +951,7 @@ export default function CheckoutView({
               />
             </label>
             <label className="block space-y-1 text-sm sm:col-span-2">
-              <span className="font-medium">{ui.b2bHqAddress ?? "HQ address"}</span>
+              <span className="font-medium">{ui.b2bHqAddress}</span>
               <input
                 className="app-input"
                 value={companyHqAddressLine1}
@@ -959,7 +959,7 @@ export default function CheckoutView({
               />
             </label>
             <label className="block space-y-1 text-sm">
-              <span className="font-medium">{ui.b2bHqCity ?? "HQ city"}</span>
+              <span className="font-medium">{ui.b2bHqCity}</span>
               <input
                 className="app-input"
                 value={companyHqCity}
@@ -967,7 +967,7 @@ export default function CheckoutView({
               />
             </label>
             <label className="block space-y-1 text-sm">
-              <span className="font-medium">{ui.b2bHqCountry ?? "HQ country (ISO)"}</span>
+              <span className="font-medium">{ui.b2bHqCountry}</span>
               <input
                 className="app-input uppercase"
                 maxLength={2}
@@ -977,7 +977,7 @@ export default function CheckoutView({
             </label>
             {!b2bOk ? (
               <p className="text-xs text-amber-700 dark:text-amber-400 sm:col-span-2">
-                {ui.b2bCompanyRequired ?? "Company name is required."}
+                {ui.b2bCompanyRequired}
               </p>
             ) : null}
           </div>
@@ -986,7 +986,7 @@ export default function CheckoutView({
 
       <section className="app-card space-y-3 p-4">
         <h2 className="text-sm font-semibold text-[var(--foreground)]">
-          {ui.policyConsentTitle ?? "Policies"}
+          {ui.policyConsentTitle}
         </h2>
         <label className="flex cursor-pointer items-start gap-3 text-sm">
           <input
@@ -996,9 +996,9 @@ export default function CheckoutView({
             onChange={(e) => setAcceptTerms(e.target.checked)}
           />
           <span>
-            {ui.acceptTermsPrefix ?? "I agree to the"}{" "}
+            {ui.acceptTermsPrefix}{" "}
             <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-link underline">
-              {ui.acceptTermsLink ?? "Terms & Conditions"}
+              {ui.acceptTermsLink}
             </a>
           </span>
         </label>
@@ -1010,9 +1010,9 @@ export default function CheckoutView({
             onChange={(e) => setAcceptReturns(e.target.checked)}
           />
           <span>
-            {ui.acceptReturnsPrefix ?? "I agree to the"}{" "}
+            {ui.acceptReturnsPrefix}{" "}
             <a href="/returns-policy" target="_blank" rel="noopener noreferrer" className="text-link underline">
-              {ui.acceptReturnsLink ?? "Returns policy"}
+              {ui.acceptReturnsLink}
             </a>
           </span>
         </label>
@@ -1024,15 +1024,15 @@ export default function CheckoutView({
             onChange={(e) => setAcceptShipping(e.target.checked)}
           />
           <span>
-            {ui.acceptShippingPrefix ?? "I agree to the"}{" "}
+            {ui.acceptShippingPrefix}{" "}
             <a href="/shipping-policy" target="_blank" rel="noopener noreferrer" className="text-link underline">
-              {ui.acceptShippingLink ?? "Shipping policy"}
+              {ui.acceptShippingLink}
             </a>
           </span>
         </label>
         {!policyConsentOk ? (
           <p className="text-xs text-amber-700 dark:text-amber-400">
-            {ui.policyConsentRequired ?? "Accept Terms, Returns, and Shipping to continue."}
+            {ui.policyConsentRequired}
           </p>
         ) : null}
       </section>
@@ -1067,10 +1067,10 @@ export default function CheckoutView({
       {paymentCurrencies.length > 1 ? (
         <section className="app-card space-y-3 p-4">
           <h2 className="text-sm font-semibold text-[var(--foreground)]">
-            {ui.paymentCurrencyTitle ?? "Pay in"}
+            {ui.paymentCurrencyTitle}
           </h2>
           <p className="text-xs text-[var(--muted)]">
-            {ui.paymentCurrencyHint ?? "International checkout can be charged in OMR or USD. The FX rate is locked when you place the order."}
+            {ui.paymentCurrencyHint}
           </p>
           <div className="flex flex-wrap gap-2">
             {paymentCurrencies.map((code) => (
@@ -1094,7 +1094,7 @@ export default function CheckoutView({
           </div>
           {quote?.lockedFxRate && quote.paymentCurrency !== quote.ledgerCurrency ? (
             <p className="text-xs text-[var(--muted)]">
-              {(ui.lockedFxNote ?? "Locked rate {from} → {to}: {rate}")
+              {(ui.lockedFxNote)
                 .replace("{from}", quote.paymentCurrency ?? "")
                 .replace("{to}", quote.ledgerCurrency ?? "")
                 .replace("{rate}", quote.lockedFxRate)}
@@ -1188,7 +1188,7 @@ export default function CheckoutView({
                 document.getElementById("checkout-ship-to")?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
             >
-              {ui.deliveryIssuesChangeAddress ?? "Change delivery address"}
+              {ui.deliveryIssuesChangeAddress}
             </button>
             <Link href="/cart" className="btn-secondary btn-press inline-flex text-sm">
               {ui.deliveryIssuesBackToCart}

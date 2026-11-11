@@ -214,14 +214,13 @@ export default function MarketOffersEditor({
                       />
                       {meta.code === "GLOBAL" && draft.secondaryPrice && draft.secondaryCurrency ? (
                         <span className="text-xs text-[var(--muted)]">
-                          {(labels.secondaryOmrHint ?? "OMR mirror (admin FX): {amount} {currency}")
-                            .replace("{amount}", draft.secondaryPrice)
+                          {labels.secondaryOmrHint
+                            ?.replace("{amount}", draft.secondaryPrice)
                             .replace("{currency}", draft.secondaryCurrency)}
                         </span>
                       ) : meta.code === "GLOBAL" ? (
                         <span className="text-xs text-[var(--muted)]">
-                          {labels.secondaryOmrPending ??
-                            "Enter the International USD price. OMR mirror fills when admin sets a USD→OMR FX rate — customers may still choose OMR or USD at checkout."}
+                          {labels.secondaryOmrPending}
                         </span>
                       ) : null}
                     </label>

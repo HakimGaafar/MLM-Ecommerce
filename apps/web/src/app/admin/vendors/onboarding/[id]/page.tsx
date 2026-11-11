@@ -33,6 +33,10 @@ export default async function AdminVendorOnboardingDetailPage({
           toastApproved: ui.toastApproved,
           toastRejected: ui.toastRejected,
           notePlaceholder: ui.notePlaceholder,
+          pendingProfileChanges: ui.pendingProfileChanges,
+          vendorNoteLabel: ui.vendorNoteLabel,
+          fieldStatus: ui.fieldStatus,
+          fieldLabels: ui.fieldLabels,
         }}
       />
     </main>

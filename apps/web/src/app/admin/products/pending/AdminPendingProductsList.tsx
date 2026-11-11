@@ -45,11 +45,11 @@ type Ui = {
   reviewedBy: string;
   approve: string;
   reject: string;
-  requestChanges?: string;
+  requestChanges: string;
   viewStore: string;
   toastApproved: string;
   toastRejected: string;
-  toastRequestChanges?: string;
+  toastRequestChanges: string;
   toastError: string;
   tabPending: string;
   tabEditPending: string;
@@ -151,7 +151,7 @@ export default function AdminPendingProductsList({ locale, ui }: { locale: Local
         action === "approve"
           ? ui.toastApproved
           : action === "request_changes"
-            ? (ui.toastRequestChanges ?? "Changes requested")
+            ? ui.toastRequestChanges
             : ui.toastRejected,
       );
       if (action === "reject") setRejectTarget(null);
@@ -171,7 +171,7 @@ export default function AdminPendingProductsList({ locale, ui }: { locale: Local
       return;
     }
     if (action === "request_changes") {
-      const note = window.prompt(ui.requestChanges ?? "What should the vendor change?");
+      const note = window.prompt(ui.requestChanges);
       if (!note?.trim()) return;
       void submitReview(id, action, note.trim());
       return;
@@ -302,7 +302,7 @@ export default function AdminPendingProductsList({ locale, ui }: { locale: Local
                           onClick={() => review(row.reviewSubjectId, "request_changes", row.name)}
                           className="me-2 inline-flex min-w-[84px] justify-center rounded border border-[var(--border-strong)] px-3 py-1 text-xs font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)] disabled:opacity-50"
                         >
-                          {ui.requestChanges ?? "Request changes"}
+                          {ui.requestChanges}
                         </button>
                         <button
                           type="button"

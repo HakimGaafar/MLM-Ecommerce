@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import CashbackView from "@/app/customer/cashback/CashbackView";
+import PortalRoleGate from "@/components/portal/PortalRoleGate";
 import { ACTIVE_ROLE_COOKIE, resolveActiveRole } from "@/lib/active-role";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
@@ -12,12 +13,7 @@ export default async function CashbackPage() {
   const cookieStore = await cookies();
   const role = resolveActiveRole(session?.roles ?? [], cookieStore.get(ACTIVE_ROLE_COOKIE)?.value);
   if (role !== "CUSTOMER") {
-    return (
-      <main className="mx-auto w-full max-w-4xl p-8 animate-page-enter">
-        <h1 className="text-2xl font-semibold">Cashback</h1>
-        <p className="mt-3 text-[var(--muted)]">Cashback wallet is for customer accounts.</p>
-      </main>
-    );
+    return <PortalRoleGate page="cashback" />;
   }
 
   const locale = await getCustomerPreferredLocale();

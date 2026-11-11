@@ -26,6 +26,7 @@ export type PromoUi = {
   howItWorks4: string;
   levelsTitle: string;
   levelsColLevel: string;
+  levelLabel: string;
   levelsColShare: string;
   levelsColExample: string;
   levelsFootnote: string;
@@ -103,7 +104,7 @@ function LevelsTable({
             {rows.map((row) => (
               <tr key={row.level} className="border-t border-[var(--table-row-border)]">
                 <td className="px-3 py-2 font-medium">
-                  {locale === "ar" ? `المستوى ${row.level}` : `Level ${row.level}`}
+                  {ui.levelLabel.replace("{level}", String(row.level))}
                 </td>
                 <td className="px-3 py-2 tabular-nums">{row.poolSharePercent}%</td>
                 <td className="px-3 py-2 tabular-nums text-[var(--muted)]">{row.exampleAmount}</td>

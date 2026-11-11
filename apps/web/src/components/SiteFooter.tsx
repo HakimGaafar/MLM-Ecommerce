@@ -124,11 +124,11 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
   };
 
   const social = [
-    { href: socialUrl("NEXT_PUBLIC_SOCIAL_FACEBOOK", BRAND_LINKS.facebook), icon: "facebook", title: "Facebook" },
-    { href: socialUrl("NEXT_PUBLIC_SOCIAL_INSTAGRAM", BRAND_LINKS.instagram), icon: "instagram", title: "Instagram" },
-    { href: socialUrl("NEXT_PUBLIC_SOCIAL_YOUTUBE", BRAND_LINKS.youtube), icon: "youtube", title: "YouTube" },
-    { href: socialUrl("NEXT_PUBLIC_SOCIAL_X", BRAND_LINKS.x), icon: "x", title: "X" },
-    { href: contact.whatsapp, icon: "whatsapp", title: "WhatsApp" },
+    { href: socialUrl("NEXT_PUBLIC_SOCIAL_FACEBOOK", BRAND_LINKS.facebook), icon: "facebook", title: f.socialLabelFacebook },
+    { href: socialUrl("NEXT_PUBLIC_SOCIAL_INSTAGRAM", BRAND_LINKS.instagram), icon: "instagram", title: f.socialLabelInstagram },
+    { href: socialUrl("NEXT_PUBLIC_SOCIAL_YOUTUBE", BRAND_LINKS.youtube), icon: "youtube", title: f.socialLabelYouTube },
+    { href: socialUrl("NEXT_PUBLIC_SOCIAL_X", BRAND_LINKS.x), icon: "x", title: f.socialLabelX },
+    { href: contact.whatsapp, icon: "whatsapp", title: f.socialLabelWhatsApp },
     { href: contact.maps, icon: "maps", title: f.location },
   ].filter((s) => s.href.length > 0);
 

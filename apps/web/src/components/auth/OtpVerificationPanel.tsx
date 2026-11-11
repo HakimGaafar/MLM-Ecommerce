@@ -14,6 +14,7 @@ type Ui = {
   verifyError: string;
   invalidCode: string;
   loading: string;
+  previewCodeLabel: string;
 };
 
 export default function OtpVerificationPanel({
@@ -130,7 +131,8 @@ export default function OtpVerificationPanel({
       {sent ? <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">{ui.resent}</p> : null}
       {previewCode ? (
         <p className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm" dir="ltr">
-          Dev preview code: <strong className="tracking-[0.2em]">{previewCode}</strong>
+          {ui.previewCodeLabel}{" "}
+          <strong className="tracking-[0.2em]">{previewCode}</strong>
         </p>
       ) : null}
       {error ? <p className="app-alert-error mt-3">{error}</p> : null}

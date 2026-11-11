@@ -61,6 +61,8 @@ type Ui = {
   cancelReason: string;
   cancelConfirm: string;
   cancelVendor: string;
+  cancelDialogCancel: string;
+  cancelDialogCancelling: string;
   slaBypassHint: string;
   slaDemoHint: string;
   copied: string;
@@ -484,9 +486,9 @@ export default function AdminOrderOpsPanel({
         title={ui.cancelVendorTitle}
         message={ui.cancelConfirm}
         confirmLabel={ui.cancelVendor}
-        cancelLabel={locale === "ar" ? "إلغاء" : "Cancel"}
+        cancelLabel={ui.cancelDialogCancel}
         confirming={busy === "cancel"}
-        confirmingLabel={locale === "ar" ? "جارٍ الإلغاء..." : "Cancelling..."}
+        confirmingLabel={ui.cancelDialogCancelling}
         onCancel={() => setCancelDialogOpen(false)}
         onConfirm={() => void cancelVendor()}
       />

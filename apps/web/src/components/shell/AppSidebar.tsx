@@ -10,6 +10,8 @@ import {
   type ShellNavItem,
   type ShellNavSection,
 } from "@/lib/build-app-nav";
+import ar from "@/i8n/ar.json";
+import en from "@/i8n/en.json";
 
 function SidebarNavLinks({
   items,
@@ -191,7 +193,7 @@ export default function AppSidebar({
         open={mobileOpen}
         onClose={onClose}
         zIndex={40}
-        backdropLabel="Close menu"
+        backdropLabel={(locale === "ar" ? ar : en).siteNav.closeMenu}
       />
 
       <div

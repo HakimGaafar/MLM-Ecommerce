@@ -17,6 +17,8 @@ import { useToast } from "@/components/toast/ToastProvider";
 import { LIST_PAGE_SIZE } from "@/lib/list-page";
 import { getPaginationLabels } from "@/lib/pagination-labels";
 import { getToastDict } from "@/lib/toast-messages";
+import ar from "@/i8n/ar.json";
+import en from "@/i8n/en.json";
 
 type Locale = "en" | "ar";
 
@@ -309,7 +311,7 @@ export default function ShippingAddressesPanel({ locale, ui }: { locale: Locale;
           items.map((row) => (
             <div key={row.id} className="rounded-lg border border-[var(--border)] p-4 dark:border-[var(--border-strong)]">
               {editingId === row.id ? (
-                <AddressFormFields form={form} setForm={setForm} ui={ui} />
+                <AddressFormFields form={form} setForm={setForm} ui={ui} locale={locale} />
               ) : (
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
@@ -401,7 +403,7 @@ export default function ShippingAddressesPanel({ locale, ui }: { locale: Locale;
       {showAdd ? (
         <div className="mt-6 rounded-lg border border-[var(--border)] p-4 dark:border-[var(--border-strong)]">
           <h3 className="text-sm font-semibold">{ui.addTitle}</h3>
-          <AddressFormFields form={form} setForm={setForm} ui={ui} />
+          <AddressFormFields form={form} setForm={setForm} ui={ui} locale={locale} />
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
@@ -454,10 +456,12 @@ function AddressFormFields({
   form,
   setForm,
   ui,
+  locale,
 }: {
   form: AddressFormState;
   setForm: Dispatch<SetStateAction<AddressFormState>>;
   ui: Ui;
+  locale: Locale;
 }) {
   const cc = form.countryCode;
   const cities = ADDRESS_CITIES[cc];
@@ -666,6 +670,7 @@ function AddressFormFields({
           latitude={form.latitude}
           longitude={form.longitude}
           onChange={handleMapChange}
+          labels={(locale === "ar" ? ar : en).addressMapPicker}
         />
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">

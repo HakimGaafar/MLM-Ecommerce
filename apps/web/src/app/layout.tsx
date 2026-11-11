@@ -26,10 +26,7 @@ export async function generateMetadata(): Promise<Metadata> {
       default: brandName,
       template: `%s | ${brandName}`,
     },
-    description:
-      locale === "ar"
-        ? "تسوّق من بائعين موثوقين واكسب مكافآت واستردادًا نقديًا."
-        : "Shop from trusted marketplace vendors. Earn wallet cashback and affiliate rewards.",
+    description: (locale === "ar" ? ar : en).siteMeta.description,
     icons: {
       icon: [
         { url: "/brand/vandsoq-icon.png?v=4", type: "image/png", sizes: "192x192" },

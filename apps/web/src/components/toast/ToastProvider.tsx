@@ -8,6 +8,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import ar from "@/i8n/ar.json";
+import en from "@/i8n/en.json";
 
 export type ToastVariant = "success" | "warning" | "error";
 
@@ -87,7 +89,7 @@ export function ToastProvider({
                 type="button"
                 className="shrink-0 opacity-60 hover:opacity-100"
                 onClick={() => dismiss(item.id)}
-                aria-label="Dismiss"
+                aria-label={(locale === "ar" ? ar : en).siteNav.dismiss}
               >
                 ×
               </button>

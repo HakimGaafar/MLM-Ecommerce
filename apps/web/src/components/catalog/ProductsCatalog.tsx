@@ -52,6 +52,8 @@ type CatalogUi = {
   loading: string;
   loadError: string;
   activeFilters: string;
+  expand: string;
+  collapse: string;
 };
 
 type Filters = {
@@ -232,8 +234,8 @@ export default function ProductsCatalog({
             ui={{
               allCategories: ui.allCategories,
               categoryFilter: ui.categoryFilter,
-              expand: locale === "ar" ? "توسيع" : "Expand",
-              collapse: locale === "ar" ? "طي" : "Collapse",
+              expand: ui.expand,
+              collapse: ui.collapse,
             }}
           />
         </div>

@@ -2,6 +2,9 @@
 
 import { useEffect, useState, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
+import { useAppLocale } from "@/components/providers/LocaleProvider";
+import ar from "@/i8n/ar.json";
+import en from "@/i8n/en.json";
 
 export type AppOverlayPanelSize = "viewport" | "content";
 
@@ -41,6 +44,8 @@ export default function AppOverlay({
   dialogRef?: Ref<HTMLDivElement>;
   backdropLabel?: string;
 }) {
+  const locale = useAppLocale();
+  const closeLabel = backdropLabel ?? (locale === "ar" ? ar : en).siteNav.close;
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -79,7 +84,7 @@ export default function AppOverlay({
         className="app-overlay-backdrop modal-backdrop-enter fixed inset-0 cursor-default"
         style={{ zIndex }}
         onClick={onClose}
-        aria-label={backdropLabel ?? "Close"}
+        aria-label={closeLabel}
       />,
       document.body,
     );

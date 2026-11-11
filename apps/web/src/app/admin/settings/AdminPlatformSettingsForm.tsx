@@ -90,7 +90,7 @@ type Ui = {
     policies: string;
     footerContact: string;
     paymentGateways: string;
-    cod?: string;
+    cod: string;
   };
   fields: {
     cashbackPercent: string;
@@ -101,9 +101,9 @@ type Ui = {
     affiliateLevel4Percent: string;
     vendorPercent: string;
     platformPercent: string;
-    vendorPercentCross?: string;
-    platformPercentCross?: string;
-    codEnabled?: string;
+    vendorPercentCross: string;
+    platformPercentCross: string;
+    codEnabled: string;
     vatPercent: string;
     minWithdrawalAmount: string;
     returnWindowDays: string;
@@ -134,7 +134,7 @@ type Ui = {
     commissionSum: string;
     commissionSumOk: string;
     commissionSumBad: string;
-    commissionCrossIntro?: string;
+    commissionCrossIntro: string;
     vatIntro: string;
     vatExample: string;
     appliesToNewOrders: string;
@@ -489,12 +489,11 @@ export default function AdminPlatformSettingsForm({
             </p>
 
             <p className="mt-6 text-xs leading-5 text-[var(--muted)]">
-              {ui.hints.commissionCrossIntro ??
-                "Cross-market / International split (default platform 10% / vendor 90%)."}
+              {ui.hints.commissionCrossIntro}
             </p>
             <div className="mt-3 grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
               <SettingsField
-                label={ui.fields.vendorPercentCross ?? "Vendor % (cross / intl)"}
+                label={ui.fields.vendorPercentCross}
                 alignLabelHeights
               >
                 <input
@@ -509,7 +508,7 @@ export default function AdminPlatformSettingsForm({
                 />
               </SettingsField>
               <SettingsField
-                label={ui.fields.platformPercentCross ?? "Platform % (cross / intl)"}
+                label={ui.fields.platformPercentCross}
                 alignLabelHeights
               >
                 <input
@@ -537,14 +536,14 @@ export default function AdminPlatformSettingsForm({
           </section>
 
           <section className="rounded-xl border border-[var(--border)] p-6">
-            <h2 className="text-lg font-medium">{ui.sections.cod ?? "Cash on delivery"}</h2>
+            <h2 className="text-lg font-medium">{ui.sections.cod}</h2>
             <label className="mt-4 flex items-center gap-3 text-sm">
               <input
                 type="checkbox"
                 checked={form.codEnabled}
                 onChange={(e) => setBoolean("codEnabled", e.target.checked)}
               />
-              <span>{ui.fields.codEnabled ?? "Allow COD (global kill-switch)"}</span>
+              <span>{ui.fields.codEnabled}</span>
             </label>
           </section>
 

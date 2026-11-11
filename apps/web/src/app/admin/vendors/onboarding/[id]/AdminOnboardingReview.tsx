@@ -38,18 +38,34 @@ type VendorDetail = {
   owner: { name: string; email: string };
 };
 
-const REVIEW_FIELDS: { pageKey: string; fieldKey: string; label: string; value: (v: VendorDetail) => string }[] = [
-  { pageKey: "personal", fieldKey: "repNameEn", label: "Rep name (EN)", value: (v) => v.repNameEn ?? "—" },
-  { pageKey: "personal", fieldKey: "repNameOther", label: "Rep name (other)", value: (v) => v.repNameOther ?? "—" },
-  { pageKey: "legal", fieldKey: "legalNameEn", label: "Legal name (EN)", value: (v) => v.legalNameEn ?? "—" },
-  { pageKey: "legal", fieldKey: "legalNameOther", label: "Legal name (other)", value: (v) => v.legalNameOther ?? "—" },
-  { pageKey: "legal", fieldKey: "entityType", label: "Entity type", value: (v) => v.entityType ?? "—" },
-  { pageKey: "legal", fieldKey: "address", label: "Address", value: (v) => `${v.addressLine1}, ${v.city}, ${v.countryCode}` },
-  { pageKey: "store", fieldKey: "storeName", label: "Store name", value: (v) => v.storeName },
-  { pageKey: "store", fieldKey: "storeNameOther", label: "Store name (other)", value: (v) => v.storeNameOther ?? "—" },
-  { pageKey: "store", fieldKey: "storeDescriptionEn", label: "Description (EN)", value: (v) => v.storeDescriptionEn ?? "—" },
-  { pageKey: "financial", fieldKey: "invoiceVatTrn", label: "VAT TRN", value: (v) => v.invoiceVatTrn ?? "—" },
-  { pageKey: "financial", fieldKey: "payoutIban", label: "IBAN", value: (v) => v.payoutIban ?? "—" },
+const REVIEW_FIELD_DEFS: {
+  pageKey: string;
+  fieldKey: keyof {
+    repNameEn: string;
+    repNameOther: string;
+    legalNameEn: string;
+    legalNameOther: string;
+    entityType: string;
+    address: string;
+    storeName: string;
+    storeNameOther: string;
+    storeDescriptionEn: string;
+    invoiceVatTrn: string;
+    payoutIban: string;
+  };
+  value: (v: VendorDetail) => string;
+}[] = [
+  { pageKey: "personal", fieldKey: "repNameEn", value: (v) => v.repNameEn ?? "—" },
+  { pageKey: "personal", fieldKey: "repNameOther", value: (v) => v.repNameOther ?? "—" },
+  { pageKey: "legal", fieldKey: "legalNameEn", value: (v) => v.legalNameEn ?? "—" },
+  { pageKey: "legal", fieldKey: "legalNameOther", value: (v) => v.legalNameOther ?? "—" },
+  { pageKey: "legal", fieldKey: "entityType", value: (v) => v.entityType ?? "—" },
+  { pageKey: "legal", fieldKey: "address", value: (v) => `${v.addressLine1}, ${v.city}, ${v.countryCode}` },
+  { pageKey: "store", fieldKey: "storeName", value: (v) => v.storeName },
+  { pageKey: "store", fieldKey: "storeNameOther", value: (v) => v.storeNameOther ?? "—" },
+  { pageKey: "store", fieldKey: "storeDescriptionEn", value: (v) => v.storeDescriptionEn ?? "—" },
+  { pageKey: "financial", fieldKey: "invoiceVatTrn", value: (v) => v.invoiceVatTrn ?? "—" },
+  { pageKey: "financial", fieldKey: "payoutIban", value: (v) => v.payoutIban ?? "—" },
 ];
 
 export default function AdminOnboardingReview({
@@ -71,6 +87,10 @@ export default function AdminOnboardingReview({
     toastApproved: string;
     toastRejected: string;
     notePlaceholder: string;
+    pendingProfileChanges: string;
+    vendorNoteLabel: string;
+    fieldStatus: string;
+    fieldLabels: Record<string, string>;
   };
 }) {
   const direction = locale === "ar" ? "rtl" : "ltr";
@@ -185,16 +205,19 @@ export default function AdminOnboardingReview({
       </div>
 
       <div className="space-y-4">
-        {REVIEW_FIELDS.map((f) => {
+        {REVIEW_FIELD_DEFS.map((f) => {
           const key = `${f.pageKey}:${f.fieldKey}`;
           const decision = decisionFor(f.pageKey, f.fieldKey);
+          const label = ui.fieldLabels[f.fieldKey] ?? f.fieldKey;
           return (
             <div key={key} className="rounded-xl border border-[var(--border)] p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">{f.label}</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">{label}</p>
                   <p className="mt-1 whitespace-pre-wrap text-sm">{f.value(vendor)}</p>
-                  <p className="mt-1 text-xs text-[var(--muted)]">Status: {decision}</p>
+                  <p className="mt-1 text-xs text-[var(--muted)]">
+                    {ui.fieldStatus}: {decision}
+                  </p>
                 </div>
                 <div className="flex flex-col gap-2 sm:w-64">
                   <input
@@ -230,13 +253,17 @@ export default function AdminOnboardingReview({
 
       {profileChanges.length > 0 ? (
         <div className="space-y-3 rounded-xl border border-amber-500/40 p-4">
-          <h3 className="font-semibold">Pending profile change requests</h3>
+          <h3 className="font-semibold">{ui.pendingProfileChanges}</h3>
           {profileChanges.map((req) => (
             <div key={req.id} className="space-y-2 text-sm">
               <pre className="overflow-x-auto rounded bg-[var(--muted-bg)] p-2 text-xs">
                 {JSON.stringify(req.proposedJson, null, 2)}
               </pre>
-              {req.vendorNote ? <p className="text-[var(--muted)]">Note: {req.vendorNote}</p> : null}
+              {req.vendorNote ? (
+                <p className="text-[var(--muted)]">
+                  {ui.vendorNoteLabel}: {req.vendorNote}
+                </p>
+              ) : null}
               <div className="flex gap-2">
                 <button
                   type="button"

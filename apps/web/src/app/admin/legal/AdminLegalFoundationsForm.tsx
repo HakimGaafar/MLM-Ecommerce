@@ -532,8 +532,8 @@ export default function AdminLegalFoundationsForm({ locale, ui }: { locale: Loca
                           );
                         }}
                       >
-                        <option value="MERCHANT">{ui.partyMerchant ?? "Merchant → customer"}</option>
-                        <option value="PLATFORM">{ui.partyPlatform ?? "Platform → customer"}</option>
+                        <option value="MERCHANT">{ui.partyMerchant}</option>
+                        <option value="PLATFORM">{ui.partyPlatform}</option>
                       </select>
                     </td>
                     <td className="py-2 pr-3 align-middle">
@@ -566,7 +566,7 @@ export default function AdminLegalFoundationsForm({ locale, ui }: { locale: Loca
                         disabled={saving}
                         onClick={() => void saveInvoicingRule(rule)}
                       >
-                        {saving ? ui.saving : ui.saveInvoicing ?? "Save"}
+                        {saving ? ui.saving : ui.saveInvoicing}
                       </button>
                     </td>
                   </tr>

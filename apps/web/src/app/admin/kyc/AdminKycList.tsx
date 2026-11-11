@@ -44,6 +44,8 @@ type Ui = {
   documentTypes: Record<string, string>;
   statusLabels: Record<string, string>;
   subjectTypes: Record<string, string>;
+  ibanLabel: string;
+  expiryLabel: string;
 };
 
 export default function AdminKycList({ locale, ui }: { locale: Locale; ui: Ui }) {
@@ -148,9 +150,15 @@ export default function AdminKycList({ locale, ui }: { locale: Locale; ui: Ui })
             <p className="mt-1 text-[var(--muted)]">
               {ui.submitted}: {formatDate(row.submittedAt)}
             </p>
-            {row.ibanNumber ? <p className="mt-1 font-mono text-xs">IBAN: {row.ibanNumber}</p> : null}
+            {row.ibanNumber ? (
+              <p className="mt-1 font-mono text-xs">
+                {ui.ibanLabel}: {row.ibanNumber}
+              </p>
+            ) : null}
             {row.documentExpiresAt ? (
-              <p className="mt-1 text-xs text-[var(--muted)]">Expiry: {formatDate(row.documentExpiresAt)}</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                {ui.expiryLabel}: {formatDate(row.documentExpiresAt)}
+              </p>
             ) : null}
             {row.rejectionReason ? (
               <p className="mt-2 text-red-400">{row.rejectionReason}</p>

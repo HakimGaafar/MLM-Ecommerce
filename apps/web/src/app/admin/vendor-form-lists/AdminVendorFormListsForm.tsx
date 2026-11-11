@@ -47,7 +47,7 @@ export default function AdminVendorFormListsForm({
       const data = (await res.json()) as { options: OptionRow[] };
       setRows(data.options);
     } catch {
-      toast.error(ui.loadError ?? "Load failed");
+      toast.error(ui.loadError);
     } finally {
       setLoading(false);
     }
@@ -76,7 +76,7 @@ export default function AdminVendorFormListsForm({
       const payload = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) throw new Error(payload?.error ?? ui.saveError);
       setNewRow({ code: "", labelEn: "", labelAr: "", sortOrder: "100" });
-      toast.success(ui.saved ?? "Saved");
+      toast.success(ui.saved);
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : ui.saveError);
@@ -96,7 +96,7 @@ export default function AdminVendorFormListsForm({
       });
       const payload = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) throw new Error(payload?.error ?? ui.saveError);
-      toast.success(ui.saved ?? "Saved");
+      toast.success(ui.saved);
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : ui.saveError);
@@ -106,7 +106,7 @@ export default function AdminVendorFormListsForm({
   }
 
   async function removeOption(row: OptionRow) {
-    if (!window.confirm(ui.deleteConfirm ?? "Delete this option?")) return;
+    if (!window.confirm(ui.deleteConfirm)) return;
     setBusyId(row.id);
     try {
       const res = await fetch(`/api/v1/admin/vendor-form-lists/${row.id}`, {
@@ -115,7 +115,7 @@ export default function AdminVendorFormListsForm({
       });
       const payload = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) throw new Error(payload?.error ?? ui.saveError);
-      toast.success(ui.deleted ?? "Deleted");
+      toast.success(ui.deleted);
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : ui.saveError);

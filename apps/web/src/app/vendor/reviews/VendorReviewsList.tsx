@@ -181,7 +181,10 @@ export default function VendorReviewsList({ locale, ui }: { locale: Locale; ui: 
 
       {!loading && !error ? (
         <p className="mt-4 text-xs text-[var(--muted)] tabular-nums">
-          {total} {locale === "ar" ? "تقييم" : total === 1 ? "review" : "reviews"}
+          {(total === 1 ? ui.reviewCountOne : ui.reviewCountMany).replace(
+            "{count}",
+            String(total),
+          )}
         </p>
       ) : null}
 

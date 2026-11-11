@@ -19,7 +19,7 @@ export default async function AdminVendorsPage() {
         </div>
         <div className="flex flex-wrap gap-4">
           <Link href="/admin/vendors/onboarding" className="text-sm text-link font-medium">
-            {locale === "ar" ? "مراجعة التسجيل" : "Onboarding review"}
+            {ui.onboardingReviewLink}
           </Link>
           <Link href="/dashboard" className="text-sm text-link font-medium">
             {ui.backToDashboard}

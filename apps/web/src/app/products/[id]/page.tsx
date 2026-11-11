@@ -30,7 +30,8 @@ export async function generateMetadata({
   const delivery = await resolveRequestCatalogDelivery({ marketCode: market.code });
   const product = await getPublicProductById(id, locale, market.id, delivery);
   if (!product) {
-    return { title: "Product not found" };
+    const catalog = locale === "ar" ? ar.productCatalog : en.productCatalog;
+    return { title: catalog.notFoundTitle };
   }
   const title = product.metaTitle?.trim() || product.name;
   const description =
@@ -131,7 +132,7 @@ export default async function ProductDetailPage({
           <>
             <AddToCart
               productId={product.id}
-              ui={{ ...addUi, selectOption: ui.selectOption }}
+              ui={addUi}
               viewCartLabel={ui.viewCart}
               toastAdded={toastDict.addedToCart}
               variants={product.variants}
@@ -219,7 +220,12 @@ export default async function ProductDetailPage({
           </ul>
         </section>
       ) : null}
-      <ProductQuestions productId={product.id} locale={locale} ui={qnaUi} canAsk={canAddToCart} />
+      <ProductQuestions
+        productId={product.id}
+        locale={locale}
+        ui={{ ...qnaUi, signIn: loginUi.title }}
+        canAsk={canAddToCart}
+      />
     </main>
   );
 }

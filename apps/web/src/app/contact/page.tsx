@@ -10,10 +10,14 @@ import { getActiveMarket } from "@/lib/market-server";
 import { getAppLocale } from "@/lib/ui-locale";
 import ContactForm from "./ContactForm";
 
-export const metadata: Metadata = {
-  title: "Contact",
-  description: "Contact Vandsoq customer support for your current market.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getAppLocale();
+  const ui = locale === "ar" ? ar.contactPage : en.contactPage;
+  return {
+    title: ui.metaTitle,
+    description: ui.metaDescription,
+  };
+}
 
 export default async function ContactPage() {
   const locale = await getAppLocale();
@@ -35,11 +39,12 @@ export default async function ContactPage() {
       : platformConfig.contactLocationEn)?.trim() || marketCopy.locationText;
   const publicEmail = platformConfig.publicContactEmail?.trim() || "";
 
+  const footer = locale === "ar" ? ar.siteFooter : en.siteFooter;
   const socialLinks = [
-    { label: "Facebook", href: BRAND_LINKS.facebook, icon: "facebook" },
-    { label: "Instagram", href: BRAND_LINKS.instagram, icon: "instagram" },
-    { label: "YouTube", href: BRAND_LINKS.youtube, icon: "youtube" },
-    { label: "X", href: BRAND_LINKS.x, icon: "x" },
+    { label: footer.socialLabelFacebook, href: BRAND_LINKS.facebook, icon: "facebook" },
+    { label: footer.socialLabelInstagram, href: BRAND_LINKS.instagram, icon: "instagram" },
+    { label: footer.socialLabelYouTube, href: BRAND_LINKS.youtube, icon: "youtube" },
+    { label: footer.socialLabelX, href: BRAND_LINKS.x, icon: "x" },
   ] as const;
 
   return (

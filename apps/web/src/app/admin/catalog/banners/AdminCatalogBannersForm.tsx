@@ -59,7 +59,7 @@ export default function AdminCatalogBannersForm({
       const data = (await res.json()) as { banners: BannerRow[] };
       setRows(data.banners);
     } catch {
-      toast.error(ui.loadError ?? "Load failed");
+      toast.error(ui.loadError);
     } finally {
       setLoading(false);
     }
@@ -90,7 +90,7 @@ export default function AdminCatalogBannersForm({
       const payload = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) throw new Error(payload?.error ?? ui.saveError);
       setNewRow({ titleEn: "", titleAr: "", subtitleEn: "", subtitleAr: "", imageUrl: "", linkUrl: "", sortOrder: "0" });
-      toast.success(ui.saved ?? "Saved");
+      toast.success(ui.saved);
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : ui.saveError);
@@ -109,7 +109,7 @@ export default function AdminCatalogBannersForm({
         body: JSON.stringify({ isActive: !row.isActive }),
       });
       if (!res.ok) throw new Error(ui.saveError);
-      toast.success(ui.saved ?? "Saved");
+      toast.success(ui.saved);
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : ui.saveError);
@@ -119,7 +119,7 @@ export default function AdminCatalogBannersForm({
   }
 
   async function removeBanner(row: BannerRow) {
-    if (!window.confirm(ui.deleteConfirm ?? "Delete this banner?")) return;
+    if (!window.confirm(ui.deleteConfirm)) return;
     setBusyId(row.id);
     try {
       const res = await fetch(`/api/v1/admin/catalog/banners/${row.id}?marketCode=${marketCode}`, {
@@ -127,7 +127,7 @@ export default function AdminCatalogBannersForm({
         credentials: "include",
       });
       if (!res.ok) throw new Error(ui.saveError);
-      toast.success(ui.deleted ?? "Deleted");
+      toast.success(ui.deleted);
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : ui.saveError);

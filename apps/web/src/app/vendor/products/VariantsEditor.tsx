@@ -34,6 +34,9 @@ type Ui = {
   price: string;
   empty: string;
   enableMarketsFirst: string;
+  market: string;
+  titlePlaceholder: string;
+  skuPlaceholder: string;
 };
 
 function newClientId() {
@@ -154,7 +157,7 @@ export default function VariantsEditor({
                     value={draft.title}
                     onChange={(e) => updateVariant(draft.clientId, { title: e.target.value })}
                     className="app-input mt-1 w-full"
-                    placeholder="Red / M"
+                    placeholder={ui.titlePlaceholder}
                   />
                 </label>
                 <label className="min-w-[8rem] flex-1 text-xs sm:max-w-[12rem]">
@@ -163,7 +166,7 @@ export default function VariantsEditor({
                     value={draft.sku}
                     onChange={(e) => updateVariant(draft.clientId, { sku: e.target.value })}
                     className="app-input mt-1 w-full"
-                    placeholder="SKU-RM"
+                    placeholder={ui.skuPlaceholder}
                   />
                 </label>
                 <button
@@ -179,7 +182,7 @@ export default function VariantsEditor({
                 <table className="min-w-full text-xs">
                   <thead>
                     <tr className="text-[var(--muted)]">
-                      <th className="px-2 py-1 text-start font-medium">Market</th>
+                      <th className="px-2 py-1 text-start font-medium">{ui.market}</th>
                       <th className="px-2 py-1 text-start font-medium">{ui.price}</th>
                       <th className="px-2 py-1 text-start font-medium">{ui.quantity}</th>
                     </tr>

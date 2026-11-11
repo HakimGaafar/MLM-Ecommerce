@@ -2,6 +2,7 @@ import { getPlatformConfig, getReferralDepthMax, getSettlementWindowDays } from 
 import Link from "next/link";
 import { cookies } from "next/headers";
 import AffiliateView from "@/app/customer/affiliate/AffiliateView";
+import PortalRoleGate from "@/components/portal/PortalRoleGate";
 import { ACTIVE_ROLE_COOKIE, resolveActiveRole } from "@/lib/active-role";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
@@ -13,12 +14,7 @@ export default async function AffiliatePage() {
   const cookieStore = await cookies();
   const role = resolveActiveRole(session?.roles ?? [], cookieStore.get(ACTIVE_ROLE_COOKIE)?.value);
   if (role !== "CUSTOMER") {
-    return (
-      <main className="mx-auto w-full max-w-4xl p-8 animate-page-enter">
-        <h1 className="text-2xl font-semibold">Affiliate</h1>
-        <p className="mt-3 text-[var(--muted)]">The affiliate program is for customer accounts.</p>
-      </main>
-    );
+    return <PortalRoleGate page="affiliate" />;
   }
 
   const locale = await getCustomerPreferredLocale();

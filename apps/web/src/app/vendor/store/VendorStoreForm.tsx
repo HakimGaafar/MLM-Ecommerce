@@ -37,6 +37,11 @@ type Ui = {
   settlementRiskAccepted: string;
   settlementRiskSaving: string;
   settlementRiskError: string;
+  profileChangeTitle: string;
+  profileChangeNotePlaceholder: string;
+  profileChangeSubmit: string;
+  profileChangeSubmitting: string;
+  profileChangeSuccess: string;
 };
 
 export default function VendorStoreForm({ locale, ui }: { locale: Locale; ui: Ui }) {
@@ -244,15 +249,13 @@ export default function VendorStoreForm({ locale, ui }: { locale: Locale; ui: Ui
 
       {onboardingStatus === "ACTIVE" ? (
         <div className="space-y-3 rounded-lg border border-[var(--border-strong)] p-4">
-          <p className="text-sm font-medium">
-            {locale === "ar" ? "طلب تغيير ملف المتجر (مراجعة إدارية)" : "Request store profile change (admin review)"}
-          </p>
+          <p className="text-sm font-medium">{ui.profileChangeTitle}</p>
           <textarea
             className="app-input"
             rows={2}
             value={changeNote}
             onChange={(ev) => setChangeNote(ev.target.value)}
-            placeholder={locale === "ar" ? "ملاحظة للمشرف (اختياري)" : "Note for admin (optional)"}
+            placeholder={ui.profileChangeNotePlaceholder}
           />
           <button
             type="button"
@@ -277,9 +280,7 @@ export default function VendorStoreForm({ locale, ui }: { locale: Locale; ui: Ui
                     throw new Error(p?.error ?? ui.saveError);
                   }
                   setOnboardingStatus("UNDER_REVIEW");
-                  toast.success(
-                    locale === "ar" ? "تم إرسال طلب التغيير للمراجعة" : "Change request submitted for review",
-                  );
+                  toast.success(ui.profileChangeSuccess);
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : ui.saveError;
                   setError(msg);
@@ -290,13 +291,7 @@ export default function VendorStoreForm({ locale, ui }: { locale: Locale; ui: Ui
               })();
             }}
           >
-            {requestingChange
-              ? locale === "ar"
-                ? "جارٍ الإرسال…"
-                : "Submitting…"
-              : locale === "ar"
-                ? "إرسال للمراجعة"
-                : "Submit for review"}
+            {requestingChange ? ui.profileChangeSubmitting : ui.profileChangeSubmit}
           </button>
         </div>
       ) : null}

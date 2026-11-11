@@ -186,6 +186,8 @@ type OpsUi = {
   cancelReason: string;
   cancelConfirm: string;
   cancelVendor: string;
+  cancelDialogCancel: string;
+  cancelDialogCancelling: string;
   slaBypassHint: string;
   slaDemoHint: string;
   copied: string;

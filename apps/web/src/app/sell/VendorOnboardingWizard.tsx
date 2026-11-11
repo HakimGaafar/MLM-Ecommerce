@@ -19,10 +19,14 @@ import {
   type LegalDocumentType,
 } from "@mlm/shared";
 import { getBundledPolicyDocument } from "@/lib/legal/content";
+import ar from "@/i8n/ar.json";
+import en from "@/i8n/en.json";
 
 const AddressMapPicker = dynamic(() => import("@/components/address/AddressMapPicker"), {
   ssr: false,
-  loading: () => <p className="text-xs text-[var(--muted)]">Loading map…</p>,
+  loading: () => (
+    <div className="mt-2 h-56 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]" />
+  ),
 });
 
 type Locale = "en" | "ar";
@@ -63,6 +67,7 @@ export default function VendorOnboardingWizard({
 }) {
   const locale = useLiveLocale();
   const ui = useLiveCopy("sellOnboarding");
+  const mapLabels = (locale === "ar" ? ar : en).addressMapPicker;
   const toast = useToast();
   const toastDict = getToastDict(locale);
   const direction = locale === "ar" ? "rtl" : "ltr";
@@ -411,7 +416,7 @@ export default function VendorOnboardingWizard({
       });
       if (!res.ok) throw new Error(ui.errorGeneric);
       setStep("under_review");
-      toast.success(ui.submittedForReview ?? "Submitted for review");
+      toast.success(ui.submittedForReview);
     } catch (err) {
       const msg = err instanceof Error ? err.message : ui.errorGeneric;
       setError(msg);
@@ -427,9 +432,9 @@ export default function VendorOnboardingWizard({
   if (step === "under_review") {
     return (
       <div className="app-callout mt-8 p-8" dir={direction}>
-        <h2 className="text-xl font-semibold">{ui.underReviewTitle ?? "Under review"}</h2>
+        <h2 className="text-xl font-semibold">{ui.underReviewTitle}</h2>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          {ui.underReviewBody ?? "Our team is reviewing your application. You will be notified when a decision is made."}
+          {ui.underReviewBody}
         </p>
         {fieldReviews.some((f) => f.decision === "NEEDS_FIX") ? (
           <ul className="mt-4 list-disc space-y-1 ps-5 text-sm text-amber-800 dark:text-amber-200">
@@ -437,7 +442,7 @@ export default function VendorOnboardingWizard({
               .filter((f) => f.decision === "NEEDS_FIX")
               .map((f) => (
                 <li key={`${f.pageKey}-${f.fieldKey}`}>
-                  {f.fieldKey}: {f.note || (ui.needsFix ?? "Needs a fix")}
+                  {f.fieldKey}: {f.note || (ui.needsFix)}
                 </li>
               ))}
           </ul>
@@ -481,8 +486,8 @@ export default function VendorOnboardingWizard({
       {step === 1 && (mode === "guest" || bootstrapping) ? (
         <form className="mx-auto max-w-lg space-y-4" noValidate onSubmit={submitAccount}>
           <BilingualRow
-            labelEn={ui.repNameEn ?? "Representative name (English)"}
-            labelOther={ui.repNameOther ?? "Representative name (other language)"}
+            labelEn={ui.repNameEn}
+            labelOther={ui.repNameOther}
             valueEn={repNameEn}
             valueOther={repNameOther}
             onEn={setRepNameEn}
@@ -490,7 +495,7 @@ export default function VendorOnboardingWizard({
             required
             className={inputClass}
           />
-          <Field label={ui.phone ?? "Phone"} required>
+          <Field label={ui.phone} required>
             <input className={inputClass} required value={phone} onChange={(e) => setPhone(e.target.value)} />
           </Field>
           {!bootstrapping ? (
@@ -512,7 +517,7 @@ export default function VendorOnboardingWizard({
           <Field label={ui.storeName} required>
             <input className={inputClass} required value={storeName} onChange={(e) => setStoreName(e.target.value)} />
           </Field>
-          <Field label={ui.shortBusinessNote ?? "Short business note (optional)"}>
+          <Field label={ui.shortBusinessNote}>
             <textarea className={inputClass} rows={3} value={shortBusinessNote} onChange={(e) => setShortBusinessNote(e.target.value)} />
           </Field>
           {!bootstrapping ? (
@@ -522,14 +527,14 @@ export default function VendorOnboardingWizard({
           ) : null}
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" checked={acceptCommissionTerms} onChange={(e) => setAcceptCommissionTerms(e.target.checked)} className="mt-1" />
-            <span>{ui.acceptCommissionTerms ?? "I accept the marketplace commission terms"}</span>
+            <span>{ui.acceptCommissionTerms}</span>
           </label>
           <div className="space-y-3 rounded-lg border border-[var(--border)] p-3">
             <p className="text-xs font-medium text-[var(--muted)]">
-              {ui.acceptAllPolicies ?? "Accept all policies to continue (account stays inactive until complete)."}
+              {ui.acceptAllPolicies}
             </p>
             <p className="text-xs text-[var(--muted)]">
-              {ui.readPoliciesHint ?? "Read each document (expand or open full page), then tick to accept."}
+              {ui.readPoliciesHint}
             </p>
             {MERCHANT_REGISTRATION_DOCUMENT_TYPES.map((doc) => {
               const title = LEGAL_DOCUMENT_TITLES[doc as LegalDocumentType];
@@ -541,7 +546,7 @@ export default function VendorOnboardingWizard({
                   {previewSections.length > 0 ? (
                     <details className="text-sm">
                       <summary className="cursor-pointer font-medium text-[var(--foreground)]">
-                        {ui.readDocument ?? "Read"}: {label}
+                        {ui.readDocument}: {label}
                       </summary>
                       <div className="mt-2 max-h-48 space-y-2 overflow-y-auto text-xs leading-5 text-[var(--muted)]">
                         {previewSections.map((section) => (
@@ -560,7 +565,7 @@ export default function VendorOnboardingWizard({
                           rel="noopener noreferrer"
                           className="text-link underline"
                         >
-                          {ui.openFullDocument ?? "Open full document"}
+                          {ui.openFullDocument}
                         </a>
                       </div>
                     </details>
@@ -575,7 +580,7 @@ export default function VendorOnboardingWizard({
                       }
                     />
                     <span>
-                      {ui.acceptPrefix ?? "I agree to"}{" "}
+                      {ui.acceptPrefix}{" "}
                       <a
                         href={legalDocumentHref(doc as LegalDocumentType)}
                         target="_blank"
@@ -627,8 +632,8 @@ export default function VendorOnboardingWizard({
           }}
         >
           <BilingualRow
-            labelEn={ui.fullNameEn ?? "Full name (English)"}
-            labelOther={ui.fullNameOther ?? "Full name (other language)"}
+            labelEn={ui.fullNameEn}
+            labelOther={ui.fullNameOther}
             valueEn={fullNameEn}
             valueOther={fullNameOther}
             onEn={setFullNameEn}
@@ -636,33 +641,33 @@ export default function VendorOnboardingWizard({
             required
             className={inputClass}
           />
-          <Field label={ui.phone ?? "Phone"} required>
+          <Field label={ui.phone} required>
             <input className={inputClass} required value={phone} onChange={(e) => setPhone(e.target.value)} />
           </Field>
           <Field label={ui.email} required>
             <input className={inputClass} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
-          <Field label={ui.identityDocumentKind ?? "ID document type"} required>
+          <Field label={ui.identityDocumentKind} required>
             <select className={inputClass} value={identityDocumentKind} onChange={(e) => setIdentityDocumentKind(e.target.value)}>
-              <option value="NATIONAL_ID">National ID</option>
-              <option value="PASSPORT">Passport</option>
-              <option value="RESIDENCY">Residency</option>
-              <option value="DRIVING_LICENSE">Driving license</option>
-              <option value="TAX_ID">Tax ID</option>
-              <option value="OTHER">Other</option>
+              <option value="NATIONAL_ID">{ui.identityKinds.NATIONAL_ID}</option>
+              <option value="PASSPORT">{ui.identityKinds.PASSPORT}</option>
+              <option value="RESIDENCY">{ui.identityKinds.RESIDENCY}</option>
+              <option value="DRIVING_LICENSE">{ui.identityKinds.DRIVING_LICENSE}</option>
+              <option value="TAX_ID">{ui.identityKinds.TAX_ID}</option>
+              <option value="OTHER">{ui.identityKinds.OTHER}</option>
             </select>
           </Field>
-          <Field label={ui.documentNumber ?? "Document number"} required>
+          <Field label={ui.documentNumber} required>
             <input className={inputClass} required value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} />
           </Field>
-          <Field label={ui.documentExpiresAt ?? "Expiry (optional)"}>
+          <Field label={ui.documentExpiresAt}>
             <input className={inputClass} value={documentExpiresAt} onChange={(e) => setDocumentExpiresAt(e.target.value)} placeholder="YYYY-MM-DD" />
           </Field>
-          <Field label={ui.addressOptional ?? "Address (optional)"}>
+          <Field label={ui.addressOptional}>
             <textarea className={inputClass} rows={2} value={addressOptional} onChange={(e) => setAddressOptional(e.target.value)} />
           </Field>
           <p className="text-xs text-[var(--muted)]">
-            {ui.kycUploadHint ?? "Upload identity documents from Vendor → KYC after this wizard if needed."}
+            {ui.kycUploadHint}
           </p>
           <NavButtons loading={loading} back={() => setStep(1)} backLabel={ui.back} nextLabel={ui.next} />
         </form>
@@ -693,8 +698,8 @@ export default function VendorOnboardingWizard({
           }}
         >
           <BilingualRow
-            labelEn={ui.legalNameEn ?? "Legal name (English)"}
-            labelOther={ui.legalNameOther ?? "Legal name (other language)"}
+            labelEn={ui.legalNameEn}
+            labelOther={ui.legalNameOther}
             valueEn={legalNameEn}
             valueOther={legalNameOther}
             onEn={setLegalNameEn}
@@ -703,13 +708,13 @@ export default function VendorOnboardingWizard({
             bothRequired
             className={inputClass}
           />
-          <Field label={ui.entityType ?? "Entity type"} required>
+          <Field label={ui.entityType} required>
             <select className={inputClass} value={entityType} onChange={(e) => setEntityType(e.target.value)}>
-              <option value="INDIVIDUAL">Individual</option>
-              <option value="COMPANY">Company</option>
-              <option value="ESTABLISHMENT">Establishment</option>
-              <option value="FREELANCE">Freelance</option>
-              <option value="OTHER">Other</option>
+              <option value="INDIVIDUAL">{ui.entityTypes.INDIVIDUAL}</option>
+              <option value="COMPANY">{ui.entityTypes.COMPANY}</option>
+              <option value="ESTABLISHMENT">{ui.entityTypes.ESTABLISHMENT}</option>
+              <option value="FREELANCE">{ui.entityTypes.FREELANCE}</option>
+              <option value="OTHER">{ui.entityTypes.OTHER}</option>
             </select>
           </Field>
           <Field label={ui.country} required>
@@ -727,10 +732,9 @@ export default function VendorOnboardingWizard({
 
           <div className="rounded-lg border border-dashed border-[var(--border)] p-3 space-y-3">
             <div>
-              <p className="text-sm font-medium">{ui.mapPin ?? "Map pin"}</p>
+              <p className="text-sm font-medium">{ui.mapPin}</p>
               <p className="mt-1 text-xs text-[var(--muted)]">
-                {ui.mapPinHint ??
-                  "Drop a pin to fill street, district, city, region, and postal code. You can still edit the fields."}
+                {ui.mapPinHint}
               </p>
             </div>
             <AddressMapPicker
@@ -739,6 +743,7 @@ export default function VendorOnboardingWizard({
               }
               latitude={latitude}
               longitude={longitude}
+              labels={mapLabels}
               onChange={(lat: string, lng: string) => {
                 setLatitude(lat);
                 setLongitude(lng);
@@ -751,7 +756,7 @@ export default function VendorOnboardingWizard({
                     .then((geo) => {
                       if (seq !== mapLookupSeq.current) return;
                       if (!geo) {
-                        toast.error(ui.mapFillFailed ?? "Could not look up that pin. Fill the fields manually.");
+                        toast.error(ui.mapFillFailed);
                         return;
                       }
                       if (geo.street) setStreet(geo.street);
@@ -768,7 +773,7 @@ export default function VendorOnboardingWizard({
                     })
                     .catch(() => {
                       if (seq !== mapLookupSeq.current) return;
-                      toast.error(ui.mapFillFailed ?? "Could not look up that pin. Fill the fields manually.");
+                      toast.error(ui.mapFillFailed);
                     })
                     .finally(() => {
                       if (seq === mapLookupSeq.current) setMapFilling(false);
@@ -777,13 +782,13 @@ export default function VendorOnboardingWizard({
               }}
             />
             {mapFilling ? (
-              <p className="text-xs text-[var(--muted)]">{ui.mapFilling ?? "Looking up address…"}</p>
+              <p className="text-xs text-[var(--muted)]">{ui.mapFilling}</p>
             ) : null}
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label={ui.latitude ?? "Latitude"}>
+              <Field label={ui.latitude}>
                 <input className={inputClass} inputMode="decimal" value={latitude} readOnly />
               </Field>
-              <Field label={ui.longitude ?? "Longitude"}>
+              <Field label={ui.longitude}>
                 <input className={inputClass} inputMode="decimal" value={longitude} readOnly />
               </Field>
             </div>
@@ -795,25 +800,25 @@ export default function VendorOnboardingWizard({
           <Field label={ui.city} required>
             <input className={inputClass} required value={city} onChange={(e) => setCity(e.target.value)} />
           </Field>
-          <Field label={ui.district ?? "District"} required>
+          <Field label={ui.district} required>
             <input className={inputClass} required value={district} onChange={(e) => setDistrict(e.target.value)} />
           </Field>
-          <Field label={ui.street ?? "Street"} required>
+          <Field label={ui.street} required>
             <input className={inputClass} required value={street} onChange={(e) => setStreet(e.target.value)} />
           </Field>
-          <Field label={ui.landmark ?? "Landmark (optional)"}>
+          <Field label={ui.landmark}>
             <input className={inputClass} value={landmark} onChange={(e) => setLandmark(e.target.value)} />
           </Field>
           <Field label={ui.postalCode} required>
             <input className={inputClass} required value={postalCode} onChange={(e) => setPostalCode(e.target.value)} />
           </Field>
-          <Field label={ui.poBox ?? "P.O. Box (optional)"}>
+          <Field label={ui.poBox}>
             <input className={inputClass} value={poBox} onChange={(e) => setPoBox(e.target.value)} />
           </Field>
-          <Field label={ui.googleMapsUrl ?? "Google Maps URL (optional)"}>
+          <Field label={ui.googleMapsUrl}>
             <input className={inputClass} value={googleMapsUrl} onChange={(e) => setGoogleMapsUrl(e.target.value)} />
           </Field>
-          <Field label={ui.additionalInfo ?? "Additional info (optional)"}>
+          <Field label={ui.additionalInfo}>
             <textarea className={inputClass} rows={2} value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} />
           </Field>
           <NavButtons loading={loading} back={() => setStep(2)} backLabel={ui.back} nextLabel={ui.next} />
@@ -841,7 +846,7 @@ export default function VendorOnboardingWizard({
           <Field label={ui.storeName} required>
             <input className={inputClass} required value={storeName} onChange={(e) => setStoreName(e.target.value)} />
           </Field>
-          <Field label={ui.storeNameOther ?? "Store name (other language)"}>
+          <Field label={ui.storeNameOther}>
             <input className={inputClass} value={storeNameOther} onChange={(e) => setStoreNameOther(e.target.value)} />
           </Field>
           <Field label={ui.storeSlug} required hint={ui.storeSlugHint}>
@@ -858,8 +863,8 @@ export default function VendorOnboardingWizard({
             {slugStatus === "bad" ? <span className="text-xs text-red-600">{ui.slugTaken}</span> : null}
           </Field>
           <BilingualRow
-            labelEn={ui.storeDescriptionEn ?? "Store description (English)"}
-            labelOther={ui.storeDescriptionOther ?? "Store description (other language)"}
+            labelEn={ui.storeDescriptionEn}
+            labelOther={ui.storeDescriptionOther}
             valueEn={storeDescriptionEn}
             valueOther={storeDescriptionOther}
             onEn={setStoreDescriptionEn}
@@ -890,31 +895,31 @@ export default function VendorOnboardingWizard({
         >
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={vatRegistered} onChange={(e) => setVatRegistered(e.target.checked)} />
-            {ui.vatRegistered ?? "VAT registered"}
+            {ui.vatRegistered}
           </label>
           {vatRegistered ? (
             <>
-              <Field label={ui.vatTrn ?? "VAT TRN"} required>
+              <Field label={ui.vatTrn} required>
                 <input className={inputClass} required value={vatTrn} onChange={(e) => setVatTrn(e.target.value)} />
               </Field>
-              <Field label={ui.vatPercent ?? "VAT %"}>
+              <Field label={ui.vatPercent}>
                 <input className={inputClass} type="number" min={0} max={100} value={vatPercent} onChange={(e) => setVatPercent(e.target.value)} />
               </Field>
             </>
           ) : null}
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={hasBankAccount} onChange={(e) => setHasBankAccount(e.target.checked)} />
-            {ui.hasBankAccount ?? "I have a bank account for payouts"}
+            {ui.hasBankAccount}
           </label>
           {hasBankAccount ? (
             <>
-              <Field label={ui.payoutIban ?? "IBAN"}>
+              <Field label={ui.payoutIban}>
                 <input className={inputClass} value={payoutIban} onChange={(e) => setPayoutIban(e.target.value)} />
               </Field>
-              <Field label={ui.payoutBankName ?? "Bank name"}>
+              <Field label={ui.payoutBankName}>
                 <input className={inputClass} value={payoutBankName} onChange={(e) => setPayoutBankName(e.target.value)} />
               </Field>
-              <Field label={ui.payoutAccountHolder ?? "Account holder"}>
+              <Field label={ui.payoutAccountHolder}>
                 <input className={inputClass} value={payoutAccountHolder} onChange={(e) => setPayoutAccountHolder(e.target.value)} />
               </Field>
             </>
@@ -929,8 +934,8 @@ export default function VendorOnboardingWizard({
             <p><strong>{ui.storeName}:</strong> {storeName}</p>
             <p><strong>{ui.storeSlug}:</strong> /stores/{slug}</p>
             <p><strong>{ui.email}:</strong> {email}</p>
-            <p><strong>{ui.phone ?? "Phone"}:</strong> {phone}</p>
-            <p><strong>{ui.legalNameEn ?? "Legal name"}:</strong> {legalNameEn} / {legalNameOther}</p>
+            <p><strong>{ui.phone}:</strong> {phone}</p>
+            <p><strong>{ui.legalNameEn}:</strong> {legalNameEn} / {legalNameOther}</p>
           </div>
           {internationalNotice ? (
             <div className="rounded-lg border border-[var(--border-strong)] p-4 text-sm space-y-2">
@@ -944,7 +949,7 @@ export default function VendorOnboardingWizard({
           ) : null}
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" className="mt-1" checked={confirmComplete} onChange={(e) => setConfirmComplete(e.target.checked)} />
-            <span>{ui.confirmComplete ?? "I confirm the information is complete and accurate"}</span>
+            <span>{ui.confirmComplete}</span>
           </label>
           <NavButtons
             loading={loading}

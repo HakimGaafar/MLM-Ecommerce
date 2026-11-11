@@ -67,6 +67,18 @@ type Ui = {
   rejectionReasonRequired: string;
   rejectionReasonPlaceholder: string;
   returnUnitsTitle: string;
+  returnShipping: string;
+  hubInspect: string;
+  finalReturnFee: string;
+  shippingBearer: string;
+  bearerCustomer: string;
+  bearerVendor: string;
+  bearerPlatform: string;
+  goodsAfterAccept: string;
+  dispositionHoldAtHub: string;
+  dispositionReturnToVendor: string;
+  dispositionDispose: string;
+  hubInspectionNote: string;
   orderStatusLabels: Record<string, string>;
   returnStatusLabels: Record<string, string>;
   reasonLabels: Record<string, string>;
@@ -268,7 +280,7 @@ export default function AdminReturnDetail({
           </div>
           {payload.returnShippingFee != null ? (
             <div className="flex flex-wrap justify-between gap-2">
-              <dt className="text-[var(--muted)]">Return shipping</dt>
+              <dt className="text-[var(--muted)]">{ui.returnShipping}</dt>
               <dd className="font-medium tabular-nums">
                 {formatMoney(
                   payload.returnCostFinalFee ?? payload.returnShippingFee,
@@ -277,7 +289,7 @@ export default function AdminReturnDetail({
                 )}{" "}
                 · {payload.returnCostBearerFinal ?? payload.returnCostBearer} ·{" "}
                 {payload.returnCostZone}
-                {payload.hubInspectionRequired ? " · hub inspect" : ""}
+                {payload.hubInspectionRequired ? ` · ${ui.hubInspect}` : ""}
               </dd>
             </div>
           ) : null}
@@ -339,7 +351,7 @@ export default function AdminReturnDetail({
           </label>
           <div className="mt-4 grid max-w-xl gap-3 text-sm sm:grid-cols-2">
             <label className="block space-y-1">
-              <span className="font-medium">Final return fee</span>
+              <span className="font-medium">{ui.finalReturnFee}</span>
               <input
                 className="app-input"
                 value={finalFee}
@@ -348,31 +360,31 @@ export default function AdminReturnDetail({
               />
             </label>
             <label className="block space-y-1">
-              <span className="font-medium">Shipping bearer</span>
+              <span className="font-medium">{ui.shippingBearer}</span>
               <select
                 className="app-input"
                 value={bearerFinal}
                 onChange={(ev) => setBearerFinal(ev.target.value as typeof bearerFinal)}
               >
-                <option value="CUSTOMER">Customer</option>
-                <option value="VENDOR">Vendor</option>
-                <option value="PLATFORM">Platform</option>
+                <option value="CUSTOMER">{ui.bearerCustomer}</option>
+                <option value="VENDOR">{ui.bearerVendor}</option>
+                <option value="PLATFORM">{ui.bearerPlatform}</option>
               </select>
             </label>
             <label className="block space-y-1 sm:col-span-2">
-              <span className="font-medium">Goods after accept</span>
+              <span className="font-medium">{ui.goodsAfterAccept}</span>
               <select
                 className="app-input"
                 value={disposition}
                 onChange={(ev) => setDisposition(ev.target.value as typeof disposition)}
               >
-                <option value="HOLD_AT_HUB">Hold at buyer-market hub</option>
-                <option value="RETURN_TO_VENDOR">Return to vendor</option>
-                <option value="DISPOSE">Dispose</option>
+                <option value="HOLD_AT_HUB">{ui.dispositionHoldAtHub}</option>
+                <option value="RETURN_TO_VENDOR">{ui.dispositionReturnToVendor}</option>
+                <option value="DISPOSE">{ui.dispositionDispose}</option>
               </select>
             </label>
             <label className="block space-y-1 sm:col-span-2">
-              <span className="font-medium">Hub inspection note</span>
+              <span className="font-medium">{ui.hubInspectionNote}</span>
               <textarea
                 className="app-input min-h-20 w-full"
                 value={hubNote}

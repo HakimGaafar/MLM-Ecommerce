@@ -60,11 +60,13 @@ export default function AddressMapPicker({
   latitude,
   longitude,
   onChange,
+  labels,
 }: {
   countryCode: AddressCountryCode;
   latitude: string;
   longitude: string;
   onChange: (lat: string, lng: string) => void;
+  labels?: { loading: string; ariaLabel: string };
 }) {
   const shellRef = useRef<HTMLDivElement | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -255,12 +257,14 @@ export default function AddressMapPicker({
         ref={mapContainerRef}
         className="address-map-picker__canvas"
         role="application"
-        aria-label="Map pin picker"
+        aria-label={labels?.ariaLabel ?? "Map pin picker"}
         tabIndex={0}
       />
       {!isVisible ? (
         <div className="address-map-picker__placeholder" aria-hidden="true">
-          <span className="address-map-picker__placeholder-text">Loading map…</span>
+          <span className="address-map-picker__placeholder-text">
+            {labels?.loading ?? "Loading map…"}
+          </span>
         </div>
       ) : null}
     </div>

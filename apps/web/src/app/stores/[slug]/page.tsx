@@ -20,7 +20,8 @@ export async function generateMetadata({
   const delivery = await resolveRequestCatalogDelivery({ marketCode: market.code });
   const store = await getPublicStoreBySlug(slug, locale, market.id, delivery);
   if (!store) {
-    return { title: "Store not found" };
+    const storesUi = locale === "ar" ? ar.publicStores : en.publicStores;
+    return { title: storesUi.notFound };
   }
   const title = store.metaTitle?.trim() || store.storeName;
   const description =

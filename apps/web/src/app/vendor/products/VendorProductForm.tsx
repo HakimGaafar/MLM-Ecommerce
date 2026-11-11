@@ -25,13 +25,6 @@ import VariantsEditor, {
 } from "./VariantsEditor";
 import ProductServiceAreaEditor, { type ServiceCityDraft } from "./ProductServiceAreaEditor";
 
-const MARKET_LABELS: Record<string, { en: string; ar: string }> = {
-  market_sa: { en: "Saudi Arabia", ar: "السعودية" },
-  market_om: { en: "Oman", ar: "عُمان" },
-  market_eg: { en: "Egypt", ar: "مصر" },
-  market_global: { en: "International", ar: "دولي" },
-};
-
 type Category = { id: string; name: string };
 
 type ImageItem = { clientId: string; url: string };
@@ -102,17 +95,26 @@ export default function VendorProductForm({ productId }: { productId?: string })
   const [serviceAreaMode, setServiceAreaMode] = useState<"ALL" | "SPECIFIC">("ALL");
   const [serviceCities, setServiceCities] = useState<ServiceCityDraft[]>([]);
 
+  const marketNameById = useMemo(() => {
+    const names = (locale === "ar" ? ar : en).marketSwitcher.markets as Record<string, string>;
+    const map = new Map<string, string>();
+    for (const m of activeMarkets ?? []) {
+      map.set(m.id, names[m.code] ?? m.code);
+    }
+    return map;
+  }, [activeMarkets, locale]);
+
   const variantMarkets = useMemo<VariantMarketColumn[]>(
     () =>
       offerDrafts
         .filter((d) => d.enabled)
         .map((d) => ({
           marketId: d.marketId,
-          label: MARKET_LABELS[d.marketId]?.[locale] ?? d.marketId,
+          label: marketNameById.get(d.marketId) ?? d.marketId,
           price: d.price,
           currency: d.currency,
         })),
-    [offerDrafts, locale],
+    [offerDrafts, marketNameById],
   );
 
   /** Keep variant market columns in sync when sell markets are toggled. */
@@ -254,14 +256,21 @@ export default function VendorProductForm({ productId }: { productId?: string })
           home.currency = data.product.currency;
         }
         setOfferDrafts(drafts);
+        const marketNames = (locale === "ar" ? ar : en).marketSwitcher.markets as Record<
+          string,
+          string
+        >;
         const enabledMarkets: VariantMarketColumn[] = drafts
           .filter((d) => d.enabled)
-          .map((d) => ({
-            marketId: d.marketId,
-            label: MARKET_LABELS[d.marketId]?.[locale] ?? d.marketId,
-            price: d.price,
-            currency: d.currency,
-          }));
+          .map((d) => {
+            const code = (activeMarkets ?? []).find((m) => m.id === d.marketId)?.code;
+            return {
+              marketId: d.marketId,
+              label: (code && marketNames[code]) || code || d.marketId,
+              price: d.price,
+              currency: d.currency,
+            };
+          });
         setVariantDrafts(
           (data.product.variants ?? []).map((v) => {
             const base = emptyVariantDraft(enabledMarkets);
@@ -497,15 +506,15 @@ export default function VendorProductForm({ productId }: { productId?: string })
         </label>
 
         <label className="block space-y-1 text-sm">
-          <span className="font-medium">URL slug</span>
+          <span className="font-medium">{ui.formSlug}</span>
           <input
             maxLength={80}
             className="app-input"
             value={slug}
             onChange={(ev) => setSlug(ev.target.value)}
-            placeholder="auto-from-name"
+            placeholder={ui.formSlugPlaceholder}
           />
-          <span className="text-xs text-[var(--muted)]">Optional. Used in /products/your-slug</span>
+          <span className="text-xs text-[var(--muted)]">{ui.formSlugHint}</span>
         </label>
 
         <label className="block space-y-1 text-sm">
@@ -601,6 +610,9 @@ export default function VendorProductForm({ productId }: { productId?: string })
             price: ui.formVariantsPrice,
             empty: ui.formVariantsEmpty,
             enableMarketsFirst: ui.formVariantsEnableMarketsFirst,
+            market: ui.formVariantsMarket,
+            titlePlaceholder: ui.formVariantsTitlePlaceholder,
+            skuPlaceholder: ui.formVariantsSkuPlaceholder,
           }}
         />
       </section>

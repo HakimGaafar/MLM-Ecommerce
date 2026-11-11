@@ -14,7 +14,8 @@ type AddToCartText = {
   adding: string;
   error: string;
   success: string;
-  selectOption?: string;
+  selectOption: string;
+  outOfStock: string;
 };
 
 type VariantOption = {
@@ -57,7 +58,7 @@ export default function AddToCart({
     event.preventDefault();
     if (variants.length > 0 && !variantId) {
       setStatus("error");
-      setMessage(ui.selectOption ?? ui.error);
+      setMessage(ui.selectOption);
       return;
     }
     setStatus("adding");
@@ -93,7 +94,7 @@ export default function AddToCart({
     <div className="mt-8 space-y-3 border-t border-[var(--border)] pt-6">
       {variants.length > 0 ? (
         <label className="block space-y-1 text-sm">
-          <span className="font-medium text-[var(--foreground)]">{ui.selectOption ?? "Option"}</span>
+          <span className="font-medium text-[var(--foreground)]">{ui.selectOption}</span>
           <select
             className="app-input w-full max-w-md"
             value={variantId}
@@ -104,7 +105,7 @@ export default function AddToCart({
                 {v.title}
                 {" — "}
                 {formatMoney(v.price, v.currency, locale)}
-                {!v.inStock ? " (out of stock)" : ""}
+                {!v.inStock ? ` (${ui.outOfStock})` : ""}
               </option>
             ))}
           </select>

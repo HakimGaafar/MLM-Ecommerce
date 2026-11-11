@@ -96,7 +96,8 @@
       "sendError": "Could not send verification code.",
       "verifyError": "Verification failed.",
       "invalidCode": "Enter the 6-digit code from your email.",
-      "loading": "Checking verification status…"
+      "loading": "Checking verification status…",
+      "previewCodeLabel": "Dev preview code:"
     },
     "cashbackTitle": "Activate your wallet",
     "cashbackBody": "Verify your email once to unlock wallet cashback for purchases. The same check also covers your first order — after that, cashback stays available for shopping (not for cash withdrawal).",
@@ -118,7 +119,8 @@
     "phoneLabel": "Mobile number",
     "phonePlaceholder": "+966500000000",
     "disabledNotice": "Phone verification is temporarily disabled until SMS is configured.",
-    "verifiedNotice": "Phone verified: {phone}"
+    "verifiedNotice": "Phone verified: {phone}",
+    "previewCodeLabel": "Dev preview code:"
   },
   "guestDelivery": {
     "promptTitle": "Where should we deliver?",
@@ -223,6 +225,7 @@
     "howItWorks4": "Commissions are credited to your wallet as pending, then move to available after the settlement period ({settlementDays} days).",
     "levelsTitle": "Commission levels (share of the {poolPercent}% affiliate pool)",
     "levelsColLevel": "Level",
+    "levelLabel": "Level {level}",
     "levelsColShare": "Share of pool",
     "levelsColExample": "Example*",
     "levelsFootnote": "*Example per {currency} 100 eligible order amount (product subtotal minus discounts, excluding shipping and VAT). Pool = {poolPercent}% of eligible amount.",
@@ -312,7 +315,55 @@
     "stores": "Stores",
     "contact": "Contact",
     "menu": "Menu",
-    "login": "Login"
+    "login": "Login",
+    "close": "Close",
+    "closeMenu": "Close menu",
+    "dismiss": "Dismiss"
+  },
+  "siteMeta": {
+    "description": "Shop from trusted marketplace vendors. Earn wallet cashback and affiliate rewards."
+  },
+  "portalRoleGate": {
+    "cart": {
+      "title": "Cart",
+      "body": "Cart is only available for customer accounts."
+    },
+    "checkout": {
+      "title": "Checkout",
+      "body": "Checkout is only available for customer accounts."
+    },
+    "orders": {
+      "title": "Orders",
+      "body": "Orders for this role are not available yet."
+    },
+    "ordersDetail": {
+      "title": "Order",
+      "body": "Order details for this role are not available yet."
+    },
+    "profile": {
+      "title": "Profile",
+      "body": "Profile for this role is not available yet."
+    },
+    "returns": {
+      "title": "Returns",
+      "body": "Returns for this role are not available yet."
+    },
+    "returnsDetail": {
+      "title": "Return",
+      "body": "Returns for this role are not available yet."
+    },
+    "affiliate": {
+      "title": "Affiliate",
+      "body": "The affiliate program is for customer accounts."
+    },
+    "cashback": {
+      "title": "Wallet",
+      "body": "The wallet is for customer accounts."
+    }
+  },
+  "addressMapPicker": {
+    "loading": "Loading map…",
+    "ariaLabel": "Map pin picker"
   },
   "homePage": {
     "badge": "Multi-vendor marketplace",
@@ -403,7 +454,12 @@
     "copyright": "© {year} {name}. All rights reserved.",
     "verificationBadgeOm": "Maroof Oman verified business",
     "verificationBadgeSa": "Saudi Business Center",
-    "verificationBadgeEg": "Egypt business verification"
+    "verificationBadgeEg": "Egypt business verification",
+    "socialLabelFacebook": "Facebook",
+    "socialLabelInstagram": "Instagram",
+    "socialLabelYouTube": "YouTube",
+    "socialLabelX": "X",
+    "socialLabelWhatsApp": "WhatsApp"
   },
   "accountPortal": {
     "announcementsTitle": "News & updates",
@@ -608,7 +664,9 @@
     "invalidEmail": "Enter a valid email address.",
     "invalidName": "Enter a valid name using letters only.",
     "invalidMessage": "Please write at least 10 characters.",
-    "fieldRequired": "This field is required."
+    "fieldRequired": "This field is required.",
+    "metaTitle": "Contact",
+    "metaDescription": "Contact Vandsoq customer support for your current market."
   },
   "internationalNotices": {
     "customer": {
@@ -684,6 +742,14 @@
     "fullNameEn": "Full name (English)",
     "fullNameOther": "Full name (other language)",
     "identityDocumentKind": "ID document type",
+    "identityKinds": {
+      "NATIONAL_ID": "National ID",
+      "PASSPORT": "Passport",
+      "RESIDENCY": "Residency",
+      "DRIVING_LICENSE": "Driving license",
+      "TAX_ID": "Tax ID",
+      "OTHER": "Other"
+    },
     "documentNumber": "Document number",
     "documentExpiresAt": "Document expiry (optional)",
     "addressOptional": "Address (optional)",
@@ -691,6 +757,13 @@
     "legalNameEn": "Legal name (English)",
     "legalNameOther": "Legal name (other language)",
     "entityType": "Entity type",
+    "entityTypes": {
+      "INDIVIDUAL": "Individual",
+      "COMPANY": "Company",
+      "ESTABLISHMENT": "Establishment",
+      "FREELANCE": "Freelance",
+      "OTHER": "Other"
+    },
     "district": "District",
     "street": "Street",
     "landmark": "Landmark (optional)",
@@ -833,7 +906,10 @@
     "ratingEmpty": "No ratings yet",
     "ratingCount": "{count} reviews",
     "relatedTitle": "Related products",
-    "selectOption": "Choose option"
+    "selectOption": "Choose option",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "notFoundTitle": "Product not found"
   },
   "wishlist": {
     "title": "Wishlist",
@@ -1021,7 +1097,9 @@
     "add": "Add to cart",
     "adding": "Adding...",
     "error": "Could not add to cart",
-    "success": "Added to cart"
+    "success": "Added to cart",
+    "selectOption": "Choose option",
+    "outOfStock": "out of stock"
   },
   "shell": {
     "theme": { "section": "Appearance", "light": "Light", "dark": "Dark" },
@@ -1898,6 +1976,12 @@
     "formVariantsPrice": "Price",
     "formVariantsEmpty": "No variants — selling as a single SKU.",
     "formVariantsEnableMarketsFirst": "Enable at least one sell market above before adding variants.",
+    "formVariantsMarket": "Market",
+    "formVariantsTitlePlaceholder": "Red / M",
+    "formVariantsSkuPlaceholder": "SKU-RM",
+    "formSlug": "URL slug",
+    "formSlugPlaceholder": "your-product-slug",
+    "formSlugHint": "Optional. Used in /products/your-slug",
     "formServiceAreaTitle": "Service / delivery cities",
     "formServiceAreaHint": "Choose all countries and all cities, or limit this product to specific cities. Customers can browse from anywhere; incompatible items are flagged in the cart and must be removed before checkout.",
     "formServiceAreaAll": "All countries and all cities",
@@ -2149,7 +2233,9 @@
     "viewProduct": "View product",
     "filteredByLine": "Showing rating for one order line.",
     "clearFilter": "Show all reviews",
-    "stars": "Stars"
+    "stars": "Stars",
+    "reviewCountOne": "{count} review",
+    "reviewCountMany": "{count} reviews"
   },
   "vendorQuestions": {
     "title": "Product Q&A",
@@ -2345,7 +2431,12 @@
       "settlementRiskAccept": "I accept settlement risk terms",
       "settlementRiskAccepted": "Settlement risk terms accepted",
       "settlementRiskSaving": "Saving…",
-      "settlementRiskError": "Could not save consent. Try again."
+      "settlementRiskError": "Could not save consent. Try again.",
+      "profileChangeTitle": "Request store profile change (admin review)",
+      "profileChangeNotePlaceholder": "Note for admin (optional)",
+      "profileChangeSubmit": "Submit for review",
+      "profileChangeSubmitting": "Submitting…",
+      "profileChangeSuccess": "Change request submitted for review"
     }
   },
   "vendorInvoiceProfile": {
@@ -2534,7 +2625,23 @@
     "toastSaved": "Field decision saved",
     "toastApproved": "Vendor approved",
     "toastRejected": "Vendor sent back for changes",
-    "notePlaceholder": "Note for the vendor (optional)"
+    "notePlaceholder": "Note for the vendor (optional)",
+    "pendingProfileChanges": "Pending profile change requests",
+    "vendorNoteLabel": "Note",
+    "fieldStatus": "Status",
+    "fieldLabels": {
+      "repNameEn": "Rep name (EN)",
+      "repNameOther": "Rep name (other)",
+      "legalNameEn": "Legal name (EN)",
+      "legalNameOther": "Legal name (other)",
+      "entityType": "Entity type",
+      "address": "Address",
+      "storeName": "Store name",
+      "storeNameOther": "Store name (other)",
+      "storeDescriptionEn": "Description (EN)",
+      "invoiceVatTrn": "VAT TRN",
+      "payoutIban": "IBAN"
+    }
   },
   "adminDashboard": {
     "title": "Admin Dashboard",
@@ -2776,6 +2883,8 @@
       "cancelReason": "Reason (min 10 characters)",
       "cancelConfirm": "Remove this vendor from the order? This cannot be undone.",
       "cancelVendor": "Cancel vendor slice",
+      "cancelDialogCancel": "Cancel",
+      "cancelDialogCancelling": "Cancelling...",
       "slaBypassHint": "SLA bypass active — stuck flags are disabled.",
       "slaDemoHint": "Demo stuck mode active — groups show as overdue for UAT.",
       "copied": "Copied"
@@ -2838,7 +2947,19 @@
       "rejectionReason": "Rejection reason",
       "rejectionReasonRequired": "A rejection reason is required when rejecting a return.",
       "rejectionReasonPlaceholder": "Explain why this return is being rejected (shown to the customer).",
-      "returnUnitsTitle": "Items in this return"
+      "returnUnitsTitle": "Items in this return",
+      "returnShipping": "Return shipping",
+      "hubInspect": "hub inspect",
+      "finalReturnFee": "Final return fee",
+      "shippingBearer": "Shipping bearer",
+      "bearerCustomer": "Customer",
+      "bearerVendor": "Vendor",
+      "bearerPlatform": "Platform",
+      "goodsAfterAccept": "Goods after accept",
+      "dispositionHoldAtHub": "Hold at buyer-market hub",
+      "dispositionReturnToVendor": "Return to vendor",
+      "dispositionDispose": "Dispose",
+      "hubInspectionNote": "Hub inspection note"
     }
   },
   "adminPlatformSettings": {
@@ -2869,7 +2990,8 @@
       "referralStructure": "Referral structure",
       "policies": "Legal & policies",
       "footerContact": "Footer & contact CMS",
-      "paymentGateways": "Payment gateway roadmap"
+      "paymentGateways": "Payment gateway roadmap",
+      "cod": "Cash on delivery"
     },
     "fields": {
       "cashbackPercent": "Cashback (% of eligible order amount)",
@@ -2880,6 +3002,9 @@
       "affiliateLevel4Percent": "Level 4 (% of pool)",
       "vendorPercent": "Merchant share (%)",
       "platformPercent": "Platform / store commission (%)",
+      "vendorPercentCross": "Vendor % (cross / intl)",
+      "platformPercentCross": "Platform % (cross / intl)",
+      "codEnabled": "Allow COD (global kill-switch)",
       "vatPercent": "VAT / tax on platform commission (%)",
       "minWithdrawalAmount": "Minimum withdrawal ({currency})",
       "returnWindowDays": "Return window (days after delivery)",
@@ -2910,6 +3035,7 @@
       "commissionSum": "Current total: {sum}%",
       "commissionSumOk": "Totals 100% — ready to save.",
       "commissionSumBad": "Must equal 100% before saving.",
+      "commissionCrossIntro": "Cross-market / International split (default platform 10% / vendor 90%).",
       "vatIntro": "VAT here is between the merchant and the platform on the platform commission invoice (not customer checkout VAT alone).",
       "vatExample": "Example: product 100, platform commission 10% → commission 10; VAT 15% on that commission → 1.5; platform invoice 11.5. Merchant merchandise share stays their % of the eligible amount (e.g. 90 if merchant share is 90%).",
       "appliesToNewOrders": "Changes apply to new orders and future calculations only — not past orders or pending ledger rows.",
@@ -3305,7 +3431,10 @@
     "activeNo": "Inactive",
     "delete": "Delete",
     "deleteConfirm": "Delete this category?",
-    "deleted": "Category deleted."
+    "deleted": "Category deleted.",
+    "parentCategory": "Parent category",
+    "parentColumn": "Parent",
+    "topLevel": "Top level"
   },
   "adminCatalogBanners": {
     "title": "Store banners",
@@ -3395,6 +3524,7 @@
   "adminVendors": {
     "title": "Vendors",
     "subtitle": "Approve stores after setup and KYC are complete. Unapproved stores stay hidden from the public catalog.",
+    "onboardingReviewLink": "Onboarding review",
     "backToDashboard": "Back to dashboard",
     "list": {
       "loading": "Loading…",
@@ -3764,7 +3894,9 @@
       "subject": "Subject",
       "document": "Document",
       "status": "Status",
-      "submitted": "Submitted"
+      "submitted": "Submitted",
+      "ibanLabel": "IBAN",
+      "expiryLabel": "Expiry"
     },
     "subjectTypes": {
       "CUSTOMER": "Customer",

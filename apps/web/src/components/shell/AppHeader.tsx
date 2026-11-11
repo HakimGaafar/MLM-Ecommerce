@@ -18,6 +18,8 @@ import { homePathForActiveRole } from "@/lib/active-role";
 import { getToastDict } from "@/lib/toast-messages";
 import ThemeToggle from "@/components/shell/ThemeToggle";
 import { BRAND_LOGO_PATH } from "@/lib/brand";
+import ar from "@/i8n/ar.json";
+import en from "@/i8n/en.json";
 
 type Locale = "en" | "ar";
 
@@ -263,7 +265,7 @@ export default function AppHeader({
               type="button"
               onClick={onMenuToggle}
               className="btn-press inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] lg:hidden"
-              aria-label="Menu"
+              aria-label={(locale === "ar" ? ar : en).siteNav.menu}
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
