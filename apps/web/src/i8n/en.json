@@ -346,6 +346,22 @@
     "next": "Next",
     "pageOf": "Page {page} of {total}"
   },
+  "legalPages": {
+    "version": "Version",
+    "draftNote": "Draft — pending official publication",
+    "publishedOn": "Published",
+    "otherPolicies": "Other policies",
+    "backHome": "Home",
+    "policyLabels": {
+      "about": "About us",
+      "terms": "Terms & Conditions",
+      "privacy": "Privacy",
+      "returns-policy": "Returns",
+      "shipping-policy": "Shipping",
+      "pricing-payment": "Pricing & Payment",
+      "cashback-referral": "Cashback & Referral"
+    }
+  },
   "siteFooter": {
     "tagline": "Multi-vendor marketplace with wallet, cashback, and affiliate rewards.",
     "essentialTitle": "Essential",
@@ -358,12 +374,14 @@
     "customerAccount": "Customer Account",
     "merchantAccount": "Merchant Account",
     "marketerAccount": "Marketer Account",
-    "about": "About us (soon)",
-    "privacy": "Privacy policy (soon)",
-    "terms": "Terms of service (soon)",
-    "helpTitle": "Helpful links",
-    "shippingPolicy": "Shipping policy (soon)",
-    "returnPolicy": "Return policy (soon)",
+    "about": "About us",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "helpTitle": "Policies",
+    "shippingPolicy": "Shipping",
+    "returnPolicy": "Returns",
+    "pricingPayment": "Pricing & payment",
+    "cashbackReferral": "Cashback & referral",
     "support": "Contact support via your order page",
     "followUs": "Follow us",
     "location": "Headquarters in Oman",

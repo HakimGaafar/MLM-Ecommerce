@@ -139,8 +139,16 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
     { href: "/contact", label: f.contact },
   ];
 
-  const accountLinks = [{ href: "/account/merchant", label: f.merchantAccount }];
+  const legalLinks = [
+    { href: "/about", label: f.about },
+    { href: "/terms", label: f.terms },
+    { href: "/privacy", label: f.privacy },
+    { href: "/returns-policy", label: f.returnPolicy },
+    { href: "/shipping-policy", label: f.shippingPolicy },
+    { href: "/pricing-payment", label: f.pricingPayment },
+  ];
 
+  const accountLinks = [{ href: "/account/merchant", label: f.merchantAccount }];
 
   return (
     <footer
@@ -210,6 +218,27 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
               >
                 {item.label}
               </Link>
+            ))}
+          </nav>
+
+          <nav
+            className="flex flex-wrap items-center gap-x-1 gap-y-2 text-xs lg:max-w-md lg:justify-end"
+            aria-label={f.helpTitle}
+          >
+            {legalLinks.map((item, i) => (
+              <span key={item.href} className="inline-flex items-center">
+                {i > 0 ? (
+                  <span className="mx-1 text-[var(--muted)] opacity-50" aria-hidden>
+                    ·
+                  </span>
+                ) : null}
+                <Link
+                  href={item.href}
+                  className="text-[color-mix(in_srgb,var(--foreground)_70%,var(--muted))] transition hover:text-[var(--primary)]"
+                >
+                  {item.label}
+                </Link>
+              </span>
             ))}
           </nav>
 

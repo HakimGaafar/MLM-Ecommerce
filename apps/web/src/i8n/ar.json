@@ -346,6 +346,22 @@
     "next": "التالي",
     "pageOf": "صفحة {page} من {total}"
   },
+  "legalPages": {
+    "version": "النسخة",
+    "draftNote": "مسودة — بانتظار النشر الرسمي",
+    "publishedOn": "نُشرت في",
+    "otherPolicies": "سياسات أخرى",
+    "backHome": "الرئيسية",
+    "policyLabels": {
+      "about": "من نحن",
+      "terms": "الشروط والأحكام",
+      "privacy": "الخصوصية",
+      "returns-policy": "الاسترجاع",
+      "shipping-policy": "الشحن",
+      "pricing-payment": "الأسعار والدفع",
+      "cashback-referral": "الكاش باك والإحالة"
+    }
+  },
   "siteFooter": {
     "tagline": "سوق متعدد البائعين مع محفظة واسترداد نقدي ومكافآت تسويق بالعمولة.",
     "essentialTitle": "أساسي",
@@ -358,12 +374,14 @@
     "customerAccount": "حساب العميل",
     "merchantAccount": "حساب التاجر",
     "marketerAccount": "حساب المسوق",
-    "about": "من نحن (قريبًا)",
-    "privacy": "سياسة الخصوصية (قريبًا)",
-    "terms": "شروط الخدمة (قريبًا)",
-    "helpTitle": "روابط مفيدة",
-    "shippingPolicy": "سياسة الشحن (قريبًا)",
-    "returnPolicy": "سياسة الإرجاع (قريبًا)",
+    "about": "من نحن",
+    "privacy": "الخصوصية",
+    "terms": "الشروط",
+    "helpTitle": "السياسات",
+    "shippingPolicy": "الشحن",
+    "returnPolicy": "الاسترجاع",
+    "pricingPayment": "الأسعار والدفع",
+    "cashbackReferral": "الكاش باك والإحالة",
     "support": "تواصل مع الدعم من صفحة طلبك",
     "followUs": "تابعنا",
     "location": "المقر الرئيسي في سلطنة عُمان",
