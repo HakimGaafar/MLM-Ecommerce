@@ -1,6 +1,7 @@
 import type { InvoiceDocumentType } from "@mlm/db";
 import {
   buildCommissionInvoiceRender,
+  buildPlatformSaleInvoiceRender,
   buildShippingInvoiceRender,
   buildVendorSaleInvoiceRender,
   getStoredInvoice,
@@ -60,6 +61,46 @@ export async function ensureVendorSaleInvoicePdf(
       orderId,
       vendorId,
       documentType: "VENDOR_SALE",
+      invoiceNo: render.invoiceNo,
+      storageKey: stored.storageKey,
+      fileUrl: stored.fileUrl,
+      subtotal: render.subtotal,
+      vatTotal: render.vatTotal,
+      totalAmount: render.totalAmount,
+    }));
+
+  await logInvoiceDownload(row.id, userId);
+  return { buffer, invoiceNo: render.invoiceNo, filename: fileName };
+}
+
+export async function ensurePlatformSaleInvoicePdf(
+  orderId: string,
+  vendorId: string,
+  userId: string,
+  _locale?: InvoicePdfLocale,
+): Promise<{ buffer: Buffer; invoiceNo: string; filename: string }> {
+  const locale = ACTIVE_INVOICE_LOCALE;
+  const existing = await getStoredInvoice(orderId, vendorId, "PLATFORM_SALE");
+  if (existing) {
+    const key = storageKeyFor(existing.invoiceNo);
+    const buffer = await readInvoicePdf(key);
+    if (buffer) {
+      await logInvoiceDownload(existing.id, userId);
+      return { buffer, invoiceNo: existing.invoiceNo, filename: storageFileName(existing.invoiceNo) };
+    }
+  }
+
+  const render = await buildPlatformSaleInvoiceRender(orderId, vendorId);
+  const buffer = await renderVendorSaleInvoicePdf(render, locale);
+  const fileName = storageFileName(render.invoiceNo);
+  const stored = await storeInvoicePdf(fileName, buffer);
+
+  const row =
+    existing ??
+    (await saveGeneratedInvoice({
+      orderId,
+      vendorId,
+      documentType: "PLATFORM_SALE",
       invoiceNo: render.invoiceNo,
       storageKey: stored.storageKey,
       fileUrl: stored.fileUrl,

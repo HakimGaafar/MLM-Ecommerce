@@ -175,6 +175,7 @@ export * from "./invoices/order-invoice.service";
 export * from "./invoices/market-invoice-issuer.service";
 export * from "./fx/fx-rate.service";
 export * from "./fx/sync-global-offer-omr.service";
+export * from "./invoices/order-invoicing-snapshot.service";
 export * from "./referral/referral-bind.service";
 export * from "./contact/contact-inquiry.service";
 export * from "./auth/password-reset.service";

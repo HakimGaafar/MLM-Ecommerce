@@ -255,6 +255,20 @@ export async function accrueVendorEarningsForCompletedOrder(orderId: string): Pr
     productEligible: number;
     merchandise: number;
   };
+  const invoicingSnapshots = await prisma.orderVendorInvoicing.findMany({
+    where: { orderId: order.id },
+    select: { vendorId: true, invoicingParty: true, commissionRate: true },
+  });
+  const invoicingByVendor = new Map(
+    invoicingSnapshots.map((row) => [
+      row.vendorId,
+      {
+        invoicingParty: row.invoicingParty as "MERCHANT" | "PLATFORM",
+        platformRate: Number(row.commissionRate),
+      },
+    ]),
+  );
+
   const crossVendors = new Map<string, CrossVendorAccrual>();
 
   await prisma.$transaction(async (tx) => {
@@ -267,13 +281,23 @@ export async function accrueVendorEarningsForCompletedOrder(orderId: string): Pr
         orderSubtotal,
         orderDiscountTotal,
       });
+      const snap = invoicingByVendor.get(item.vendorId);
       const split = resolveCommissionSplit({
         vendorPrimaryMarketId: item.vendor.primaryMarketId,
         orderMarketId: order.marketId,
         orderMarketCode: market?.code,
         config: platformConfig,
       });
-      const amountCharge = calculateVendorEarningAmount(vendorEligibleAmount, split.vendorRate);
+      // Prefer order-time snapshotted platform rate (Phase 5); derive vendor rate as complement.
+      const platformRate = snap?.platformRate ?? split.platformRate;
+      const vendorRate = Math.max(0, Math.round((1 - platformRate) * 1_000_000) / 1_000_000);
+      const commissionKind =
+        snap?.invoicingParty === "PLATFORM"
+          ? ("CROSS" as const)
+          : snap?.invoicingParty === "MERCHANT"
+            ? ("HOME" as const)
+            : split.kind;
+      const amountCharge = calculateVendorEarningAmount(vendorEligibleAmount, vendorRate);
       if (amountCharge <= 0) continue;
       const amount = toLedger(amountCharge);
 
@@ -298,15 +322,15 @@ export async function accrueVendorEarningsForCompletedOrder(orderId: string): Pr
         vendorName,
         vendorLineTotal: toLedger(vendorLineTotal),
         vendorEligibleAmount: toLedger(vendorEligibleAmount),
-        vendorRate: split.vendorRate,
+        vendorRate,
         orderItemId: item.id,
         unitLabel: item.unitLabel,
-        commissionKind: split.kind,
-        platformRate: split.platformRate,
+        commissionKind,
+        platformRate,
         orderCurrency,
       });
 
-      if (split.kind === "CROSS") {
+      if (commissionKind === "CROSS") {
         const prior = crossVendors.get(item.vendorId);
         if (prior) {
           prior.productEligible = roundMoney(prior.productEligible + vendorEligibleAmount);
@@ -317,8 +341,8 @@ export async function accrueVendorEarningsForCompletedOrder(orderId: string): Pr
             ownerUserId,
             vendorName,
             walletId: wallet.id,
-            vendorRate: split.vendorRate,
-            platformRate: split.platformRate,
+            vendorRate,
+            platformRate,
             productEligible: vendorEligibleAmount,
             merchandise: vendorLineTotal,
           });

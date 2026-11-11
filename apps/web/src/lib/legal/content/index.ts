@@ -3,6 +3,10 @@ import { applyAnnexPlaceholders, type MarketAnnexView } from "../annex";
 import type { PolicyDocument, PublicLegalLocale } from "../types";
 import { aboutPolicy } from "./about";
 import { cashbackReferralPolicy } from "./cashback-referral";
+import { merchantCommissionPolicy } from "./merchant-commission";
+import { merchantCooperationPolicy } from "./merchant-cooperation";
+import { merchantDataConfirmationPolicy } from "./merchant-data-confirmation";
+import { merchantOperationalPolicy } from "./merchant-operational";
 import { pricingPaymentPolicy } from "./pricing-payment";
 import { privacyPolicy } from "./privacy";
 import { returnsPolicy } from "./returns";
@@ -20,10 +24,10 @@ const BUNDLED_BY_TYPE: Record<
   SHIPPING: shippingPolicy,
   PRICING_PAYMENT: pricingPaymentPolicy,
   CASHBACK_REFERRAL: cashbackReferralPolicy,
-  MERCHANT_COOPERATION: undefined,
-  MERCHANT_OPERATIONAL: undefined,
-  MERCHANT_COMMISSION: undefined,
-  MERCHANT_DATA_CONFIRMATION: undefined,
+  MERCHANT_COOPERATION: merchantCooperationPolicy,
+  MERCHANT_OPERATIONAL: merchantOperationalPolicy,
+  MERCHANT_COMMISSION: merchantCommissionPolicy,
+  MERCHANT_DATA_CONFIRMATION: merchantDataConfirmationPolicy,
 };
 
 export function getBundledPolicyDocument(

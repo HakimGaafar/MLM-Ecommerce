@@ -6,7 +6,7 @@ import { downloadInvoicePdf } from "@/lib/invoices/download-invoice-pdf";
 type Locale = "en" | "ar";
 
 type InvoiceListItem = {
-  documentType?: "VENDOR_SALE" | "SHIPPING";
+  documentType?: "VENDOR_SALE" | "PLATFORM_SALE" | "SHIPPING";
   vendorId: string;
   vendorName: string;
   invoiceNo: string | null;
@@ -82,7 +82,9 @@ export default function OrderInvoiceTiles({
       const url =
         inv.documentType === "SHIPPING"
           ? `/api/v1/customer/orders/${orderId}/invoices/shipping`
-          : `/api/v1/customer/orders/${orderId}/invoices/${inv.vendorId}/vendor-sale`;
+          : inv.documentType === "PLATFORM_SALE"
+            ? `/api/v1/customer/orders/${orderId}/invoices/${inv.vendorId}/platform-sale`
+            : `/api/v1/customer/orders/${orderId}/invoices/${inv.vendorId}/vendor-sale`;
       await downloadInvoicePdf(url);
     } catch (e) {
       setError(e instanceof Error ? e.message : ui.downloadError);

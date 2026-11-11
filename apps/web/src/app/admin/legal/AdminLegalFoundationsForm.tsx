@@ -73,10 +73,13 @@ type Ui = {
   saveRefund: string;
   invoicingTitle: string;
   invoicingHint: string;
+  saveInvoicing: string;
   seller: string;
   buyer: string;
   party: string;
   commission: string;
+  partyMerchant: string;
+  partyPlatform: string;
   closedNote: string;
   causeLabels: Record<string, string>;
   payerLabels: Record<string, string>;
@@ -212,6 +215,40 @@ export default function AdminLegalFoundationsForm({ locale, ui }: { locale: Loca
       const data = (await res.json().catch(() => null)) as { rules?: RefundRule[]; error?: string } | null;
       if (!res.ok) throw new Error(data?.error ?? ui.saveError);
       if (data?.rules) setRefundRules(data.rules);
+      toast.success(ui.saved);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : ui.saveError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveInvoicingRule(rule: InvoicingRule) {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/v1/admin/invoicing-rules", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sellerMarketCode: rule.sellerMarketCode,
+          buyerMarketCode: rule.buyerMarketCode,
+          invoicingParty: rule.invoicingParty,
+          commissionPercent: rule.commissionPercent,
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as { rule?: InvoicingRule; error?: string } | null;
+      if (!res.ok) throw new Error(data?.error ?? ui.saveError);
+      if (data?.rule) {
+        setInvoicingRules((prev) =>
+          prev.map((row) =>
+            row.sellerMarketCode === data.rule!.sellerMarketCode &&
+            row.buyerMarketCode === data.rule!.buyerMarketCode
+              ? data.rule!
+              : row,
+          ),
+        );
+      }
       toast.success(ui.saved);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : ui.saveError);
@@ -462,26 +499,79 @@ export default function AdminLegalFoundationsForm({ locale, ui }: { locale: Loca
           <p className="mt-1 text-sm text-[var(--muted)]">{ui.invoicingHint}</p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[32rem] text-left text-sm">
+          <table className="w-full min-w-[40rem] text-left text-sm">
             <thead className="text-[var(--muted)]">
               <tr>
                 <th className="py-2 pr-3 font-medium">{ui.seller}</th>
                 <th className="py-2 pr-3 font-medium">{ui.buyer}</th>
                 <th className="py-2 pr-3 font-medium">{ui.party}</th>
-                <th className="py-2 font-medium">{ui.commission}</th>
+                <th className="py-2 pr-3 font-medium">{ui.commission}</th>
+                <th className="py-2 font-medium" />
               </tr>
             </thead>
             <tbody>
-              {invoicingRules.map((rule) => (
-                <tr key={`${rule.sellerMarketCode}-${rule.buyerMarketCode}`} className="border-t border-[var(--border)]">
-                  <td className="py-2 pr-3">{rule.sellerMarketCode}</td>
-                  <td className="py-2 pr-3">{rule.buyerMarketCode}</td>
-                  <td className="py-2 pr-3">{rule.invoicingParty}</td>
-                  <td className="py-2">
-                    {rule.commissionPercent != null ? `${rule.commissionPercent}%` : "—"}
-                  </td>
-                </tr>
-              ))}
+              {invoicingRules.map((rule) => {
+                const key = `${rule.sellerMarketCode}-${rule.buyerMarketCode}`;
+                return (
+                  <tr key={key} className="border-t border-[var(--border)]">
+                    <td className="py-2 pr-3 align-middle">{rule.sellerMarketCode}</td>
+                    <td className="py-2 pr-3 align-middle">{rule.buyerMarketCode}</td>
+                    <td className="py-2 pr-3 align-middle">
+                      <select
+                        className="app-input"
+                        value={rule.invoicingParty}
+                        onChange={(e) => {
+                          const invoicingParty = e.target.value as "MERCHANT" | "PLATFORM";
+                          setInvoicingRules((prev) =>
+                            prev.map((row) =>
+                              row.sellerMarketCode === rule.sellerMarketCode &&
+                              row.buyerMarketCode === rule.buyerMarketCode
+                                ? { ...row, invoicingParty }
+                                : row,
+                            ),
+                          );
+                        }}
+                      >
+                        <option value="MERCHANT">{ui.partyMerchant ?? "Merchant → customer"}</option>
+                        <option value="PLATFORM">{ui.partyPlatform ?? "Platform → customer"}</option>
+                      </select>
+                    </td>
+                    <td className="py-2 pr-3 align-middle">
+                      <input
+                        className="app-input w-24"
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        value={rule.commissionPercent ?? ""}
+                        placeholder="—"
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const commissionPercent = raw === "" ? null : Number(raw);
+                          setInvoicingRules((prev) =>
+                            prev.map((row) =>
+                              row.sellerMarketCode === rule.sellerMarketCode &&
+                              row.buyerMarketCode === rule.buyerMarketCode
+                                ? { ...row, commissionPercent }
+                                : row,
+                            ),
+                          );
+                        }}
+                      />
+                    </td>
+                    <td className="py-2 align-middle">
+                      <button
+                        type="button"
+                        className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium disabled:opacity-60"
+                        disabled={saving}
+                        onClick={() => void saveInvoicingRule(rule)}
+                      >
+                        {saving ? ui.saving : ui.saveInvoicing ?? "Save"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

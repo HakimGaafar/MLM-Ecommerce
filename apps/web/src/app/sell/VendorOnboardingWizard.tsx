@@ -18,6 +18,7 @@ import {
   type AddressCountryCode,
   type LegalDocumentType,
 } from "@mlm/shared";
+import { getBundledPolicyDocument } from "@/lib/legal/content";
 
 const AddressMapPicker = dynamic(() => import("@/components/address/AddressMapPicker"), {
   ssr: false,
@@ -523,35 +524,69 @@ export default function VendorOnboardingWizard({
             <input type="checkbox" checked={acceptCommissionTerms} onChange={(e) => setAcceptCommissionTerms(e.target.checked)} className="mt-1" />
             <span>{ui.acceptCommissionTerms ?? "I accept the marketplace commission terms"}</span>
           </label>
-          <div className="space-y-2 rounded-lg border border-[var(--border)] p-3">
+          <div className="space-y-3 rounded-lg border border-[var(--border)] p-3">
             <p className="text-xs font-medium text-[var(--muted)]">
               {ui.acceptAllPolicies ?? "Accept all policies to continue (account stays inactive until complete)."}
+            </p>
+            <p className="text-xs text-[var(--muted)]">
+              {ui.readPoliciesHint ?? "Read each document (expand or open full page), then tick to accept."}
             </p>
             {MERCHANT_REGISTRATION_DOCUMENT_TYPES.map((doc) => {
               const title = LEGAL_DOCUMENT_TITLES[doc as LegalDocumentType];
               const label = locale === "ar" ? title.ar : title.en;
+              const preview = getBundledPolicyDocument(doc as LegalDocumentType, locale);
+              const previewSections = preview?.sections.slice(0, 2) ?? [];
               return (
-                <label key={doc} className="flex cursor-pointer items-start gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="mt-1"
-                    checked={acceptedDocs[doc] === true}
-                    onChange={(e) =>
-                      setAcceptedDocs((prev) => ({ ...prev, [doc]: e.target.checked }))
-                    }
-                  />
-                  <span>
-                    {ui.acceptPrefix ?? "I agree to"}{" "}
-                    <a
-                      href={legalDocumentHref(doc as LegalDocumentType)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-link underline"
-                    >
-                      {label}
-                    </a>
-                  </span>
-                </label>
+                <div key={doc} className="space-y-2 rounded-md border border-[var(--border)]/70 p-2">
+                  {previewSections.length > 0 ? (
+                    <details className="text-sm">
+                      <summary className="cursor-pointer font-medium text-[var(--foreground)]">
+                        {ui.readDocument ?? "Read"}: {label}
+                      </summary>
+                      <div className="mt-2 max-h-48 space-y-2 overflow-y-auto text-xs leading-5 text-[var(--muted)]">
+                        {previewSections.map((section) => (
+                          <div key={section.id}>
+                            {section.heading ? (
+                              <p className="font-semibold text-[var(--foreground)]">{section.heading}</p>
+                            ) : null}
+                            {section.paragraphs?.map((p, idx) => (
+                              <p key={`${section.id}-${idx}`}>{p}</p>
+                            ))}
+                          </div>
+                        ))}
+                        <a
+                          href={legalDocumentHref(doc as LegalDocumentType)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-link underline"
+                        >
+                          {ui.openFullDocument ?? "Open full document"}
+                        </a>
+                      </div>
+                    </details>
+                  ) : null}
+                  <label className="flex cursor-pointer items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={acceptedDocs[doc] === true}
+                      onChange={(e) =>
+                        setAcceptedDocs((prev) => ({ ...prev, [doc]: e.target.checked }))
+                      }
+                    />
+                    <span>
+                      {ui.acceptPrefix ?? "I agree to"}{" "}
+                      <a
+                        href={legalDocumentHref(doc as LegalDocumentType)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-link underline"
+                      >
+                        {label}
+                      </a>
+                    </span>
+                  </label>
+                </div>
               );
             })}
           </div>

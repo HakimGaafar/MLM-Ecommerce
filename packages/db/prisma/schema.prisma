@@ -211,6 +211,10 @@ enum OrderVendorCancellationStatus {
 
 enum InvoiceDocumentType {
   VENDOR_SALE
+  /// Cross / International: Representative Company invoices the customer.
+  PLATFORM_SALE
+  /// Cross / International: Merchant invoices the platform for supply.
+  MERCHANT_SUPPLY
   COMMISSION
   SHIPPING
 }
@@ -462,6 +466,7 @@ model Order {
   coupon                   Coupon?           @relation(fields: [couponId], references: [id], onDelete: SetNull)
   couponApplications       OrderCouponApplication[]
   vendorShippingLines      OrderVendorShipping[]
+  vendorInvoicing          OrderVendorInvoicing[]
   items                    OrderItem[]
   returns                  OrderReturn[]
   invoices                 OrderInvoice[]
@@ -719,6 +724,7 @@ model Vendor {
   shippingAuditLogs       VendorShippingAuditLog[]
   productEditRequests     ProductEditRequest[]
   orderVendorShipping     OrderVendorShipping[]
+  orderVendorInvoicing    OrderVendorInvoicing[]
   members                 VendorMember[]
   bills                   VendorBill[]
   orderInvoices           OrderInvoice[]
@@ -1790,6 +1796,25 @@ model MarketInvoicingRule {
   @@unique([sellerMarketId, buyerMarketId])
   @@index([buyerMarketId])
   @@map("market_invoicing_rules")
+}
+
+/// Phase 5 — per-vendor invoicing party + commission rate locked at order create.
+model OrderVendorInvoicing {
+  id              String         @id @default(cuid())
+  orderId         String         @map("order_id")
+  vendorId        String         @map("vendor_id")
+  sellerMarketId  String         @map("seller_market_id")
+  buyerMarketId   String         @map("buyer_market_id")
+  invoicingParty  InvoicingParty @map("invoicing_party")
+  commissionRate  Decimal        @map("commission_rate") @db.Decimal(8, 6)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  vendor          Vendor         @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, vendorId])
+  @@index([vendorId])
+  @@index([orderId, invoicingParty])
+  @@map("order_vendor_invoicing")
 }
 
 enum RefundFeeCause {

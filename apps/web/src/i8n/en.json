@@ -355,7 +355,7 @@
     "version": "Version",
     "backToSell": "Back to sell",
     "intro": "By ticking this policy during merchant registration, you accept the current market version on record.",
-    "phaseNote": "Full contract text is published with the merchant contract pack. Until then, acceptance is recorded against this document version for your market."
+    "phaseNote": "Full merchant contract text is shown below for this market version."
   },
   "legalPages": {
     "version": "Version",
@@ -597,6 +597,9 @@
     "shortBusinessNote": "Short business note (optional)",
     "acceptCommissionTerms": "I accept the marketplace commission terms",
     "acceptAllPolicies": "Accept all policies to continue (account stays inactive until complete).",
+    "readPoliciesHint": "Read each document (expand or open full page), then tick to accept.",
+    "readDocument": "Read",
+    "openFullDocument": "Open full document",
     "acceptPrefix": "I agree to",
     "fullNameEn": "Full name (English)",
     "fullNameOther": "Full name (other language)",
@@ -2852,7 +2855,10 @@
       "refundHint": "Who pays gateway fees on refund. Shown to customers on the returns policy before purchase.",
       "saveRefund": "Save refund rules",
       "invoicingTitle": "Invoicing party (seller × buyer market)",
-      "invoicingHint": "Same market → merchant invoices customer (5%). Cross-market / International → platform invoices customer (10%). Editable later via API.",
+      "invoicingHint": "Same market → merchant invoices customer (5%). Cross-market / International → platform invoices customer (10%). Changes apply to new orders only.",
+      "saveInvoicing": "Save row",
+      "partyMerchant": "Merchant → customer",
+      "partyPlatform": "Platform → customer",
       "seller": "Seller market",
       "buyer": "Buyer market",
       "party": "Invoices customer",

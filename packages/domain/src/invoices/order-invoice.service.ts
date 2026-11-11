@@ -39,7 +39,7 @@ export type InvoiceLineDto = {
 };
 
 export type VendorSaleInvoiceRenderDto = {
-  documentType: "VENDOR_SALE";
+  documentType: "VENDOR_SALE" | "PLATFORM_SALE";
   invoiceNo: string;
   orderNo: string;
   issuedAt: string;
@@ -142,7 +142,7 @@ export type CommissionInvoiceRenderDto = {
 };
 
 export type CustomerOrderInvoiceListItemDto = {
-  documentType: "VENDOR_SALE" | "SHIPPING";
+  documentType: "VENDOR_SALE" | "PLATFORM_SALE" | "SHIPPING";
   vendorId: string;
   vendorName: string;
   invoiceNo: string | null;
@@ -224,15 +224,25 @@ export async function listCustomerOrderInvoices(
 
   const gateOpen = await assertInvoiceGate(orderId);
   const vendorIds = [...new Set(order.items.map((i) => i.vendorId))];
+  const invoicingRows = await prisma.orderVendorInvoicing.findMany({
+    where: { orderId },
+    select: { vendorId: true, invoicingParty: true },
+  });
+  const partyByVendor = new Map(
+    invoicingRows.map((row) => [row.vendorId, row.invoicingParty as "MERCHANT" | "PLATFORM"]),
+  );
   const existing = await prisma.orderInvoice.findMany({
     where: {
       orderId,
-      documentType: { in: ["VENDOR_SALE", "SHIPPING"] },
+      documentType: { in: ["VENDOR_SALE", "PLATFORM_SALE", "SHIPPING"] },
     },
     select: { vendorId: true, invoiceNo: true, documentType: true },
   });
-  const byVendor = new Map(
+  const byVendorSale = new Map(
     existing.filter((r) => r.documentType === "VENDOR_SALE").map((r) => [r.vendorId, r.invoiceNo]),
+  );
+  const byVendorPlatform = new Map(
+    existing.filter((r) => r.documentType === "PLATFORM_SALE").map((r) => [r.vendorId, r.invoiceNo]),
   );
   const shippingExisting = existing.find((r) => r.documentType === "SHIPPING");
 
@@ -266,11 +276,23 @@ export async function listCustomerOrderInvoices(
       order.items.find((i) => i.vendorId === vendorId)?.vendorNameSnapshot ?? vendor?.storeName ?? "Vendor";
     const profile = vendor ? resolveVendorInvoiceProfile(vendor) : null;
     const hasLines = activeVendorItems(order.items, vendorId).length > 0;
+    const party = partyByVendor.get(vendorId) ?? "MERCHANT";
+    if (party === "PLATFORM") {
+      return {
+        documentType: "PLATFORM_SALE" as const,
+        vendorId,
+        vendorName: name,
+        invoiceNo: byVendorPlatform.get(vendorId) ?? null,
+        // Platform sale uses market issuer profile (always treated complete once gate is open).
+        available: gateOpen && hasLines,
+        profileComplete: true,
+      };
+    }
     return {
       documentType: "VENDOR_SALE" as const,
       vendorId,
       vendorName: name,
-      invoiceNo: byVendor.get(vendorId) ?? null,
+      invoiceNo: byVendorSale.get(vendorId) ?? null,
       available: gateOpen && hasLines && Boolean(profile?.complete),
       profileComplete: Boolean(profile?.complete),
     };
@@ -401,6 +423,100 @@ export async function buildVendorSaleInvoiceRender(
   };
 }
 
+/** Cross / International: Representative Company invoices the customer for a vendor's lines. */
+export async function buildPlatformSaleInvoiceRender(
+  orderId: string,
+  vendorId: string,
+): Promise<VendorSaleInvoiceRenderDto> {
+  const order = await loadOrder(orderId);
+  if (!order) throw new OrderInvoiceError("NOT_FOUND", "Order not found.");
+
+  await requireInvoiceAccess(orderId);
+
+  const snap = await prisma.orderVendorInvoicing.findUnique({
+    where: { orderId_vendorId: { orderId, vendorId } },
+    select: { invoicingParty: true },
+  });
+  if (snap && snap.invoicingParty !== "PLATFORM") {
+    throw new OrderInvoiceError("FORBIDDEN", "This vendor is billed as merchant→customer on this order.");
+  }
+
+  const issuer = await getMarketInvoiceIssuer(order.marketId);
+
+  const lines = activeVendorItems(order.items, vendorId);
+  if (lines.length === 0) throw new OrderInvoiceError("NO_LINES", "No billable items for this vendor.");
+
+  const vatRate =
+    issuer.vatRegistered && issuer.vatPercent > 0 ? issuer.vatPercent / 100 : 0;
+
+  const directShip = await prisma.orderVendorShipping.findFirst({
+    where: { orderId, vendorId, fulfillmentType: "DIRECT" },
+    select: { fee: true },
+  });
+  const vendorDirectShippingFee = directShip ? Number(directShip.fee) : 0;
+
+  const totals = calculateVendorSaleInvoiceTotals({
+    vendorId,
+    items: order.items,
+    orderSubtotal: Number(order.subtotal),
+    orderDiscountTotal: Number(order.discountTotal),
+    orderShippingFee: vendorDirectShippingFee,
+    orderVatTotal: 0,
+    vatRate,
+  });
+  if (!totals) throw new OrderInvoiceError("NO_LINES", "No billable amount for this vendor.");
+
+  const existing = await prisma.orderInvoice.findUnique({
+    where: { orderId_vendorId_documentType: { orderId, vendorId, documentType: "PLATFORM_SALE" } },
+    select: { invoiceNo: true, generatedAt: true },
+  });
+
+  const invoiceNo =
+    existing?.invoiceNo ??
+    (await allocateInvoiceSerial({
+      issuerKey: `platform-sale:${order.marketId}`,
+      prefix: `PS-${order.market.defaultCurrency}`,
+    }));
+  const issuedAt = (existing?.generatedAt ?? new Date()).toISOString();
+  const platform = getPlatformInvoiceEntity();
+
+  return {
+    documentType: "PLATFORM_SALE",
+    invoiceNo,
+    orderNo: order.orderNo,
+    issuedAt,
+    currency: issuer.currency || order.market.defaultCurrency,
+    platformLogoUrl: platform.logoUrl,
+    seller: {
+      legalName: issuer.legalName,
+      vatTrn: issuer.vatTrn,
+      logoUrl: issuer.logoUrl,
+      addressLine1: issuer.addressLine1,
+      addressLine2: issuer.addressLine2 ?? null,
+      city: issuer.city,
+      postalCode: issuer.postalCode,
+      countryCode: issuer.countryCode,
+    },
+    buyer: {
+      name: order.buyer.name,
+      email: order.buyer.email,
+      addressLine1: order.shippingAddressLine1,
+      addressLine2: order.shippingAddressLine2,
+      city: order.shippingCity,
+      postalCode: order.shippingPostalCode,
+      countryCode: order.shippingCountryCode,
+      phone: order.shippingPhone,
+    },
+    lines: mapLines(lines),
+    subtotal: totals.subtotal.toFixed(2),
+    discountShare: totals.discountShare.toFixed(2),
+    shippingShare: totals.shippingShare.toFixed(2),
+    vatTotal: totals.vatTotal.toFixed(2),
+    totalAmount: totals.totalAmount.toFixed(2),
+    vatPercent: Math.round(vatRate * 10000) / 100,
+  };
+}
+
 export async function buildCommissionInvoiceRender(
   orderId: string,
   vendorId: string,
@@ -426,12 +542,17 @@ export async function buildCommissionInvoiceRender(
     orderMarketCode: order.market.code,
     config: platformConfig,
   });
+  const snap = await prisma.orderVendorInvoicing.findUnique({
+    where: { orderId_vendorId: { orderId, vendorId } },
+    select: { commissionRate: true },
+  });
+  const platformRate = snap?.commissionRate != null ? Number(snap.commissionRate) : split.platformRate;
   const totals = calculateCommissionInvoiceTotals({
     vendorId,
     items: order.items,
     orderSubtotal: Number(order.subtotal),
     orderDiscountTotal: Number(order.discountTotal),
-    platformRate: split.platformRate,
+    platformRate,
     vatRate: platformConfig.vatRate,
   });
   if (!totals) throw new OrderInvoiceError("NO_LINES", "No commission for this vendor on this order.");

@@ -1134,6 +1134,18 @@ export async function createOrderFromCart(
       select: { id: true, orderNo: true, totalAmount: true },
     });
 
+    const vendorIds = [...new Set(prepared.map((line) => line.vendorId))];
+    const { snapshotOrderVendorInvoicing } = await import(
+      "../invoices/order-invoicing-snapshot.service"
+    );
+    await snapshotOrderVendorInvoicing({
+      orderId: order.id,
+      buyerMarketId: marketId,
+      buyerMarketCode: marketRow?.code ?? null,
+      vendorIds,
+      tx,
+    });
+
     if (walletRequested && walletApplied.gt(0)) {
       const walletDebitLedger =
         currencyPlan.chargeCurrency === currencyPlan.ledgerCurrency
