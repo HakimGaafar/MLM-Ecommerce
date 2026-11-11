@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
       input: parsed.data,
       marketId: market.id,
       remoteIp: ip,
+      userAgent: request.headers.get("user-agent"),
     });
 
     const [roleRows, userRow] = await Promise.all([

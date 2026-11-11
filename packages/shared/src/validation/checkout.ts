@@ -57,8 +57,12 @@ export const CheckoutPostSchema = z
     couponCode: CheckoutCouponCodeSchema.optional(),
     couponCodes: CheckoutCouponCodesSchema.optional(),
     useWalletBalance: z.boolean().optional(),
-    /** Accept FX / transfer / customs risk (cross-market settlement). */
+    /** Accept FX / export / customs risk (cross-market settlement). */
     settlementRiskAccepted: z.boolean().optional(),
+    /** Phase 3 — policy acceptances at checkout. */
+    acceptTerms: z.literal(true),
+    acceptReturns: z.literal(true),
+    acceptShipping: z.literal(true),
   })
   .merge(CheckoutCompanySchema);
 

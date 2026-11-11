@@ -25,17 +25,68 @@ export const PUBLIC_LEGAL_DOCUMENT_TYPES = [
   "CASHBACK_REFERRAL",
 ] as const satisfies readonly LegalDocumentType[];
 
-export const MERCHANT_LEGAL_DOCUMENT_TYPES = [
+/** Nine merchant registration checkboxes (order matters for UI). */
+export const MERCHANT_REGISTRATION_DOCUMENT_TYPES = [
   "MERCHANT_COOPERATION",
   "MERCHANT_OPERATIONAL",
   "MERCHANT_COMMISSION",
-  "MERCHANT_DATA_CONFIRMATION",
   "TERMS",
   "PRIVACY",
   "RETURNS",
   "SHIPPING",
   "PRICING_PAYMENT",
+  "MERCHANT_DATA_CONFIRMATION",
 ] as const satisfies readonly LegalDocumentType[];
+
+/** @deprecated Prefer MERCHANT_REGISTRATION_DOCUMENT_TYPES */
+export const MERCHANT_LEGAL_DOCUMENT_TYPES = MERCHANT_REGISTRATION_DOCUMENT_TYPES;
+
+export const CUSTOMER_SIGNUP_DOCUMENT_TYPES = ["TERMS", "PRIVACY"] as const satisfies readonly LegalDocumentType[];
+
+export const CUSTOMER_CHECKOUT_DOCUMENT_TYPES = [
+  "TERMS",
+  "RETURNS",
+  "SHIPPING",
+] as const satisfies readonly LegalDocumentType[];
+
+export const CONSENT_CONTEXTS = [
+  "CUSTOMER_SIGNUP",
+  "CUSTOMER_CHECKOUT",
+  "VENDOR_ONBOARDING",
+  "MARKET_REACCEPT",
+] as const;
+
+export type ConsentContext = (typeof CONSENT_CONTEXTS)[number];
+
+/** Public or merchant-policy URL path for a document type (for checkbox links). */
+export function legalDocumentHref(documentType: LegalDocumentType): string {
+  switch (documentType) {
+    case "ABOUT":
+      return "/about";
+    case "TERMS":
+      return "/terms";
+    case "PRIVACY":
+      return "/privacy";
+    case "RETURNS":
+      return "/returns-policy";
+    case "SHIPPING":
+      return "/shipping-policy";
+    case "PRICING_PAYMENT":
+      return "/pricing-payment";
+    case "CASHBACK_REFERRAL":
+      return "/cashback-referral";
+    case "MERCHANT_COOPERATION":
+      return "/merchant-policies/cooperation";
+    case "MERCHANT_OPERATIONAL":
+      return "/merchant-policies/operational";
+    case "MERCHANT_COMMISSION":
+      return "/merchant-policies/commission";
+    case "MERCHANT_DATA_CONFIRMATION":
+      return "/merchant-policies/data-confirmation";
+    default:
+      return "/terms";
+  }
+}
 
 export const LEGAL_DOCUMENT_TITLES: Record<
   LegalDocumentType,

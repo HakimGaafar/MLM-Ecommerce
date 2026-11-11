@@ -83,6 +83,12 @@ export async function createStripeCheckoutSession(
       "Accept FX, transfer fee, and customs risk terms to continue checkout.",
     );
   }
+  if (input.acceptTerms !== true || input.acceptReturns !== true || input.acceptShipping !== true) {
+    throw new CheckoutError(
+      "POLICY_CONSENT_REQUIRED",
+      "Accept Terms, Returns, and Shipping policies to continue checkout.",
+    );
+  }
 
   const stripe = getStripeClient();
   const base = appBaseUrl(options.appBaseUrl);

@@ -151,6 +151,14 @@ type CheckoutUi = {
   settlementRiskCheckbox?: string;
   settlementRiskHint?: string;
   settlementRiskRequired?: string;
+  policyConsentTitle?: string;
+  acceptTermsPrefix?: string;
+  acceptTermsLink?: string;
+  acceptReturnsPrefix?: string;
+  acceptReturnsLink?: string;
+  acceptShippingPrefix?: string;
+  acceptShippingLink?: string;
+  policyConsentRequired?: string;
   gatewayPickerTitle: string;
   gatewayPickerSubtitle: string;
   gatewayStripe: string;
@@ -252,6 +260,9 @@ export default function CheckoutView({
   const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
   const [buyingForCompany, setBuyingForCompany] = useState(false);
   const [settlementRiskAccepted, setSettlementRiskAccepted] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptReturns, setAcceptReturns] = useState(false);
+  const [acceptShipping, setAcceptShipping] = useState(false);
   const [companyName, setCompanyName] = useState("");
   const [companyTaxId, setCompanyTaxId] = useState("");
   const [companyCrNumber, setCompanyCrNumber] = useState("");
@@ -422,6 +433,9 @@ export default function CheckoutView({
       companyHqCity?: string;
       companyHqCountryCode?: string;
       settlementRiskAccepted?: boolean;
+      acceptTerms?: true;
+      acceptReturns?: true;
+      acceptShipping?: true;
     } = { idempotencyKey };
     if (quote?.shippingAddresses?.length && selectedShippingAddressId) {
       body.shippingAddressId = selectedShippingAddressId;
@@ -444,6 +458,9 @@ export default function CheckoutView({
     if (settlementRiskAccepted) {
       body.settlementRiskAccepted = true;
     }
+    if (acceptTerms) body.acceptTerms = true;
+    if (acceptReturns) body.acceptReturns = true;
+    if (acceptShipping) body.acceptShipping = true;
     return body;
   }
 
@@ -566,6 +583,7 @@ export default function CheckoutView({
   const cartDeliveryOk = (quote?.deliveryIssues?.length ?? 0) === 0;
   const b2bOk = !buyingForCompany || companyName.trim().length > 0;
   const settlementRiskOk = settlementRiskAccepted;
+  const policyConsentOk = acceptTerms && acceptReturns && acceptShipping;
   const canSubmit =
     profileOk &&
     addressOk &&
@@ -574,6 +592,7 @@ export default function CheckoutView({
     cartDeliveryOk &&
     b2bOk &&
     settlementRiskOk &&
+    policyConsentOk &&
     !submitting &&
     !applyingCoupon;
 
@@ -928,6 +947,59 @@ export default function CheckoutView({
               </p>
             ) : null}
           </div>
+        ) : null}
+      </section>
+
+      <section className="app-card space-y-3 p-4">
+        <h2 className="text-sm font-semibold text-[var(--foreground)]">
+          {ui.policyConsentTitle ?? "Policies"}
+        </h2>
+        <label className="flex cursor-pointer items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={acceptTerms}
+            onChange={(e) => setAcceptTerms(e.target.checked)}
+          />
+          <span>
+            {ui.acceptTermsPrefix ?? "I agree to the"}{" "}
+            <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-link underline">
+              {ui.acceptTermsLink ?? "Terms & Conditions"}
+            </a>
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={acceptReturns}
+            onChange={(e) => setAcceptReturns(e.target.checked)}
+          />
+          <span>
+            {ui.acceptReturnsPrefix ?? "I agree to the"}{" "}
+            <a href="/returns-policy" target="_blank" rel="noopener noreferrer" className="text-link underline">
+              {ui.acceptReturnsLink ?? "Returns policy"}
+            </a>
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={acceptShipping}
+            onChange={(e) => setAcceptShipping(e.target.checked)}
+          />
+          <span>
+            {ui.acceptShippingPrefix ?? "I agree to the"}{" "}
+            <a href="/shipping-policy" target="_blank" rel="noopener noreferrer" className="text-link underline">
+              {ui.acceptShippingLink ?? "Shipping policy"}
+            </a>
+          </span>
+        </label>
+        {!policyConsentOk ? (
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            {ui.policyConsentRequired ?? "Accept Terms, Returns, and Shipping to continue."}
+          </p>
         ) : null}
       </section>
 

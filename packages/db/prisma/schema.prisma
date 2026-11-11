@@ -406,6 +406,7 @@ model User {
   passwordResetAudits              PasswordResetAuditLog[]
   otpChallenges                    OtpChallenge[]
   wishlistItems                    WishlistItem[]
+  consentRecords                   ConsentRecord[]
 
   @@index([lastLoginAt])
   @@map("users")
@@ -1602,6 +1603,7 @@ model Market {
   refundFeeRules  RefundFeeRule[]
   sellerInvoicingRules MarketInvoicingRule[] @relation("InvoicingSellerMarket")
   buyerInvoicingRules  MarketInvoicingRule[] @relation("InvoicingBuyerMarket")
+  consentRecords  ConsentRecord[]
 
   @@map("markets")
 }
@@ -1820,6 +1822,36 @@ model PlatformConfigChangeLog {
 
   @@index([marketId, createdAt])
   @@map("platform_config_change_logs")
+}
+
+enum ConsentContext {
+  CUSTOMER_SIGNUP
+  CUSTOMER_CHECKOUT
+  VENDOR_ONBOARDING
+  MARKET_REACCEPT
+}
+
+/// Immutable audit row for each policy acceptance (Phase 3 consent ledger).
+model ConsentRecord {
+  id             String            @id @default(cuid())
+  userId         String            @map("user_id")
+  marketId       String            @map("market_id")
+  documentType   LegalDocumentType @map("document_type")
+  policyVersion  String            @map("policy_version") @db.VarChar(32)
+  context        ConsentContext
+  vendorId       String?           @map("vendor_id")
+  orderId        String?           @map("order_id")
+  ipAddress      String?           @map("ip_address") @db.VarChar(64)
+  userAgent      String?           @map("user_agent") @db.VarChar(512)
+  acceptedAt     DateTime          @default(now()) @map("accepted_at")
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  market         Market            @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@index([userId, context, acceptedAt])
+  @@index([marketId, documentType, acceptedAt])
+  @@index([vendorId, acceptedAt])
+  @@index([orderId])
+  @@map("consent_records")
 }
 
 /// Manual FX rates for cross-currency vendor settlement (Phase 4).

@@ -73,11 +73,29 @@ export async function startVendorOnboardingAccount(params: {
   input: VendorOnboardingAccountInput;
   marketId: string;
   remoteIp?: string | null;
+  userAgent?: string | null;
 }) {
   await verifyTurnstileToken({
     token: params.input.turnstileToken,
     remoteIp: params.remoteIp,
   });
+
+  const {
+    assertRequiredDocumentTypesAccepted,
+    recordCurrentPolicyConsents,
+    MERCHANT_REGISTRATION_DOCUMENT_TYPES,
+  } = await import("../legal/consent-ledger.service");
+  try {
+    assertRequiredDocumentTypesAccepted({
+      acceptedTypes: params.input.acceptedDocumentTypes as never[],
+      requiredTypes: MERCHANT_REGISTRATION_DOCUMENT_TYPES,
+    });
+  } catch (e) {
+    if (e instanceof Error && e.message === "CONSENT_REQUIRED") {
+      throw new SellerOnboardError("VALIDATION", "Accept all merchant registration policies to continue.");
+    }
+    throw e;
+  }
 
   let slug = slugifyStoreName(params.input.storeName);
   if (slug.length < 3) slug = `store-${Date.now().toString(36)}`.slice(0, 48);
@@ -117,6 +135,16 @@ export async function startVendorOnboardingAccount(params: {
     },
   });
 
+  await recordCurrentPolicyConsents({
+    userId: result.userId,
+    marketId: params.marketId,
+    context: "VENDOR_ONBOARDING",
+    documentTypes: MERCHANT_REGISTRATION_DOCUMENT_TYPES,
+    vendorId: result.vendorId,
+    ipAddress: params.remoteIp,
+    userAgent: params.userAgent,
+  });
+
   return result;
 }
 
@@ -130,7 +158,27 @@ export async function startVendorOnboardingForExistingUser(params: {
   repNameOther?: string;
   shortBusinessNote?: string;
   acceptCommissionTerms: true;
+  acceptedDocumentTypes: string[];
+  remoteIp?: string | null;
+  userAgent?: string | null;
 }) {
+  const {
+    assertRequiredDocumentTypesAccepted,
+    recordCurrentPolicyConsents,
+    MERCHANT_REGISTRATION_DOCUMENT_TYPES,
+  } = await import("../legal/consent-ledger.service");
+  try {
+    assertRequiredDocumentTypesAccepted({
+      acceptedTypes: params.acceptedDocumentTypes as never[],
+      requiredTypes: MERCHANT_REGISTRATION_DOCUMENT_TYPES,
+    });
+  } catch (e) {
+    if (e instanceof Error && e.message === "CONSENT_REQUIRED") {
+      throw new SellerOnboardError("VALIDATION", "Accept all merchant registration policies to continue.");
+    }
+    throw e;
+  }
+
   let slug = slugifyStoreName(params.storeName);
   if (slug.length < 3) slug = `store-${Date.now().toString(36)}`.slice(0, 48);
 
@@ -161,6 +209,16 @@ export async function startVendorOnboardingForExistingUser(params: {
       commissionTermsAcceptedAt: new Date(),
       primaryMarketId: primaryMarketIdFromCountry("SA"),
     },
+  });
+
+  await recordCurrentPolicyConsents({
+    userId: params.userId,
+    marketId: params.marketId,
+    context: "VENDOR_ONBOARDING",
+    documentTypes: MERCHANT_REGISTRATION_DOCUMENT_TYPES,
+    vendorId: result.vendorId,
+    ipAddress: params.remoteIp,
+    userAgent: params.userAgent,
   });
 
   return result;
@@ -241,9 +299,22 @@ export async function submitVendorOnboardingForReview(params: {
 }) {
   const vendor = await prisma.vendor.findFirst({
     where: { id: params.vendorId, ownerUserId: params.ownerUserId },
-    select: { id: true },
+    select: { id: true, marketId: true },
   });
   if (!vendor) throw new SellerOnboardError("FORBIDDEN", "Vendor not found.");
+
+  const { hasVendorOnboardingConsents } = await import("../legal/consent-ledger.service");
+  const consented = await hasVendorOnboardingConsents({
+    userId: params.ownerUserId,
+    vendorId: vendor.id,
+    marketId: vendor.marketId,
+  });
+  if (!consented) {
+    throw new SellerOnboardError(
+      "VALIDATION",
+      "Accept all merchant registration policies before submitting for review.",
+    );
+  }
 
   await prisma.vendor.update({
     where: { id: vendor.id },
@@ -320,6 +391,25 @@ export async function approveVendorOnboarding(params: {
   actorUserId: string;
   note?: string | null;
 }) {
+  const vendor = await prisma.vendor.findUnique({
+    where: { id: params.vendorId },
+    select: { id: true, ownerUserId: true, marketId: true },
+  });
+  if (!vendor) throw new SellerOnboardError("FORBIDDEN", "Vendor not found.");
+
+  const { hasVendorOnboardingConsents } = await import("../legal/consent-ledger.service");
+  const consented = await hasVendorOnboardingConsents({
+    userId: vendor.ownerUserId,
+    vendorId: vendor.id,
+    marketId: vendor.marketId,
+  });
+  if (!consented) {
+    throw new SellerOnboardError(
+      "VALIDATION",
+      "Vendor must accept all registration policies before activation.",
+    );
+  }
+
   await prisma.vendor.update({
     where: { id: params.vendorId },
     data: {

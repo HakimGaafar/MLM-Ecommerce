@@ -76,6 +76,7 @@ export class CheckoutError extends Error {
       | "INSUFFICIENT_STOCK"
       | "OFFER_NOT_FOUND"
       | "SETTLEMENT_RISK_REQUIRED"
+      | "POLICY_CONSENT_REQUIRED"
       | "AMOUNT_MISMATCH",
     message?: string,
   ) {
@@ -99,6 +100,13 @@ export type PlaceOrderInput = {
   companyHqCity?: string | null;
   companyHqCountryCode?: string | null;
   settlementRiskAccepted?: boolean;
+  /** Phase 3 checkout policy consents. */
+  acceptTerms?: boolean;
+  acceptReturns?: boolean;
+  acceptShipping?: boolean;
+  /** Optional request metadata for consent ledger. */
+  consentIpAddress?: string | null;
+  consentUserAgent?: string | null;
 };
 
 export type CheckoutDeliveryIssueDto = CartDeliveryIssueDto;
@@ -1024,6 +1032,26 @@ export async function createOrderFromCart(
       where: { id: { in: prepared.map((p) => p.cartItemId) } },
     });
 
+    if (
+      input.acceptTerms === true &&
+      input.acceptReturns === true &&
+      input.acceptShipping === true
+    ) {
+      const { recordCurrentPolicyConsents, CUSTOMER_CHECKOUT_DOCUMENT_TYPES } = await import(
+        "../legal/consent-ledger.service"
+      );
+      await recordCurrentPolicyConsents({
+        userId: buyerUserId,
+        marketId,
+        context: "CUSTOMER_CHECKOUT",
+        documentTypes: CUSTOMER_CHECKOUT_DOCUMENT_TYPES,
+        orderId: order.id,
+        ipAddress: input.consentIpAddress,
+        userAgent: input.consentUserAgent,
+        tx,
+      });
+    }
+
     return order.id;
   });
 }
@@ -1044,6 +1072,12 @@ export async function placeOrderFromCart(
     throw new CheckoutError(
       "SETTLEMENT_RISK_REQUIRED",
       "Accept FX, transfer fee, and customs risk terms to continue checkout.",
+    );
+  }
+  if (input.acceptTerms !== true || input.acceptReturns !== true || input.acceptShipping !== true) {
+    throw new CheckoutError(
+      "POLICY_CONSENT_REQUIRED",
+      "Accept Terms, Returns, and Shipping policies to continue checkout.",
     );
   }
 

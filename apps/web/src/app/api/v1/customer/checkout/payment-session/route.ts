@@ -15,6 +15,7 @@ import {
   publicErrorPayload,
   PUBLIC_API_ERRORS,
 } from "@/lib/api-error-response";
+import { getClientIp } from "@/lib/security";
 
 type GatewayCheckoutError = StripeCheckoutError | TapCheckoutError;
 
@@ -83,6 +84,11 @@ export async function POST(request: NextRequest) {
         companyHqCity: parsed.data.companyHqCity,
         companyHqCountryCode: parsed.data.companyHqCountryCode,
         settlementRiskAccepted: parsed.data.settlementRiskAccepted,
+        acceptTerms: parsed.data.acceptTerms,
+        acceptReturns: parsed.data.acceptReturns,
+        acceptShipping: parsed.data.acceptShipping,
+        consentIpAddress: getClientIp(request),
+        consentUserAgent: request.headers.get("user-agent"),
       },
       { appBaseUrl },
     );

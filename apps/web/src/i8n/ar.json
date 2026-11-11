@@ -77,7 +77,12 @@
     "invalidPassword": "يجب أن تكون كلمة المرور 10 أحرف على الأقل وتشمل حرفًا كبيرًا وصغيرًا ورقمًا ورمزًا.",
     "invalidReferral": "رمز الإحالة يجب أن يكون من 4 إلى 24 حرفًا أو رقمًا.",
     "emailInUse": "هذا البريد الإلكتروني مستخدم بالفعل.",
-    "rateLimited": "عدد المحاولات كبير. يرجى الانتظار قبل المحاولة مجددًا."
+    "rateLimited": "عدد المحاولات كبير. يرجى الانتظار قبل المحاولة مجددًا.",
+    "acceptTermsPrefix": "أوافق على",
+    "acceptTermsLink": "الشروط والأحكام",
+    "acceptPrivacyPrefix": "أوافق على",
+    "acceptPrivacyLink": "سياسة الخصوصية",
+    "consentRequired": "يجب الموافقة على الشروط والخصوصية للمتابعة."
   },
   "otpVerification": {
     "shared": {
@@ -346,6 +351,12 @@
     "next": "التالي",
     "pageOf": "صفحة {page} من {total}"
   },
+  "merchantPolicyStub": {
+    "version": "النسخة",
+    "backToSell": "العودة للبيع",
+    "intro": "بتحديد هذه السياسة عند تسجيل التاجر، فإنك توافق على النسخة الحالية المسجّلة لسوقك.",
+    "phaseNote": "النص الكامل لعقد التاجر يُنشر مع حزمة عقد التاجر. إلى ذلك الحين تُسجَّل موافقتك على رقم نسخة هذه الوثيقة لسوقك."
+  },
   "legalPages": {
     "version": "النسخة",
     "draftNote": "مسودة — بانتظار النشر الرسمي",
@@ -585,6 +596,8 @@
     "phone": "الهاتف",
     "shortBusinessNote": "نبذة قصيرة عن النشاط (اختياري)",
     "acceptCommissionTerms": "أوافق على شروط عمولة المنصة",
+    "acceptAllPolicies": "وافق على جميع السياسات للمتابعة (يبقى الحساب غير نشط حتى الاكتمال).",
+    "acceptPrefix": "أوافق على",
     "fullNameEn": "الاسم الكامل (إنجليزي)",
     "fullNameOther": "الاسم الكامل (لغة أخرى)",
     "identityDocumentKind": "نوع وثيقة الهوية",
@@ -842,6 +855,14 @@
     "settlementRiskCheckbox": "أوافق على أن تغيّر سعر الصرف ورسوم التحويل البنكي والجمارك/التخليص ليست مسؤولية السوق.",
     "settlementRiskHint": "مطلوب عند الدفع. يؤكده البائع عند الإدراج وأنت هنا.",
     "settlementRiskRequired": "يرجى قبول شروط مخاطر التسوية للمتابعة.",
+    "policyConsentTitle": "السياسات",
+    "acceptTermsPrefix": "أوافق على",
+    "acceptTermsLink": "الشروط والأحكام",
+    "acceptReturnsPrefix": "أوافق على",
+    "acceptReturnsLink": "سياسة الاسترجاع",
+    "acceptShippingPrefix": "أوافق على",
+    "acceptShippingLink": "سياسة الشحن",
+    "policyConsentRequired": "وافق على الشروط والاسترجاع والشحن للمتابعة.",
     "gatewayPickerTitle": "اختر بوابة الدفع",
     "gatewayPickerSubtitle": "اختر طريقة الدفع الإلكتروني. نخطط لإضافة بوابات إقليمية لاحقًا.",
     "gatewayStripe": "Stripe",

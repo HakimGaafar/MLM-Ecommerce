@@ -70,6 +70,8 @@ export default function RegisterForm({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, ErrorKey>>>({});
 
   function fieldValue(field: FieldKey) {
@@ -130,6 +132,10 @@ export default function RegisterForm({
     setError(null);
     setSuccess(null);
     if (!validateAll()) return;
+    if (!acceptTerms || !acceptPrivacy) {
+      setError(ui.consentRequired ?? "Accept Terms and Privacy to continue.");
+      return;
+    }
     setIsLoading(true);
 
     try {
@@ -142,6 +148,8 @@ export default function RegisterForm({
           password,
           accountType: "CUSTOMER",
           referralCode: referralCode.trim() || undefined,
+          acceptTerms: true,
+          acceptPrivacy: true,
         }),
       });
 
@@ -289,11 +297,46 @@ export default function RegisterForm({
             />
           </div>
 
+          <div className="space-y-2 rounded-lg border border-[var(--border)] p-3 text-sm">
+            <label className="flex cursor-pointer items-start gap-2">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={acceptTerms}
+                onChange={(e) => setAcceptTerms(e.target.checked)}
+              />
+              <span>
+                {ui.acceptTermsPrefix ?? "I agree to the"}{" "}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-link underline">
+                  {ui.acceptTermsLink ?? "Terms & Conditions"}
+                </a>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-2">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={acceptPrivacy}
+                onChange={(e) => setAcceptPrivacy(e.target.checked)}
+              />
+              <span>
+                {ui.acceptPrivacyPrefix ?? "I agree to the"}{" "}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-link underline">
+                  {ui.acceptPrivacyLink ?? "Privacy policy"}
+                </a>
+              </span>
+            </label>
+          </div>
+
           {error ? <p className="app-alert-error">{error}</p> : null}
 
           {success ? <p className="app-callout-success">{success}</p> : null}
 
-          <button type="submit" disabled={isLoading} className="btn-primary btn-press w-full">
+          <button
+            type="submit"
+            disabled={isLoading || !acceptTerms || !acceptPrivacy}
+            className="btn-primary btn-press w-full disabled:opacity-50"
+          >
             {isLoading ? ui.submitting : ui.submit}
           </button>
         </form>

@@ -10,6 +10,7 @@ import {
 import { enforceUserRateLimit } from "@/lib/rate-limit-response";
 import { requireCustomerSession } from "@/lib/require-customer-session";
 import { resolveRequestMarket } from "@/lib/request-market";
+import { getClientIp } from "@/lib/security";
 
 function checkoutErrorMessage(error: CheckoutError): string {
   return publicErrorMessage(error, PUBLIC_API_ERRORS.checkoutFailed, "customer/checkout");
@@ -54,6 +55,11 @@ export async function POST(request: NextRequest) {
       companyHqCity: parsed.data.companyHqCity,
       companyHqCountryCode: parsed.data.companyHqCountryCode,
       settlementRiskAccepted: parsed.data.settlementRiskAccepted,
+      acceptTerms: parsed.data.acceptTerms,
+      acceptReturns: parsed.data.acceptReturns,
+      acceptShipping: parsed.data.acceptShipping,
+      consentIpAddress: getClientIp(request),
+      consentUserAgent: request.headers.get("user-agent"),
     });
     return NextResponse.json(
       { order },

@@ -77,7 +77,12 @@
     "invalidPassword": "Password must be at least 10 characters and include upper, lower, number, and symbol.",
     "invalidReferral": "Referral code must be 4–24 letters or numbers.",
     "emailInUse": "This email is already in use.",
-    "rateLimited": "Too many attempts. Please wait before trying again."
+    "rateLimited": "Too many attempts. Please wait before trying again.",
+    "acceptTermsPrefix": "I agree to the",
+    "acceptTermsLink": "Terms & Conditions",
+    "acceptPrivacyPrefix": "I agree to the",
+    "acceptPrivacyLink": "Privacy policy",
+    "consentRequired": "Accept Terms and Privacy to continue."
   },
   "otpVerification": {
     "shared": {
@@ -346,6 +351,12 @@
     "next": "Next",
     "pageOf": "Page {page} of {total}"
   },
+  "merchantPolicyStub": {
+    "version": "Version",
+    "backToSell": "Back to sell",
+    "intro": "By ticking this policy during merchant registration, you accept the current market version on record.",
+    "phaseNote": "Full contract text is published with the merchant contract pack. Until then, acceptance is recorded against this document version for your market."
+  },
   "legalPages": {
     "version": "Version",
     "draftNote": "Draft — pending official publication",
@@ -585,6 +596,8 @@
     "phone": "Phone",
     "shortBusinessNote": "Short business note (optional)",
     "acceptCommissionTerms": "I accept the marketplace commission terms",
+    "acceptAllPolicies": "Accept all policies to continue (account stays inactive until complete).",
+    "acceptPrefix": "I agree to",
     "fullNameEn": "Full name (English)",
     "fullNameOther": "Full name (other language)",
     "identityDocumentKind": "ID document type",
@@ -842,6 +855,14 @@
     "settlementRiskCheckbox": "I accept that FX changes, bank transfer fees, and customs/clearance are not the marketplace’s responsibility.",
     "settlementRiskHint": "Required at checkout. Confirmed by the seller when listing and by you here.",
     "settlementRiskRequired": "Please accept settlement risk terms to continue.",
+    "policyConsentTitle": "Policies",
+    "acceptTermsPrefix": "I agree to the",
+    "acceptTermsLink": "Terms & Conditions",
+    "acceptReturnsPrefix": "I agree to the",
+    "acceptReturnsLink": "Returns policy",
+    "acceptShippingPrefix": "I agree to the",
+    "acceptShippingLink": "Shipping policy",
+    "policyConsentRequired": "Accept Terms, Returns, and Shipping to continue.",
     "gatewayPickerTitle": "Choose a payment gateway",
     "gatewayPickerSubtitle": "Select how you want to pay online. More regional gateways are planned next.",
     "gatewayStripe": "Stripe",

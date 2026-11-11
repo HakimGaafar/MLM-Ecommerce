@@ -9,7 +9,15 @@ import { useLiveCopy, useLiveLocale } from "@/components/ui/live-i18n";
 import { inputClassName, isStrongPassword, isValidEmail, isValidMerchantUsername } from "@/lib/field-validation";
 import { mapsUrlFromLatLng, reverseGeocodeLatLng } from "@/lib/reverse-geocode";
 import { getToastDict } from "@/lib/toast-messages";
-import { isAddressCountryCode, primaryMarketFromCountry, type AddressCountryCode } from "@mlm/shared";
+import {
+  isAddressCountryCode,
+  legalDocumentHref,
+  LEGAL_DOCUMENT_TITLES,
+  MERCHANT_REGISTRATION_DOCUMENT_TYPES,
+  primaryMarketFromCountry,
+  type AddressCountryCode,
+  type LegalDocumentType,
+} from "@mlm/shared";
 
 const AddressMapPicker = dynamic(() => import("@/components/address/AddressMapPicker"), {
   ssr: false,
@@ -79,6 +87,7 @@ export default function VendorOnboardingWizard({
   const [storeName, setStoreName] = useState("");
   const [shortBusinessNote, setShortBusinessNote] = useState("");
   const [acceptCommissionTerms, setAcceptCommissionTerms] = useState(false);
+  const [acceptedDocs, setAcceptedDocs] = useState<Record<string, boolean>>({});
   const [referralCode, setReferralCode] = useState(initialReferralCode.trim().toUpperCase());
 
   const [fullNameEn, setFullNameEn] = useState("");
@@ -252,10 +261,17 @@ export default function VendorOnboardingWizard({
     }
   }
 
+  const allMerchantDocsAccepted = MERCHANT_REGISTRATION_DOCUMENT_TYPES.every(
+    (doc) => acceptedDocs[doc] === true,
+  );
+  const acceptedDocumentTypes = MERCHANT_REGISTRATION_DOCUMENT_TYPES.filter(
+    (doc) => acceptedDocs[doc] === true,
+  );
+
   async function submitAccount(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!acceptCommissionTerms) return;
+    if (!acceptCommissionTerms || !allMerchantDocsAccepted) return;
     if (bootstrapping) {
       if (!repNameEn.trim() || !phone.trim() || !storeName.trim()) {
         setError(ui.required);
@@ -274,6 +290,7 @@ export default function VendorOnboardingWizard({
             repNameOther: repNameOther || undefined,
             shortBusinessNote: shortBusinessNote || undefined,
             acceptCommissionTerms: true,
+            acceptedDocumentTypes,
           }),
         });
         if (!res.ok) {
@@ -327,6 +344,7 @@ export default function VendorOnboardingWizard({
           storeName,
           shortBusinessNote: shortBusinessNote || undefined,
           acceptCommissionTerms: true,
+          acceptedDocumentTypes,
           turnstileToken: turnstileToken || undefined,
           referralCode: referralCode.trim() || undefined,
         }),
@@ -505,8 +523,44 @@ export default function VendorOnboardingWizard({
             <input type="checkbox" checked={acceptCommissionTerms} onChange={(e) => setAcceptCommissionTerms(e.target.checked)} className="mt-1" />
             <span>{ui.acceptCommissionTerms ?? "I accept the marketplace commission terms"}</span>
           </label>
+          <div className="space-y-2 rounded-lg border border-[var(--border)] p-3">
+            <p className="text-xs font-medium text-[var(--muted)]">
+              {ui.acceptAllPolicies ?? "Accept all policies to continue (account stays inactive until complete)."}
+            </p>
+            {MERCHANT_REGISTRATION_DOCUMENT_TYPES.map((doc) => {
+              const title = LEGAL_DOCUMENT_TITLES[doc as LegalDocumentType];
+              const label = locale === "ar" ? title.ar : title.en;
+              return (
+                <label key={doc} className="flex cursor-pointer items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={acceptedDocs[doc] === true}
+                    onChange={(e) =>
+                      setAcceptedDocs((prev) => ({ ...prev, [doc]: e.target.checked }))
+                    }
+                  />
+                  <span>
+                    {ui.acceptPrefix ?? "I agree to"}{" "}
+                    <a
+                      href={legalDocumentHref(doc as LegalDocumentType)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-link underline"
+                    >
+                      {label}
+                    </a>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
           {!bootstrapping ? <TurnstileWidget onToken={setTurnstileToken} /> : null}
-          <button type="submit" disabled={loading || !acceptCommissionTerms} className="btn-primary btn-press w-full disabled:opacity-50">
+          <button
+            type="submit"
+            disabled={loading || !acceptCommissionTerms || !allMerchantDocsAccepted}
+            className="btn-primary btn-press w-full disabled:opacity-50"
+          >
             {loading ? ui.submitting : ui.next}
           </button>
           {!bootstrapping ? (

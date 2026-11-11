@@ -1,6 +1,8 @@
 import { prisma, type Prisma } from "@mlm/db";
 import {
   bindReferralAtRegistration,
+  CUSTOMER_SIGNUP_DOCUMENT_TYPES,
+  recordCurrentPolicyConsents,
   ReferralBindError,
   resolveWalletCurrency,
 } from "@mlm/domain";
@@ -44,6 +46,8 @@ const registerSchema = z.object({
     .transform(normalizeReferralCode)
     .pipe(z.string().regex(/^[A-Z0-9]{4,24}$/))
     .optional(),
+  acceptTerms: z.literal(true),
+  acceptPrivacy: z.literal(true),
 });
 
 const REFERRAL_COOKIE = "mlm_referral_code";
@@ -113,6 +117,16 @@ export async function POST(request: NextRequest) {
           referralCode: requestedReferralCode,
         });
       }
+
+      await recordCurrentPolicyConsents({
+        userId: createdUser.id,
+        marketId: market.id,
+        context: "CUSTOMER_SIGNUP",
+        documentTypes: CUSTOMER_SIGNUP_DOCUMENT_TYPES,
+        ipAddress: ip,
+        userAgent: request.headers.get("user-agent"),
+        tx,
+      });
 
       return {
         ...createdUser,

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LEGAL_DOCUMENT_TYPES, MERCHANT_REGISTRATION_DOCUMENT_TYPES } from "../legal-policy";
 import { MerchantUsernameSchema } from "./merchant-username";
 import { STORE_SLUG_REGEX } from "./seller-onboarding";
 
@@ -36,6 +37,20 @@ export const VendorOnboardingAccountSchema = z
     storeName: z.string().trim().min(2).max(120),
     shortBusinessNote: optionalText(500),
     acceptCommissionTerms: z.literal(true),
+    /** Phase 3 — all nine merchant registration document types must be accepted. */
+    acceptedDocumentTypes: z
+      .array(z.enum(LEGAL_DOCUMENT_TYPES))
+      .superRefine((types, ctx) => {
+        const set = new Set(types);
+        for (const required of MERCHANT_REGISTRATION_DOCUMENT_TYPES) {
+          if (!set.has(required)) {
+            ctx.addIssue({
+              code: "custom",
+              message: `Missing consent: ${required}`,
+            });
+          }
+        }
+      }),
     turnstileToken: z.string().trim().min(1).optional(),
     referralCode: z
       .string()
