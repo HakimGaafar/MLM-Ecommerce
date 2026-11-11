@@ -32,6 +32,18 @@ export async function loadPublicLegalPage(params: {
   const annex = await getMarketAnnexForPublic(params.marketId);
   if (!annex) return null;
 
+  // Closed markets must not expose public policy/Tap URLs (About still allowed via redirect to active market).
+  const tapSlugs = new Set([
+    "terms",
+    "privacy",
+    "returns-policy",
+    "shipping-policy",
+    "pricing-payment",
+  ]);
+  if (tapSlugs.has(params.slug) && !annex.isActive) {
+    return null;
+  }
+
   const document = renderBundledPolicyDocumentWithAnnex(
     documentType,
     params.locale,

@@ -51,7 +51,9 @@ export class VendorProductError extends Error {
       | "KYC_INCOMPLETE"
       | "WAREHOUSE_ADDRESS_REQUIRED"
       | "COVERAGE_REQUIRED"
-      | "SETTLEMENT_RISK_REQUIRED",
+      | "SETTLEMENT_RISK_REQUIRED"
+      | "MARKET_REACCEPT_REQUIRED"
+      | "MARKET_INACTIVE",
     message?: string,
   ) {
     super(message ?? code);
@@ -316,6 +318,16 @@ export async function createVendorProduct(
     input.offers?.length
       ? normalizeProductMarketOffers(input.offers)
       : [{ stockLocation: "MERCHANT" as const }];
+  if (input.offers?.length) {
+    const { listActiveMarketIds } = await import("../markets/market-go-live.service");
+    const activeIds = new Set(await listActiveMarketIds());
+    if (input.offers.some((o) => !activeIds.has(o.marketId))) {
+      throw new VendorProductError(
+        "MARKET_INACTIVE",
+        "One or more sell markets are closed. Remove offers for closed markets.",
+      );
+    }
+  }
   if (offersPreview.some((o) => o.stockLocation === "MERCHANT")) {
     try {
       await assertMerchantDirectShippingReady(vendorId);
@@ -438,20 +450,28 @@ export async function updateVendorProduct(
   }
 
   if (input.offers?.length) {
-      const offers = normalizeProductMarketOffers(input.offers);
-      if (offers.some((o) => o.stockLocation === "MERCHANT")) {
-        try {
-          await assertMerchantDirectShippingReady(vendorId);
-        } catch (e) {
-          if (e instanceof VendorCoverageError) {
-            const code =
-              e.code === "OUTSIDE_COVERAGE" ? "COVERAGE_REQUIRED" : e.code;
-            throw new VendorProductError(code, e.message);
-          }
-          throw e;
+    const { listActiveMarketIds } = await import("../markets/market-go-live.service");
+    const activeIds = new Set(await listActiveMarketIds());
+    if (input.offers.some((o) => !activeIds.has(o.marketId))) {
+      throw new VendorProductError(
+        "MARKET_INACTIVE",
+        "One or more sell markets are closed. Remove offers for closed markets.",
+      );
+    }
+    const offers = normalizeProductMarketOffers(input.offers);
+    if (offers.some((o) => o.stockLocation === "MERCHANT")) {
+      try {
+        await assertMerchantDirectShippingReady(vendorId);
+      } catch (e) {
+        if (e instanceof VendorCoverageError) {
+          const code =
+            e.code === "OUTSIDE_COVERAGE" ? "COVERAGE_REQUIRED" : e.code;
+          throw new VendorProductError(code, e.message);
         }
+        throw e;
       }
     }
+  }
 
   if (input.status !== undefined) {
     assertVendorStatusChange(existing.status as ProductStatus, input.status);

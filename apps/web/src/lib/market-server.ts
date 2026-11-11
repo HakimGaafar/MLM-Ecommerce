@@ -127,8 +127,8 @@ export async function listMarketsForPicker(): Promise<MarketSnapshot[]> {
   } catch {
     // fall through
   }
-  const { listActiveMarketDefinitions } = await import("@mlm/shared");
-  return listActiveMarketDefinitions().map((def) => definitionToSnapshot(def));
+  const { listLaunchActiveMarketDefinitions } = await import("@mlm/shared");
+  return listLaunchActiveMarketDefinitions().map((def) => definitionToSnapshot(def));
 }
 
 export function getGeoCountryFromHeaders(headerStore: Headers): string | null {
@@ -150,7 +150,10 @@ function readDevGeoCountryOverride(): string | null {
 export async function getSuggestedMarketCode(): Promise<MarketCode> {
   const { resolveMarketFromGeoCountry } = await import("@mlm/shared");
   const hdrs = await headers();
-  return resolveMarketFromGeoCountry(getGeoCountryFromHeaders(hdrs));
+  const natural = resolveMarketFromGeoCountry(getGeoCountryFromHeaders(hdrs));
+  if (await isMarketCodeActive(natural)) return natural;
+  // Closed home markets (e.g. Egypt) park visitors on International.
+  return "GLOBAL";
 }
 
 export { getDefaultMarketSnapshot };

@@ -375,12 +375,16 @@ model User {
   status           UserStatus          @default(ACTIVE)
   /// Bumped to revoke all access/refresh JWTs (demote, password reset, logout).
   tokenVersion     Int                 @default(0) @map("token_version")
+  /// Phase 6 — after a closed home market opens, merchant must re-accept policies for this market.
+  pendingMarketReacceptId String?          @map("pending_market_reaccept_id")
+  pendingMarketReacceptAt DateTime?        @map("pending_market_reaccept_at")
   createdAt        DateTime            @default(now()) @map("created_at")
   updatedAt        DateTime            @updatedAt @map("updated_at")
   userRoles        UserRole[]
   wallets          Wallet[]
   affiliateProfile AffiliateProfile?
   customerProfile  CustomerProfile?
+  pendingMarketReaccept Market?        @relation("UserPendingMarketReaccept", fields: [pendingMarketReacceptId], references: [id], onDelete: SetNull)
   customerOrders   Order[]              @relation("CustomerOrders")
   ownedVendors     Vendor[]            @relation("VendorOwner")
   carts            Cart[]
@@ -1619,6 +1623,7 @@ model Market {
   sellerInvoicingRules MarketInvoicingRule[] @relation("InvoicingSellerMarket")
   buyerInvoicingRules  MarketInvoicingRule[] @relation("InvoicingBuyerMarket")
   consentRecords  ConsentRecord[]
+  pendingReacceptUsers User[] @relation("UserPendingMarketReaccept")
 
   @@map("markets")
 }

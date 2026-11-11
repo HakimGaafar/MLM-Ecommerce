@@ -47,6 +47,8 @@ type Ui = {
   paymentCurrencies: string;
   paymentCurrenciesHint: string;
   legalLink: string;
+  papersIncompleteError: string;
+  paymentCurrencyError: string;
 };
 
 type EditDraft = {
@@ -152,12 +154,17 @@ export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: U
       });
       const data = (await res.json().catch(() => null)) as { market?: MarketRow; error?: string } | null;
       if (!res.ok) {
+        const code = (data as { code?: string } | null)?.code;
         const message =
           data?.error === "Saudi Arabia is the default market and cannot be disabled."
             ? ui.cannotDisableDefault
             : data?.error === "At least one marketplace must remain active."
               ? ui.lastActiveError
-              : ui.saveError;
+              : code === "PAPERS_INCOMPLETE"
+                ? ui.papersIncompleteError
+                : code === "PAYMENT_CURRENCY_MISSING"
+                  ? ui.paymentCurrencyError
+                  : data?.error || ui.saveError;
         toast.error(message);
         return;
       }

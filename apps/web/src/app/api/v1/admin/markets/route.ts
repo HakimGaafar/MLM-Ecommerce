@@ -64,6 +64,25 @@ export async function PATCH(request: NextRequest) {
         { status: 400 },
       );
     }
+    if (error.message === "PAPERS_INCOMPLETE") {
+      return NextResponse.json(
+        {
+          error:
+            "Complete annex company papers (legal name, CR/unified number, address, contact) before opening this market.",
+          code: "PAPERS_INCOMPLETE",
+        },
+        { status: 400 },
+      );
+    }
+    if (error.message === "PAYMENT_CURRENCY_MISSING") {
+      return NextResponse.json(
+        {
+          error: "Add the market default currency to payment currencies before opening.",
+          code: "PAYMENT_CURRENCY_MISSING",
+        },
+        { status: 400 },
+      );
+    }
     throw error;
   }
 }

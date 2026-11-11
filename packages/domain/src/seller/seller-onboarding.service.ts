@@ -5,10 +5,10 @@ import {
   INTERNATIONAL_SALES_AGREEMENT_VERSION,
   isReservedStoreSlug,
   normalizeMerchantUsername,
-  primaryMarketIdFromCountry,
   slugifyStoreName,
 } from "@mlm/shared";
 import bcrypt from "bcryptjs";
+import { resolvePrimaryMarketIdForCountry } from "../markets/market-go-live.service";
 import { bindReferralAtRegistration } from "../referral/referral-bind.service";
 import { resolveWalletCurrency } from "../wallet/wallet.service";
 
@@ -105,10 +105,12 @@ async function createVendorForOwner(
     throw new SellerOnboardError("SLUG_TAKEN", "This store URL is already in use.");
   }
 
+  const primaryMarketId = await resolvePrimaryMarketIdForCountry(data.countryCode);
+
   return tx.vendor.create({
     data: {
       marketId,
-      primaryMarketId: primaryMarketIdFromCountry(data.countryCode),
+      primaryMarketId,
       ownerUserId,
       ...data,
     },

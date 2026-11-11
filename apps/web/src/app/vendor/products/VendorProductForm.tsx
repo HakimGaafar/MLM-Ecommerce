@@ -77,6 +77,7 @@ export default function VendorProductForm({ productId }: { productId?: string })
   const [descriptionAr, setDescriptionAr] = useState("");
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("SAR");
+  const [activeMarketIds, setActiveMarketIds] = useState<string[] | undefined>(undefined);
   const [offerDrafts, setOfferDrafts] = useState<OfferDraft[]>(() => createDefaultOfferDrafts());
   const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([]);
   const [categoryId, setCategoryId] = useState("");
@@ -139,6 +140,27 @@ export default function VendorProductForm({ productId }: { productId?: string })
   }, [locale]);
 
   useEffect(() => {
+    const ac = new AbortController();
+    void (async () => {
+      try {
+        const res = await fetch("/api/v1/markets/active", {
+          cache: "no-store",
+          signal: ac.signal,
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { marketIds: string[] };
+        setActiveMarketIds(data.marketIds);
+        if (!productId) {
+          setOfferDrafts(createDefaultOfferDrafts(undefined, data.marketIds));
+        }
+      } catch (e) {
+        if (e instanceof Error && e.name === "AbortError") return;
+      }
+    })();
+    return () => ac.abort();
+  }, [productId]);
+
+  useEffect(() => {
     if (!productId) return;
     let cancelled = false;
     (async () => {
@@ -198,7 +220,7 @@ export default function VendorProductForm({ productId }: { productId?: string })
         setDescriptionAr(data.product.descriptionAr ?? "");
         setPrice(data.product.price);
         setCurrency(data.product.currency);
-        const drafts = createDefaultOfferDrafts();
+        const drafts = createDefaultOfferDrafts(undefined, activeMarketIds);
         if (data.product.offers?.length) {
           for (const offer of data.product.offers) {
             const idx = drafts.findIndex((d) => d.marketId === offer.marketId);
@@ -372,7 +394,7 @@ export default function VendorProductForm({ productId }: { productId?: string })
     if (!images.some((img) => img.isPrimary)) {
       images[0].isPrimary = true;
     }
-    const offers = draftsToOffersPayload(offerDrafts);
+    const offers = draftsToOffersPayload(offerDrafts, activeMarketIds);
     if (
       offers.length === 0 ||
       offers.some((o) => !Number.isFinite(o.price) || o.price <= 0)
@@ -526,6 +548,7 @@ export default function VendorProductForm({ productId }: { productId?: string })
         <MarketOffersEditor
           drafts={offerDrafts}
           onChange={setOfferDrafts}
+          activeMarketIds={activeMarketIds}
           labels={{
             title: ui.formOffersTitle,
             subtitle: ui.formOffersSubtitle,

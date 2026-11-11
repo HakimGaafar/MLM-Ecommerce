@@ -158,14 +158,14 @@ export async function updateAdminMarket(params: {
 export async function setMarketActive(params: {
   marketCode: MarketCode;
   isActive: boolean;
-}): Promise<AdminMarketDto> {
+}): Promise<AdminMarketDto & { goLive?: { migratedVendors: number; flaggedUsers: number } }> {
   if (params.marketCode === DEFAULT_MARKET_CODE && !params.isActive) {
     throw new Error("CANNOT_DISABLE_DEFAULT_MARKET");
   }
 
   const market = await prisma.market.findUnique({
     where: { code: params.marketCode },
-    select: { id: true, code: true },
+    select: { id: true, code: true, isActive: true },
   });
   if (!market) {
     throw new Error("MARKET_NOT_FOUND");
@@ -173,33 +173,61 @@ export async function setMarketActive(params: {
 
   if (!params.isActive) {
     const activeCount = await prisma.market.count({ where: { isActive: true } });
-    const currentlyActive = await prisma.market.findUnique({
-      where: { code: params.marketCode },
-      select: { isActive: true },
-    });
-    if (currentlyActive?.isActive && activeCount <= 1) {
+    if (market.isActive && activeCount <= 1) {
       throw new Error("LAST_ACTIVE_MARKET");
     }
+
+    const updated = await prisma.market.update({
+      where: { id: market.id },
+      data: { isActive: false },
+      select: {
+        id: true,
+        code: true,
+        subdomain: true,
+        nameEn: true,
+        nameAr: true,
+        defaultCurrency: true,
+        paymentCurrencies: true,
+        geoCountryCodes: true,
+        isActive: true,
+        sortOrder: true,
+      },
+    });
+    return mapRow(updated);
   }
 
-  const updated = await prisma.market.update({
-    where: { id: market.id },
-    data: { isActive: params.isActive },
-    select: {
-      id: true,
-      code: true,
-      subdomain: true,
-      nameEn: true,
-      nameAr: true,
-      defaultCurrency: true,
-      paymentCurrencies: true,
-      geoCountryCodes: true,
-      isActive: true,
-      sortOrder: true,
-    },
-  });
-
-  return mapRow(updated);
+  // Opening: papers + payment gate, GLOBAL migrate, MARKET_REACCEPT flags.
+  const { openMarketGoLive, MarketGoLiveError } = await import("../markets/market-go-live.service");
+  try {
+    const goLive = await openMarketGoLive(params.marketCode);
+    const updated = await prisma.market.findUniqueOrThrow({
+      where: { id: market.id },
+      select: {
+        id: true,
+        code: true,
+        subdomain: true,
+        nameEn: true,
+        nameAr: true,
+        defaultCurrency: true,
+        paymentCurrencies: true,
+        geoCountryCodes: true,
+        isActive: true,
+        sortOrder: true,
+      },
+    });
+    return {
+      ...mapRow(updated),
+      goLive: {
+        migratedVendors: goLive.migratedVendors,
+        flaggedUsers: goLive.flaggedUsers,
+      },
+    };
+  } catch (error) {
+    if (error instanceof MarketGoLiveError) {
+      throw new Error(error.code);
+    }
+    throw error;
+  }
 }
 
 export async function isMarketCodeActive(code: MarketCode): Promise<boolean> {

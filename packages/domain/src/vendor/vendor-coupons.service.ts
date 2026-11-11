@@ -37,6 +37,7 @@ export class VendorCouponError extends Error {
       | "STORE_NOT_APPROVED"
       | "SETUP_INCOMPLETE"
       | "SETTLEMENT_RISK_REQUIRED"
+      | "MARKET_REACCEPT_REQUIRED"
       | "KYC_INCOMPLETE",
     message?: string,
   ) {

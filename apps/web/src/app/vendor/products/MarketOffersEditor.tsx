@@ -1,6 +1,12 @@
 "use client";
 
-import { VANDSOQ_WAREHOUSE_IDS, MARKET_IDS, defaultCurrencyForMarketId } from "@mlm/shared";
+import {
+  VANDSOQ_WAREHOUSE_IDS,
+  MARKET_IDS,
+  MARKET_LAUNCH_ACTIVE,
+  defaultCurrencyForMarketId,
+  type MarketCode,
+} from "@mlm/shared";
 
 export type OfferDraft = {
   marketId: string;
@@ -16,15 +22,26 @@ export type OfferDraft = {
   rejectionReason?: string | null;
 };
 
-const MARKET_OPTIONS = [
+const ALL_MARKET_OPTIONS = [
   { id: MARKET_IDS.SA, code: "SA" as const, warehouseId: VANDSOQ_WAREHOUSE_IDS.SA },
   { id: MARKET_IDS.OM, code: "OM" as const, warehouseId: VANDSOQ_WAREHOUSE_IDS.OM },
   { id: MARKET_IDS.EG, code: "EG" as const, warehouseId: VANDSOQ_WAREHOUSE_IDS.EG },
   { id: MARKET_IDS.GLOBAL, code: "GLOBAL" as const, warehouseId: null },
 ];
 
-export function createDefaultOfferDrafts(homeMarketId?: string): OfferDraft[] {
-  return MARKET_OPTIONS.map((m) => ({
+function launchVisibleOptions(activeMarketIds?: string[]) {
+  if (activeMarketIds && activeMarketIds.length > 0) {
+    const allow = new Set(activeMarketIds);
+    return ALL_MARKET_OPTIONS.filter((m) => allow.has(m.id));
+  }
+  return ALL_MARKET_OPTIONS.filter((m) => MARKET_LAUNCH_ACTIVE[m.code as MarketCode]);
+}
+
+export function createDefaultOfferDrafts(
+  homeMarketId?: string,
+  activeMarketIds?: string[],
+): OfferDraft[] {
+  return launchVisibleOptions(activeMarketIds).map((m) => ({
     marketId: m.id,
     enabled: m.id === (homeMarketId ?? MARKET_IDS.SA),
     price: "",
@@ -67,10 +84,12 @@ export default function MarketOffersEditor({
   drafts,
   onChange,
   labels,
+  activeMarketIds,
 }: {
   drafts: OfferDraft[];
   onChange: (next: OfferDraft[]) => void;
   labels: Labels;
+  activeMarketIds?: string[];
 }) {
   const nameFor = (code: string) => {
     if (code === "SA") return labels.marketSA;
@@ -83,6 +102,9 @@ export default function MarketOffersEditor({
     onChange(drafts.map((d) => (d.marketId === marketId ? { ...d, ...patch } : d)));
   }
 
+  const visibleIds = new Set<string>(launchVisibleOptions(activeMarketIds).map((m) => m.id));
+  const visibleDrafts = drafts.filter((d) => visibleIds.has(d.marketId));
+
   return (
     <section className="space-y-3 rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--primary)_4%,var(--surface))] p-4">
       <div>
@@ -90,8 +112,8 @@ export default function MarketOffersEditor({
         <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{labels.subtitle}</p>
       </div>
       <div className="space-y-3">
-        {drafts.map((draft) => {
-          const meta = MARKET_OPTIONS.find((m) => m.id === draft.marketId)!;
+        {visibleDrafts.map((draft) => {
+          const meta = ALL_MARKET_OPTIONS.find((m) => m.id === draft.marketId)!;
           const vandsoqAllowed = Boolean(meta.warehouseId);
           return (
             <article
@@ -258,11 +280,12 @@ export default function MarketOffersEditor({
   );
 }
 
-export function draftsToOffersPayload(drafts: OfferDraft[]) {
+export function draftsToOffersPayload(drafts: OfferDraft[], activeMarketIds?: string[]) {
+  const allow = new Set<string>(launchVisibleOptions(activeMarketIds).map((m) => m.id));
   return drafts
-    .filter((d) => d.enabled)
+    .filter((d) => d.enabled && allow.has(d.marketId))
     .map((d) => {
-      const meta = MARKET_OPTIONS.find((m) => m.id === d.marketId)!;
+      const meta = ALL_MARKET_OPTIONS.find((m) => m.id === d.marketId)!;
       return {
         marketId: d.marketId,
         price: Number.parseFloat(d.price),

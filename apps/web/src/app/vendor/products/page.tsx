@@ -2,6 +2,7 @@ import Link from "next/link";
 import { vendorHasPermission } from "@mlm/shared";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
+import MarketReacceptBanner from "@/components/vendor/MarketReacceptBanner";
 import VendorMerchantGateNotice from "../VendorMerchantGateNotice";
 import { getCustomerPreferredLocale } from "@/lib/customer-locale";
 import { getCurrentVendorMerchantReadiness } from "@/lib/vendor-merchant-readiness";
@@ -20,6 +21,9 @@ export default async function VendorProductsPage() {
   const canImport = vendorHasPermission(permissions, "vendor:products:write");
   const readiness = await getCurrentVendorMerchantReadiness();
   const canSell = readiness?.canSell === true;
+  const reaccept = readiness?.marketReacceptRequired
+    ? readiness.pendingMarketReacceptCode
+    : null;
 
   return (
     <main className="mx-auto w-full max-w-4xl p-8 animate-page-enter" dir={direction}>
@@ -32,7 +36,21 @@ export default async function VendorProductsPage() {
           {ui.backToDashboard}
         </Link>
       </div>
-      {!canSell ? (
+      {reaccept ? (
+        <div className="mt-6">
+          <MarketReacceptBanner
+            marketCode={reaccept}
+            copy={{
+              title: ui.marketReacceptTitle,
+              body: ui.marketReacceptBody,
+              accept: ui.marketReacceptAccept,
+              accepting: ui.marketReacceptAccepting,
+              error: ui.marketReacceptError,
+              success: ui.marketReacceptSuccess,
+            }}
+          />
+        </div>
+      ) : !canSell ? (
         <div className="mt-6">
           <VendorMerchantGateNotice
             copy={{

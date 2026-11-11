@@ -130,6 +130,23 @@ export function isShippingCountryAllowedForMarket(
   return resolveDeliveryMarketForCountry(countryCode) === activeMarketCode;
 }
 
+/** All market definitions (including launch-closed). Prefer {@link listLaunchActiveMarketDefinitions} for public surfaces. */
 export function listActiveMarketDefinitions(): MarketDefinition[] {
   return [...MARKET_DEFINITIONS].sort((a, b) => a.sortOrder - b.sortOrder);
 }
+
+/** Markets that are launch-visible by default (`MARKET_LAUNCH_ACTIVE`). DB `isActive` may still override at runtime. */
+export function listLaunchActiveMarketDefinitions(): MarketDefinition[] {
+  return listActiveMarketDefinitions().filter((def) => MARKET_LAUNCH_ACTIVE[def.code]);
+}
+
+/** Five Tap / compliance policy paths (live markets only when gated by caller). */
+export const TAP_COMPLIANCE_POLICY_PATHS = [
+  "/terms",
+  "/privacy",
+  "/returns-policy",
+  "/shipping-policy",
+  "/pricing-payment",
+] as const;
+
+export type TapCompliancePolicyPath = (typeof TAP_COMPLIANCE_POLICY_PATHS)[number];

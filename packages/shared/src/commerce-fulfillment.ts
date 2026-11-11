@@ -1,4 +1,9 @@
-import { MARKET_IDS, resolveMarketFromGeoCountry, type MarketCode } from "./market";
+import {
+  MARKET_IDS,
+  MARKET_LAUNCH_ACTIVE,
+  resolveMarketFromGeoCountry,
+  type MarketCode,
+} from "./market";
 
 export const SHIPPING_PACKAGE_TYPES = [
   "VANDSOQ_DOMESTIC",
@@ -30,17 +35,26 @@ export function isVandsoqWarehouseMarketCode(
   return (VANDSOQ_WAREHOUSE_MARKET_CODES as readonly string[]).includes(code);
 }
 
-/** Vendor home classification from country of residence/operation. */
+/**
+ * Vendor home classification from country of residence/operation.
+ * Closed launch markets (e.g. EG) park on GLOBAL until opened in DB —
+ * pass `activeByCode` from runtime for admin-opened markets after deploy defaults.
+ */
 export function primaryMarketFromCountry(
   countryCode: string | null | undefined,
+  activeByCode?: Partial<Record<MarketCode, boolean>>,
 ): MarketCode {
-  return resolveMarketFromGeoCountry(countryCode);
+  const natural = resolveMarketFromGeoCountry(countryCode);
+  if (natural === "GLOBAL") return "GLOBAL";
+  const active = activeByCode?.[natural] ?? MARKET_LAUNCH_ACTIVE[natural];
+  return active ? natural : "GLOBAL";
 }
 
 export function primaryMarketIdFromCountry(
   countryCode: string | null | undefined,
+  activeByCode?: Partial<Record<MarketCode, boolean>>,
 ): string {
-  return MARKET_IDS[primaryMarketFromCountry(countryCode)];
+  return MARKET_IDS[primaryMarketFromCountry(countryCode, activeByCode)];
 }
 
 function normalizeCountry(code: string | null | undefined): string | null {

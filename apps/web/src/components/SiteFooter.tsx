@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { MarketCode } from "@mlm/shared";
-import { getPlatformConfig } from "@mlm/domain";
+import { getLiveTapComplianceUrls, getPlatformConfig } from "@mlm/domain";
 import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { getAppLocale } from "@/lib/ui-locale";
@@ -139,13 +139,18 @@ export default async function SiteFooter({ compact = false }: { compact?: boolea
     { href: "/contact", label: f.contact },
   ];
 
+  const tap = await getLiveTapComplianceUrls({ marketId: market.id });
   const legalLinks = [
     { href: "/about", label: f.about },
-    { href: "/terms", label: f.terms },
-    { href: "/privacy", label: f.privacy },
-    { href: "/returns-policy", label: f.returnPolicy },
-    { href: "/shipping-policy", label: f.shippingPolicy },
-    { href: "/pricing-payment", label: f.pricingPayment },
+    ...(tap.live
+      ? [
+          { href: "/terms", label: f.terms },
+          { href: "/privacy", label: f.privacy },
+          { href: "/returns-policy", label: f.returnPolicy },
+          { href: "/shipping-policy", label: f.shippingPolicy },
+          { href: "/pricing-payment", label: f.pricingPayment },
+        ]
+      : []),
   ];
 
   const accountLinks = [{ href: "/account/merchant", label: f.merchantAccount }];

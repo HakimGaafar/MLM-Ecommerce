@@ -1641,6 +1641,12 @@
     "notActivatedCtaSetup": "Complete store setup",
     "notActivatedCtaKyc": "Complete verification",
     "notActivatedCtaDashboard": "Back to dashboard",
+    "marketReacceptTitle": "Your home market is now live",
+    "marketReacceptBody": "Marketplace {market} has opened. Please re-accept the merchant policies to continue selling.",
+    "marketReacceptAccept": "Re-accept policies",
+    "marketReacceptAccepting": "Saving…",
+    "marketReacceptError": "Could not record policy acceptance.",
+    "marketReacceptSuccess": "Policies accepted. You can continue selling.",
     "tabAll": "All",
     "tabDraft": "Draft",
     "tabPending": "Pending",
@@ -2819,7 +2825,9 @@
     "editDetails": "Edit details",
     "paymentCurrencies": "Payment currencies",
     "paymentCurrenciesHint": "Comma-separated ISO codes (e.g. OMR, USD). International accepts OMR and USD.",
-    "legalLink": "Legal foundations"
+    "legalLink": "Legal foundations",
+    "papersIncompleteError": "Complete annex company papers (legal name, CR/unified number, address, contact) before opening this market.",
+    "paymentCurrencyError": "Add the market default currency to payment currencies before opening."
   },
   "adminLegalFoundations": {
     "title": "Legal foundations",

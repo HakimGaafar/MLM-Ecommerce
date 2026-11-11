@@ -1641,6 +1641,12 @@
     "notActivatedCtaSetup": "إكمال إعداد المتجر",
     "notActivatedCtaKyc": "إكمال التوثيق",
     "notActivatedCtaDashboard": "العودة إلى لوحة التحكم",
+    "marketReacceptTitle": "سوقك المحلي أصبح متاحاً الآن",
+    "marketReacceptBody": "تم فتح سوق {market}. يرجى إعادة قبول سياسات التاجر لمتابعة البيع.",
+    "marketReacceptAccept": "إعادة قبول السياسات",
+    "marketReacceptAccepting": "جارٍ الحفظ…",
+    "marketReacceptError": "تعذر تسجيل قبول السياسات.",
+    "marketReacceptSuccess": "تم قبول السياسات. يمكنك متابعة البيع.",
     "tabAll": "الكل",
     "tabDraft": "مسودة",
     "tabPending": "قيد المراجعة",
@@ -2819,7 +2825,9 @@
     "editDetails": "تعديل التفاصيل",
     "paymentCurrencies": "عملات الدفع",
     "paymentCurrenciesHint": "رموز مفصولة بفاصلة (مثل OMR, USD). السوق الدولي يقبل الريال العماني والدولار.",
-    "legalLink": "الأسس القانونية"
+    "legalLink": "الأسس القانونية",
+    "papersIncompleteError": "أكمل أوراق الشركة في الملحق (الاسم القانوني، السجل/الرقم الموحد، العنوان، وبيانات التواصل) قبل فتح هذا السوق.",
+    "paymentCurrencyError": "أضف عملة السوق الافتراضية إلى عملات الدفع قبل الفتح."
   },
   "adminLegalFoundations": {
     "title": "الأسس القانونية",

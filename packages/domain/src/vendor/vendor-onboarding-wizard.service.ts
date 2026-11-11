@@ -1,9 +1,10 @@
 import { Prisma, prisma, raceSafeUpsert } from "@mlm/db";
 import {
-  primaryMarketIdFromCountry,
+  MARKET_IDS,
   slugifyStoreName,
   type VendorOnboardingAccountInput,
 } from "@mlm/shared";
+import { resolvePrimaryMarketIdForCountry } from "../markets/market-go-live.service";
 import { verifyTurnstileToken, TurnstileError } from "../security/turnstile.service";
 import {
   createStoreForExistingUser,
@@ -131,7 +132,7 @@ export async function startVendorOnboardingAccount(params: {
       contactPhone: params.input.phone,
       shortBusinessNote: params.input.shortBusinessNote || null,
       commissionTermsAcceptedAt: new Date(),
-      primaryMarketId: primaryMarketIdFromCountry("SA"),
+      primaryMarketId: MARKET_IDS.SA,
     },
   });
 
@@ -207,7 +208,7 @@ export async function startVendorOnboardingForExistingUser(params: {
       contactPhone: params.phone,
       shortBusinessNote: params.shortBusinessNote || null,
       commissionTermsAcceptedAt: new Date(),
-      primaryMarketId: primaryMarketIdFromCountry("SA"),
+      primaryMarketId: MARKET_IDS.SA,
     },
   });
 
@@ -264,7 +265,7 @@ export async function advanceVendorOnboardingStep(params: {
   if (typeof d.slug === "string") patch.slug = d.slug;
   if (typeof d.countryCode === "string") {
     patch.countryCode = d.countryCode;
-    patch.primaryMarketId = primaryMarketIdFromCountry(d.countryCode);
+    patch.primaryMarketId = await resolvePrimaryMarketIdForCountry(d.countryCode);
   }
   if (typeof d.street === "string") patch.addressLine1 = d.street;
   if (typeof d.district === "string") patch.addressLine2 = d.district;
