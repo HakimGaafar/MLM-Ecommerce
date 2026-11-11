@@ -42,12 +42,15 @@ export default async function MarketPickerPage({ searchParams }: PageProps) {
   const suggestedCode = await getSuggestedMarketCode();
 
   const options = markets.map((m) => {
-    const ui = dict.marketPicker.markets[m.code as MarketCode];
+    const seedUi =
+      dict.marketPicker.markets[
+        m.code as keyof typeof dict.marketPicker.markets
+      ];
     return {
       code: m.code,
       name: locale === "ar" ? m.nameAr : m.nameEn,
       currency: m.defaultCurrency,
-      description: ui?.description ?? "",
+      description: seedUi?.description ?? "",
     };
   });
 

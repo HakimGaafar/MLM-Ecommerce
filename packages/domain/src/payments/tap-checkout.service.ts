@@ -136,7 +136,7 @@ export async function createTapCheckoutSession(
   const base = appBaseUrl(options.appBaseUrl);
 
   const shipping = await resolveCheckoutShipping(buyerUserId, marketId, input);
-  assertShippingCountryMatchesMarket({
+  await assertShippingCountryMatchesMarket({
     countryCode: shipping.shippingCountryCode,
     marketId,
   });

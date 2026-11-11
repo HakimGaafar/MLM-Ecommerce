@@ -25,9 +25,14 @@ export default async function AdminMarketsPage() {
           <h1 className="text-2xl font-semibold">{ui.title}</h1>
           <p className="mt-2 text-sm text-[var(--muted)]">{ui.subtitle}</p>
         </div>
-        <Link href="/dashboard" className="text-sm font-medium text-link">
-          {ui.backToDashboard}
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/admin/markets/wizard" className="text-sm font-medium text-link">
+            {dict.adminMarketWizard.title}
+          </Link>
+          <Link href="/dashboard" className="text-sm font-medium text-link">
+            {ui.backToDashboard}
+          </Link>
+        </div>
       </div>
       <AdminMarketsForm locale={locale} ui={ui} />
     </main>

@@ -4,12 +4,13 @@ import {
   DEFAULT_MARKET_CODE,
   getMarketDefinition,
   isMarketCode,
+  isSeedMarketCode,
   type MarketCode,
 } from "@mlm/shared";
 
 export type AdminMarketDto = {
   id: string;
-  code: MarketCode;
+  code: string;
   subdomain: string;
   nameEn: string;
   nameAr: string;
@@ -17,9 +18,18 @@ export type AdminMarketDto = {
   paymentCurrencies: string[];
   geoCountryCodes: string[];
   isActive: boolean;
+  lifecycleStatus: "DRAFT" | "READY" | "LIVE" | "SUSPENDED";
+  papersComplete: boolean;
   sortOrder: number;
   canDisable: boolean;
 };
+
+function mapLifecycle(value: string | undefined | null): AdminMarketDto["lifecycleStatus"] {
+  if (value === "DRAFT" || value === "READY" || value === "LIVE" || value === "SUSPENDED") {
+    return value;
+  }
+  return "DRAFT";
+}
 
 function mapRow(row: {
   id: string;
@@ -31,11 +41,10 @@ function mapRow(row: {
   paymentCurrencies?: string[];
   geoCountryCodes: string[];
   isActive: boolean;
+  lifecycleStatus?: string;
+  papersComplete?: boolean;
   sortOrder: number;
 }): AdminMarketDto {
-  if (!isMarketCode(row.code)) {
-    throw new Error("MARKET_NOT_FOUND");
-  }
   return {
     id: row.id,
     code: row.code,
@@ -46,6 +55,10 @@ function mapRow(row: {
     paymentCurrencies: row.paymentCurrencies ?? [row.defaultCurrency],
     geoCountryCodes: row.geoCountryCodes,
     isActive: row.isActive,
+    lifecycleStatus: mapLifecycle(
+      row.lifecycleStatus ?? (row.isActive ? "LIVE" : "DRAFT"),
+    ),
+    papersComplete: Boolean(row.papersComplete),
     sortOrder: row.sortOrder,
     canDisable: row.code !== DEFAULT_MARKET_CODE,
   };
@@ -65,11 +78,13 @@ export async function listAdminMarkets(): Promise<AdminMarketDto[]> {
         paymentCurrencies: true,
         geoCountryCodes: true,
         isActive: true,
+        lifecycleStatus: true,
+        papersComplete: true,
         sortOrder: true,
       },
     });
     if (rows.length > 0) {
-      return rows.filter((row) => isMarketCode(row.code)).map(mapRow);
+      return rows.map(mapRow);
     }
   } catch {
     // Table may not exist before migrate — fall back to static definitions.
@@ -87,13 +102,15 @@ export async function listAdminMarkets(): Promise<AdminMarketDto[]> {
     paymentCurrencies: [...MARKET_PAYMENT_CURRENCIES[def.code]],
     geoCountryCodes: [...def.geoCountryCodes],
     isActive: MARKET_LAUNCH_ACTIVE[def.code],
+    lifecycleStatus: MARKET_LAUNCH_ACTIVE[def.code] ? ("LIVE" as const) : ("DRAFT" as const),
+    papersComplete: false,
     sortOrder: def.sortOrder,
     canDisable: def.code !== DEFAULT_MARKET_CODE,
   }));
 }
 
 export async function updateAdminMarket(params: {
-  marketCode: MarketCode;
+  marketCode: MarketCode | string;
   input: AdminMarketUpdateInput;
 }): Promise<AdminMarketDto> {
   const market = await prisma.market.findUnique({
@@ -148,6 +165,8 @@ export async function updateAdminMarket(params: {
       paymentCurrencies: true,
       geoCountryCodes: true,
       isActive: true,
+      lifecycleStatus: true,
+      papersComplete: true,
       sortOrder: true,
     },
   });
@@ -156,7 +175,7 @@ export async function updateAdminMarket(params: {
 }
 
 export async function setMarketActive(params: {
-  marketCode: MarketCode;
+  marketCode: MarketCode | string;
   isActive: boolean;
 }): Promise<AdminMarketDto & { goLive?: { migratedVendors: number; flaggedUsers: number } }> {
   if (params.marketCode === DEFAULT_MARKET_CODE && !params.isActive) {
@@ -179,7 +198,7 @@ export async function setMarketActive(params: {
 
     const updated = await prisma.market.update({
       where: { id: market.id },
-      data: { isActive: false },
+      data: { isActive: false, lifecycleStatus: "SUSPENDED" },
       select: {
         id: true,
         code: true,
@@ -190,16 +209,42 @@ export async function setMarketActive(params: {
         paymentCurrencies: true,
         geoCountryCodes: true,
         isActive: true,
+        lifecycleStatus: true,
+        papersComplete: true,
         sortOrder: true,
       },
     });
     return mapRow(updated);
   }
 
-  // Opening: papers + payment gate, GLOBAL migrate, MARKET_REACCEPT flags.
+  // Opening: same gates as wizard Publish (pack readiness + live DNS verify).
+  const { getMarketWizardState, AdminMarketWizardError } = await import(
+    "./admin-market-wizard.service"
+  );
+  const { verifyMarketHostDns } = await import("../markets/host-dns-verify.service");
   const { openMarketGoLive, MarketGoLiveError } = await import("../markets/market-go-live.service");
+
   try {
+    const state = await getMarketWizardState(params.marketCode);
+    // Same pack gate as Mark READY (DNS verified live below, not via stale flag alone).
+    if (!state.canMarkReady) {
+      const packBlocker = state.blockers.find((b) => b !== "DNS_NOT_VERIFIED");
+      throw new Error(packBlocker ?? "NOT_READY");
+    }
+    if (!state.routing.hostBound || !state.routing.geoBound) {
+      throw new Error("ROUTING_NOT_BOUND");
+    }
+
+    const dns = await verifyMarketHostDns({ marketCode: params.marketCode, persist: true });
+    if (!dns.ok) {
+      throw new Error("DNS_NOT_VERIFIED");
+    }
+
     const goLive = await openMarketGoLive(params.marketCode);
+    await prisma.market.update({
+      where: { id: market.id },
+      data: { lifecycleStatus: "LIVE", isActive: true },
+    });
     const updated = await prisma.market.findUniqueOrThrow({
       where: { id: market.id },
       select: {
@@ -212,6 +257,8 @@ export async function setMarketActive(params: {
         paymentCurrencies: true,
         geoCountryCodes: true,
         isActive: true,
+        lifecycleStatus: true,
+        papersComplete: true,
         sortOrder: true,
       },
     });
@@ -224,6 +271,9 @@ export async function setMarketActive(params: {
     };
   } catch (error) {
     if (error instanceof MarketGoLiveError) {
+      throw new Error(error.code);
+    }
+    if (error instanceof AdminMarketWizardError) {
       throw new Error(error.code);
     }
     throw error;
@@ -240,5 +290,5 @@ export async function isMarketCodeActive(code: MarketCode): Promise<boolean> {
   } catch {
     // fall through
   }
-  return getMarketDefinition(code) !== undefined;
+  return isSeedMarketCode(code) ? getMarketDefinition(code) !== undefined : false;
 }

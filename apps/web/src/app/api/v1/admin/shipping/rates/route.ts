@@ -1,5 +1,5 @@
-import { listShippingRates, updateShippingRateAmount } from "@mlm/domain";
-import { AdminShippingRateUpdateSchema, getMarketId, isMarketCode } from "@mlm/shared";
+import { listShippingRates, resolveMarketIdByCode, updateShippingRateAmount } from "@mlm/domain";
+import { AdminShippingRateUpdateSchema, isMarketCodeFormat } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/require-admin-session";
 
@@ -9,8 +9,14 @@ export async function GET(request: NextRequest) {
   if (!auth.authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const marketCode = request.nextUrl.searchParams.get("marketCode")?.trim().toUpperCase();
-  const marketId =
-    marketCode && isMarketCode(marketCode) ? getMarketId(marketCode) : undefined;
+  let marketId: string | undefined;
+  if (marketCode && isMarketCodeFormat(marketCode)) {
+    try {
+      marketId = await resolveMarketIdByCode(marketCode);
+    } catch {
+      return NextResponse.json({ error: "Market not found" }, { status: 404 });
+    }
+  }
   const rates = await listShippingRates(marketId ? { marketId } : undefined);
   return NextResponse.json({ rates }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -29,13 +35,14 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  if (!isMarketCode(parsed.data.marketCode)) {
+  if (!isMarketCodeFormat(parsed.data.marketCode)) {
     return NextResponse.json({ error: "Invalid market code" }, { status: 400 });
   }
 
   try {
+    const marketId = await resolveMarketIdByCode(parsed.data.marketCode);
     const rate = await updateShippingRateAmount({
-      marketId: getMarketId(parsed.data.marketCode),
+      marketId,
       code: parsed.data.code,
       amount: parsed.data.amount,
       perUnit: parsed.data.perUnit,

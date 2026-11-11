@@ -1,4 +1,4 @@
-import type { MarketCode } from "@mlm/shared";
+import type { SeedMarketCode } from "@mlm/shared";
 
 export type BrandLocale = "en" | "ar";
 
@@ -58,7 +58,7 @@ function marketWhatsapp(
 }
 
 /** Per-market support details. SA/EG WhatsApp only appear when env numbers are set. */
-export const MARKET_CONTACT: Record<MarketCode, MarketContact> = {
+export const MARKET_CONTACT: Record<SeedMarketCode, MarketContact> = {
   OM: {
     maps: envOrDefault(process.env.NEXT_PUBLIC_MAPS_OM, DEFAULT_CONTACT.maps),
     ...marketWhatsapp(
@@ -85,8 +85,8 @@ export const MARKET_CONTACT: Record<MarketCode, MarketContact> = {
   },
 };
 
-export function getMarketContact(code: MarketCode): MarketContact {
-  return MARKET_CONTACT[code] ?? DEFAULT_CONTACT;
+export function getMarketContact(code: string): MarketContact {
+  return MARKET_CONTACT[code as SeedMarketCode] ?? DEFAULT_CONTACT;
 }
 
 export function getBrandName(locale: BrandLocale): string {

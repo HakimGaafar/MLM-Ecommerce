@@ -2,13 +2,16 @@ import {
   ACTIVE_MARKET_COOKIE,
   isApexOrWwwHost,
   MARKET_REQUEST_HEADER,
-  resolveMarketCodeFromHost,
+  parseHostSubdomainOrNull,
 } from "@/lib/market-context";
-import { isMarketCodeActive } from "@/lib/market-server";
+import { isMarketCodeActive, resolveMarketCodeFromHostAsync } from "@/lib/market-server";
+import {
+  resolveActiveMarketCodeByGeoCountry,
+  resolveMarketCodeBySubdomain,
+} from "@mlm/domain";
 import {
   DEFAULT_MARKET_CODE,
-  isMarketCode,
-  resolveMarketFromGeoCountry,
+  isMarketCodeFormat,
   type MarketCode,
 } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
@@ -24,29 +27,29 @@ function cookieOptions() {
   };
 }
 
-function attachMarketHeader(response: NextResponse, code: MarketCode) {
+function attachMarketHeader(response: NextResponse, code: string) {
   response.headers.set(MARKET_REQUEST_HEADER, code);
   return response;
 }
 
-function withMarketCookie(response: NextResponse, code: MarketCode) {
+function withMarketCookie(response: NextResponse, code: string) {
   response.cookies.set(ACTIVE_MARKET_COOKIE, code, cookieOptions());
   return attachMarketHeader(response, code);
 }
 
-function resolveActiveMarketCode(request: NextRequest): MarketCode {
+async function resolveActiveMarketCode(request: NextRequest): Promise<string> {
   const host = request.headers.get("host") ?? request.nextUrl.host;
   const rootDomain = process.env.APP_ROOT_DOMAIN?.trim();
 
-  const fromHost = resolveMarketCodeFromHost(host, rootDomain);
+  const fromHost = await resolveMarketCodeFromHostAsync(host, rootDomain);
   if (fromHost) return fromHost;
 
   const fromCookie = request.cookies.get(ACTIVE_MARKET_COOKIE)?.value;
-  if (fromCookie && isMarketCode(fromCookie)) return fromCookie;
+  if (fromCookie && isMarketCodeFormat(fromCookie)) return fromCookie.toUpperCase();
 
   const fromQuery = request.nextUrl.searchParams.get(MARKET_QUERY_PARAM);
-  if (fromQuery && isMarketCode(fromQuery.toUpperCase())) {
-    return fromQuery.toUpperCase() as MarketCode;
+  if (fromQuery && isMarketCodeFormat(fromQuery.toUpperCase())) {
+    return fromQuery.toUpperCase();
   }
 
   const geoHeader = process.env.GEO_IP_HEADER?.trim() || "cf-ipcountry";
@@ -54,7 +57,7 @@ function resolveActiveMarketCode(request: NextRequest): MarketCode {
     request.headers.get(geoHeader) ??
     request.headers.get("x-vercel-ip-country") ??
     readDevGeoCountryOverride();
-  return resolveMarketFromGeoCountry(country);
+  return resolveActiveMarketCodeByGeoCountry(country);
 }
 
 /** Local dev: simulate geo when Cloudflare/Vercel headers are absent (localhost). */
@@ -81,7 +84,7 @@ export async function handleMarketRouting(
   const rootDomain = process.env.APP_ROOT_DOMAIN?.trim();
   const queryMarket = request.nextUrl.searchParams.get(MARKET_QUERY_PARAM)?.toUpperCase();
 
-  if (queryMarket && isMarketCode(queryMarket)) {
+  if (queryMarket && isMarketCodeFormat(queryMarket)) {
     if (!(await isMarketCodeActive(queryMarket))) {
       if (pathname !== "/market-unavailable") {
         const url = request.nextUrl.clone();
@@ -98,7 +101,7 @@ export async function handleMarketRouting(
     }
   }
 
-  const fromHost = resolveMarketCodeFromHost(host, rootDomain);
+  const fromHost = await resolveMarketCodeFromHostAsync(host, rootDomain);
   if (fromHost && !(await isMarketCodeActive(fromHost))) {
     if (pathname !== "/market-unavailable") {
       const url = request.nextUrl.clone();
@@ -110,7 +113,7 @@ export async function handleMarketRouting(
     return attachMarketHeader(res, DEFAULT_MARKET_CODE);
   }
 
-  let activeCode = resolveActiveMarketCode(request);
+  let activeCode = await resolveActiveMarketCode(request);
   if (!(await isMarketCodeActive(activeCode))) {
     activeCode = DEFAULT_MARKET_CODE;
   }
@@ -124,7 +127,7 @@ export async function handleMarketRouting(
     return attachMarketHeader(res, activeCode);
   }
 
-  const fromHostAfter = resolveMarketCodeFromHost(host, rootDomain);
+  const fromHostAfter = await resolveMarketCodeFromHostAsync(host, rootDomain);
   if (fromHostAfter) {
     const res = responseFactory();
     if (cookieCode !== fromHostAfter) {
@@ -134,7 +137,7 @@ export async function handleMarketRouting(
   }
 
   if (isApexOrWwwHost(host, rootDomain) && !cookieCode && pathname === "/") {
-    let suggested = resolveMarketFromGeoCountry(
+    let suggested = await resolveActiveMarketCodeByGeoCountry(
       request.headers.get(process.env.GEO_IP_HEADER?.trim() || "cf-ipcountry") ??
         request.headers.get("x-vercel-ip-country") ??
         readDevGeoCountryOverride(),
@@ -155,10 +158,19 @@ export async function handleMarketRouting(
   if (cookieCode !== activeCode && !fromHostAfter) {
     return withMarketCookie(res, activeCode);
   }
-  return attachMarketHeader(res, cookieCode as MarketCode);
+  if (cookieCode && isMarketCodeFormat(cookieCode)) {
+    return attachMarketHeader(res, cookieCode.toUpperCase());
+  }
+  return attachMarketHeader(res, activeCode as MarketCode);
 }
 
 export function shouldRunMarketRouting(pathname: string): boolean {
   if (pathname.startsWith("/api/v1/market")) return false;
   return true;
+}
+
+/** Used by tests / diagnostics — subdomain parse without host resolve. */
+export async function debugResolveSubdomain(subdomain: string): Promise<string | null> {
+  void parseHostSubdomainOrNull;
+  return resolveMarketCodeBySubdomain(subdomain);
 }

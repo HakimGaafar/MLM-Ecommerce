@@ -1,5 +1,5 @@
 import type { VendorPermissionCode } from "@mlm/shared";
-import { expandLegacyVendorPermissionCodes, isMarketCode, type MarketCode } from "@mlm/shared";
+import { expandLegacyVendorPermissionCodes } from "@mlm/shared";
 import { prisma } from "@mlm/db";
 import { getEffectiveVendorPermissions } from "./vendor-permissions.service";
 
@@ -71,16 +71,16 @@ export async function isVendorOwner(vendorId: string, userId: string): Promise<b
 }
 
 /** First active marketplace (alphabetically by code) where the user owns or is an active team member. */
-export async function resolveDefaultVendorMarketCode(userId: string): Promise<MarketCode | null> {
-  const codes = new Set<MarketCode>();
+export async function resolveDefaultVendorMarketCode(userId: string): Promise<string | null> {
+  const codes = new Set<string>();
 
   const owned = await prisma.vendor.findMany({
     where: { ownerUserId: userId },
     select: { market: { select: { code: true, isActive: true } } },
   });
   for (const row of owned) {
-    if (row.market.isActive && isMarketCode(row.market.code)) {
-      codes.add(row.market.code);
+    if (row.market.isActive && row.market.code.trim().length >= 2) {
+      codes.add(row.market.code.trim().toUpperCase());
     }
   }
 
@@ -90,8 +90,8 @@ export async function resolveDefaultVendorMarketCode(userId: string): Promise<Ma
   });
   for (const row of memberships) {
     const market = row.vendor.market;
-    if (market.isActive && isMarketCode(market.code)) {
-      codes.add(market.code);
+    if (market.isActive && market.code.trim().length >= 2) {
+      codes.add(market.code.trim().toUpperCase());
     }
   }
 

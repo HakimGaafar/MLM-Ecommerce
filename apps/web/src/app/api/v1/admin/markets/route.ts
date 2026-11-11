@@ -1,5 +1,5 @@
 import { listAdminMarkets, updateAdminMarket } from "@mlm/domain";
-import { AdminMarketUpdateSchema, isMarketCode, type MarketCode } from "@mlm/shared";
+import { AdminMarketUpdateSchema, isMarketCode, isMarketCodeFormat, type MarketCode } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { enforceUserRateLimit } from "@/lib/rate-limit-response";
 import { requireSuperAdminSession } from "@/lib/require-super-admin-session";
@@ -22,8 +22,12 @@ export async function PATCH(request: NextRequest) {
   if (limited) return limited;
 
   const marketCode = request.nextUrl.searchParams.get("marketCode")?.trim().toUpperCase();
-  if (!marketCode || !isMarketCode(marketCode)) {
+  if (!marketCode || !isMarketCodeFormat(marketCode)) {
     return NextResponse.json({ error: "Valid marketCode is required" }, { status: 400 });
+  }
+  // Known codes use typed path; DB-created codes (AE, …) use string cast for enable/edit.
+  if (!isMarketCode(marketCode)) {
+    // Allow PATCH for wizard-created markets that are not in MARKET_CODES.
   }
 
   const body = await request.json().catch(() => null);
@@ -79,6 +83,42 @@ export async function PATCH(request: NextRequest) {
         {
           error: "Add the market default currency to payment currencies before opening.",
           code: "PAYMENT_CURRENCY_MISSING",
+        },
+        { status: 400 },
+      );
+    }
+    if (error.message === "DNS_NOT_VERIFIED") {
+      return NextResponse.json(
+        {
+          error:
+            "Live DNS/host verification failed. Point the market subdomain at the platform, then enable again (or use the Add Market wizard Verify DNS).",
+          code: "DNS_NOT_VERIFIED",
+        },
+        { status: 400 },
+      );
+    }
+    if (error.message === "ROUTING_NOT_BOUND") {
+      return NextResponse.json(
+        {
+          error: "Subdomain and geo binding incomplete for this market.",
+          code: "ROUTING_NOT_BOUND",
+        },
+        { status: 400 },
+      );
+    }
+    if (
+      error.message === "NOT_READY" ||
+      error.message === "GATEWAY_CURRENCY_UNSUPPORTED" ||
+      error.message === "CONFIG_MISSING" ||
+      error.message === "REFUND_RULES_MISSING" ||
+      error.message === "INVOICING_RULES_MISSING" ||
+      error.message === "SHIPPING_RATES_MISSING" ||
+      error.message === "POLICIES_INCOMPLETE"
+    ) {
+      return NextResponse.json(
+        {
+          error: `Market pack incomplete (${error.message}). Finish the Add Market wizard checklist before enabling.`,
+          code: error.message,
         },
         { status: 400 },
       );

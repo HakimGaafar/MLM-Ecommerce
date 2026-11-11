@@ -3,7 +3,7 @@ import ar from "@/i8n/ar.json";
 import en from "@/i8n/en.json";
 import { getAppLocale } from "@/lib/ui-locale";
 import { listMarketsForPicker } from "@/lib/market-server";
-import { getMarketDefinition, isMarketCode, type MarketCode } from "@mlm/shared";
+import { getMarketDefinition, isSeedMarketCode } from "@mlm/shared";
 
 type PageProps = {
   searchParams: Promise<{ market?: string }>;
@@ -17,13 +17,17 @@ export default async function MarketUnavailablePage({ searchParams }: PageProps)
   const direction = locale === "ar" ? "rtl" : "ltr";
 
   const codeParam = params.market?.trim().toUpperCase();
+  const activeMarkets = await listMarketsForPicker();
   let marketName = ui.unknownMarket;
-  if (codeParam && isMarketCode(codeParam)) {
+  if (codeParam && isSeedMarketCode(codeParam)) {
     const def = getMarketDefinition(codeParam);
     marketName = locale === "ar" ? def.nameAr : def.nameEn;
+  } else if (codeParam) {
+    const fromList = activeMarkets.find((m) => m.code === codeParam);
+    if (fromList) marketName = locale === "ar" ? fromList.nameAr : fromList.nameEn;
+    else marketName = codeParam;
   }
 
-  const activeMarkets = await listMarketsForPicker();
   const alternatives = activeMarkets
     .filter((m) => m.code !== codeParam)
     .slice(0, 3)

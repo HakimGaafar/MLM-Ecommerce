@@ -1,5 +1,9 @@
-import { getAdminPlatformConfigChangeLogs, listAdminPlatformConfigAudit } from "@mlm/domain";
-import { getMarketId, isMarketCode } from "@mlm/shared";
+import {
+  getAdminPlatformConfigChangeLogs,
+  listAdminPlatformConfigAudit,
+  resolveMarketIdByCodeOrNull,
+} from "@mlm/domain";
+import { isMarketCodeFormat } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdminSession } from "@/lib/require-super-admin-session";
 
@@ -15,8 +19,8 @@ export async function GET(request: NextRequest) {
   const limitRaw = request.nextUrl.searchParams.get("limit");
 
   let marketId: string | undefined;
-  if (marketCode && marketCode !== "ALL" && isMarketCode(marketCode)) {
-    marketId = getMarketId(marketCode);
+  if (marketCode && marketCode !== "ALL" && isMarketCodeFormat(marketCode)) {
+    marketId = (await resolveMarketIdByCodeOrNull(marketCode)) ?? undefined;
   } else if (marketIdParam) {
     marketId = marketIdParam;
   }

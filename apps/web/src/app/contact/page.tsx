@@ -21,7 +21,8 @@ export default async function ContactPage() {
   const direction = locale === "ar" ? "rtl" : "ltr";
   const brandName = getBrandName(locale);
   const contact = getMarketContact(market.code);
-  const marketCopy = ui.markets[market.code] ?? ui.markets.GLOBAL;
+  const marketCopy =
+    ui.markets[market.code as keyof typeof ui.markets] ?? ui.markets.GLOBAL;
   const platformConfig = await getPlatformConfig(market.id);
   const locationText =
     (locale === "ar"

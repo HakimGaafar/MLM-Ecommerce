@@ -2,7 +2,7 @@ import {
   MARKET_IDS,
   MARKET_LAUNCH_ACTIVE,
   resolveMarketFromGeoCountry,
-  type MarketCode,
+  type SeedMarketCode,
 } from "./market";
 
 export const SHIPPING_PACKAGE_TYPES = [
@@ -40,10 +40,14 @@ export function isVandsoqWarehouseMarketCode(
  * Closed launch markets (e.g. EG) park on GLOBAL until opened in DB —
  * pass `activeByCode` from runtime for admin-opened markets after deploy defaults.
  */
+/**
+ * Sync seed-catalog primary market from country.
+ * Prefer domain `resolvePrimaryMarketCodeForCountry` / `resolvePrimaryMarketIdForCountry` for DB markets.
+ */
 export function primaryMarketFromCountry(
   countryCode: string | null | undefined,
-  activeByCode?: Partial<Record<MarketCode, boolean>>,
-): MarketCode {
+  activeByCode?: Partial<Record<SeedMarketCode, boolean>>,
+): SeedMarketCode {
   const natural = resolveMarketFromGeoCountry(countryCode);
   if (natural === "GLOBAL") return "GLOBAL";
   const active = activeByCode?.[natural] ?? MARKET_LAUNCH_ACTIVE[natural];
@@ -52,7 +56,7 @@ export function primaryMarketFromCountry(
 
 export function primaryMarketIdFromCountry(
   countryCode: string | null | undefined,
-  activeByCode?: Partial<Record<MarketCode, boolean>>,
+  activeByCode?: Partial<Record<SeedMarketCode, boolean>>,
 ): string {
   return MARKET_IDS[primaryMarketFromCountry(countryCode, activeByCode)];
 }

@@ -1,9 +1,15 @@
 import { cache } from "react";
 import { prisma } from "@mlm/db";
 import {
+  resolveActiveMarketCodeByGeoCountry,
+  resolveMarketCodeBySubdomain,
+} from "@mlm/domain";
+import {
   DEFAULT_MARKET_CODE,
   getMarketDefinition,
   isMarketCode,
+  isMarketCodeFormat,
+  isSeedMarketCode,
   type MarketCode,
 } from "@mlm/shared";
 import { cookies, headers } from "next/headers";
@@ -12,6 +18,7 @@ import {
   definitionToSnapshot,
   getDefaultMarketSnapshot,
   MARKET_REQUEST_HEADER,
+  parseHostSubdomainOrNull,
   resolveMarketCodeFromHost,
   type MarketSnapshot,
 } from "@/lib/market-context";
@@ -24,10 +31,10 @@ function snapshotFromDbRow(row: {
   nameEn: string;
   nameAr: string;
 }): MarketSnapshot | null {
-  if (!isMarketCode(row.code)) return null;
+  if (!isMarketCodeFormat(row.code)) return null;
   return {
     id: row.id,
-    code: row.code,
+    code: row.code as MarketCode,
     subdomain: row.subdomain,
     defaultCurrency: row.defaultCurrency,
     nameEn: row.nameEn,
@@ -35,10 +42,15 @@ function snapshotFromDbRow(row: {
   };
 }
 
-async function loadMarketByCode(code: MarketCode): Promise<MarketSnapshot> {
+export async function getMarketSnapshotByCode(code: string): Promise<MarketSnapshot> {
+  return loadMarketByCode(code);
+}
+
+async function loadMarketByCode(code: string): Promise<MarketSnapshot> {
+  const normalized = code.trim().toUpperCase();
   try {
     const row = await prisma.market.findFirst({
-      where: { code },
+      where: { code: normalized },
       select: {
         id: true,
         code: true,
@@ -59,24 +71,42 @@ async function loadMarketByCode(code: MarketCode): Promise<MarketSnapshot> {
   } catch {
     // Table may not exist before migrate — fall back to static definitions.
   }
-  return definitionToSnapshot(getMarketDefinition(code));
+  if (isSeedMarketCode(normalized)) {
+    return definitionToSnapshot(getMarketDefinition(normalized));
+  }
+  return loadMarketByCode(DEFAULT_MARKET_CODE);
 }
 
-export async function isMarketCodeActive(code: MarketCode): Promise<boolean> {
+export async function isMarketCodeActive(code: string): Promise<boolean> {
   try {
     const row = await prisma.market.findFirst({
-      where: { code },
+      where: { code: code.trim().toUpperCase() },
       select: { isActive: true },
     });
     if (row) return row.isActive;
   } catch {
     // fall through
   }
-  return true;
+  return isMarketCode(code);
 }
 
-export async function isHostMarketInactive(host: string, rootDomain?: string): Promise<MarketCode | null> {
-  const fromHost = resolveMarketCodeFromHost(host, rootDomain);
+/** DB-first host → market code. */
+export async function resolveMarketCodeFromHostAsync(
+  host: string,
+  rootDomain?: string,
+): Promise<string | null> {
+  const sub = parseHostSubdomainOrNull(host, rootDomain);
+  if (!sub) return null;
+  const fromDb = await resolveMarketCodeBySubdomain(sub);
+  if (fromDb) return fromDb;
+  return resolveMarketCodeFromHost(host, rootDomain);
+}
+
+export async function isHostMarketInactive(
+  host: string,
+  rootDomain?: string,
+): Promise<string | null> {
+  const fromHost = await resolveMarketCodeFromHostAsync(host, rootDomain);
   if (!fromHost) return null;
   const active = await isMarketCodeActive(fromHost);
   return active ? null : fromHost;
@@ -85,20 +115,20 @@ export async function isHostMarketInactive(host: string, rootDomain?: string): P
 export const getActiveMarket = cache(async function getActiveMarket(): Promise<MarketSnapshot> {
   const hdrs = await headers();
   const fromProxy = hdrs.get(MARKET_REQUEST_HEADER);
-  if (fromProxy && isMarketCode(fromProxy)) {
+  if (fromProxy && isMarketCodeFormat(fromProxy)) {
     return loadMarketByCode(fromProxy);
   }
 
   const host = hdrs.get("host") ?? "";
   const rootDomain = process.env.APP_ROOT_DOMAIN?.trim();
-  const fromHost = resolveMarketCodeFromHost(host, rootDomain);
+  const fromHost = await resolveMarketCodeFromHostAsync(host, rootDomain);
   if (fromHost) {
     return loadMarketByCode(fromHost);
   }
 
   const cookieStore = await cookies();
   const cookieCode = cookieStore.get(ACTIVE_MARKET_COOKIE)?.value;
-  if (cookieCode && isMarketCode(cookieCode)) {
+  if (cookieCode && isMarketCodeFormat(cookieCode)) {
     return loadMarketByCode(cookieCode);
   }
 
@@ -148,11 +178,9 @@ function readDevGeoCountryOverride(): string | null {
 }
 
 export async function getSuggestedMarketCode(): Promise<MarketCode> {
-  const { resolveMarketFromGeoCountry } = await import("@mlm/shared");
   const hdrs = await headers();
-  const natural = resolveMarketFromGeoCountry(getGeoCountryFromHeaders(hdrs));
-  if (await isMarketCodeActive(natural)) return natural;
-  // Closed home markets (e.g. Egypt) park visitors on International.
+  const natural = await resolveActiveMarketCodeByGeoCountry(getGeoCountryFromHeaders(hdrs));
+  if (await isMarketCodeActive(natural)) return natural as MarketCode;
   return "GLOBAL";
 }
 

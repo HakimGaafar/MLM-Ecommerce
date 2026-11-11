@@ -5,16 +5,21 @@ import {
   resolveDeliveryMarketForCountry,
   type MarketCode,
 } from "@mlm/shared";
+import { prisma } from "@mlm/db";
 import { CheckoutError } from "./checkout.service";
 
 export function resolveHomeMarketCodeForCountry(countryCode: string): MarketCode {
   return resolveDeliveryMarketForCountry(countryCode);
 }
 
-export function countryCodeMatchesMarket(countryCode: string, marketCode: MarketCode): boolean {
+export function countryCodeMatchesMarket(
+  countryCode: string,
+  marketCode: MarketCode,
+  marketGeoCountryCodes?: readonly string[],
+): boolean {
   const cc = countryCode.trim().toUpperCase();
   if (cc.length !== 2) return false;
-  return isShippingCountryAllowedForMarket(cc, marketCode);
+  return isShippingCountryAllowedForMarket(cc, marketCode, marketGeoCountryCodes);
 }
 
 export type MarketShippingAddressPick = {
@@ -27,23 +32,31 @@ type AddressRow = Pick<CustomerShippingAddressDto, "id" | "countryCode" | "isDef
 
 /**
  * Picks the delivery address for checkout on the active marketplace.
- * Auto-selects the first (or default) address whose country matches the market.
- * If the user has no address for this market, returns a mismatch hint for their home store.
+ * Pass `marketGeoCountryCodes` from the active market DB row for wizard markets.
  */
 export function pickShippingAddressForMarket(params: {
   addresses: AddressRow[];
   activeMarketCode: MarketCode;
+  marketGeoCountryCodes?: readonly string[];
   requestedAddressId?: string | null;
   profileCountryCode?: string | null;
 }): MarketShippingAddressPick {
-  const { addresses, activeMarketCode, requestedAddressId, profileCountryCode } = params;
-  const matching = addresses.filter((a) => countryCodeMatchesMarket(a.countryCode, activeMarketCode));
+  const {
+    addresses,
+    activeMarketCode,
+    marketGeoCountryCodes,
+    requestedAddressId,
+    profileCountryCode,
+  } = params;
+  const matching = addresses.filter((a) =>
+    countryCodeMatchesMarket(a.countryCode, activeMarketCode, marketGeoCountryCodes),
+  );
 
   if (requestedAddressId) {
     const picked = addresses.find((a) => a.id === requestedAddressId);
     if (picked) {
       const cc = picked.countryCode.trim().toUpperCase();
-      if (countryCodeMatchesMarket(cc, activeMarketCode)) {
+      if (countryCodeMatchesMarket(cc, activeMarketCode, marketGeoCountryCodes)) {
         return {
           selectedAddressId: picked.id,
           shippingCountryCode: cc,
@@ -78,7 +91,7 @@ export function pickShippingAddressForMarket(params: {
 
   if (profileCountryCode?.trim()) {
     const cc = profileCountryCode.trim().toUpperCase();
-    if (countryCodeMatchesMarket(cc, activeMarketCode)) {
+    if (countryCodeMatchesMarket(cc, activeMarketCode, marketGeoCountryCodes)) {
       return { selectedAddressId: null, shippingCountryCode: cc, deliveryMismatchMarketCode: null };
     }
     return {
@@ -91,17 +104,34 @@ export function pickShippingAddressForMarket(params: {
   return { selectedAddressId: null, shippingCountryCode: null, deliveryMismatchMarketCode: null };
 }
 
-export function assertShippingCountryMatchesMarket(params: {
+export async function assertShippingCountryMatchesMarket(params: {
   countryCode: string | null | undefined;
   marketId: string;
-}): void {
-  const activeCode = getMarketCodeById(params.marketId);
-  if (!activeCode) return;
+}): Promise<void> {
+  const market = await prisma.market.findUnique({
+    where: { id: params.marketId },
+    select: { code: true, geoCountryCodes: true },
+  });
+  if (!market) {
+    // Seed id fallback for pre-migrate / tests
+    const activeCode = getMarketCodeById(params.marketId);
+    if (!activeCode) return;
+    const cc = params.countryCode?.trim().toUpperCase();
+    if (!cc || cc.length !== 2) return;
+    if (!isShippingCountryAllowedForMarket(cc, activeCode)) {
+      const homeMarketCode = resolveHomeMarketCodeForCountry(cc);
+      throw new CheckoutError(
+        "DELIVERY_MARKET_MISMATCH",
+        `Delivery to ${cc} must be completed on the ${homeMarketCode} storefront.`,
+      );
+    }
+    return;
+  }
 
   const cc = params.countryCode?.trim().toUpperCase();
   if (!cc || cc.length !== 2) return;
 
-  if (!isShippingCountryAllowedForMarket(cc, activeCode)) {
+  if (!isShippingCountryAllowedForMarket(cc, market.code, market.geoCountryCodes)) {
     const homeMarketCode = resolveHomeMarketCodeForCountry(cc);
     throw new CheckoutError(
       "DELIVERY_MARKET_MISMATCH",

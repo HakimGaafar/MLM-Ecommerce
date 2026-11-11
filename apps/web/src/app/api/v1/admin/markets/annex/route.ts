@@ -1,20 +1,16 @@
 import { getAdminMarketAnnex, updateAdminMarketAnnex } from "@mlm/domain";
-import { AdminMarketAnnexUpdateSchema, isMarketCode, type MarketCode } from "@mlm/shared";
+import { AdminMarketAnnexUpdateSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
+import { parseAdminMarketCode } from "@/lib/admin-market-code";
 import { enforceUserRateLimit } from "@/lib/rate-limit-response";
 import { requireSuperAdminSession } from "@/lib/require-super-admin-session";
-
-function parseMarketCode(request: NextRequest): MarketCode | null {
-  const raw = request.nextUrl.searchParams.get("marketCode")?.trim().toUpperCase();
-  return raw && isMarketCode(raw) ? raw : null;
-}
 
 export async function GET(request: NextRequest) {
   const auth = await requireSuperAdminSession(request);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!auth.authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const marketCode = parseMarketCode(request);
+  const marketCode = parseAdminMarketCode(request);
   if (!marketCode) {
     return NextResponse.json({ error: "Valid marketCode is required" }, { status: 400 });
   }
@@ -38,7 +34,7 @@ export async function PATCH(request: NextRequest) {
   const limited = await enforceUserRateLimit(request, auth.userId, "admin-market-annex", 30, 10 * 60 * 1000);
   if (limited) return limited;
 
-  const marketCode = parseMarketCode(request);
+  const marketCode = parseAdminMarketCode(request);
   if (!marketCode) {
     return NextResponse.json({ error: "Valid marketCode is required" }, { status: 400 });
   }

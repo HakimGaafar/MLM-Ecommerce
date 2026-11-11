@@ -2,12 +2,8 @@ import { z } from "zod";
 import { MARKET_IDS, type MarketCode } from "../market";
 import { PRODUCT_STOCK_LOCATIONS } from "../commerce-fulfillment";
 
-const MarketIdSchema = z.enum([
-  MARKET_IDS.SA,
-  MARKET_IDS.OM,
-  MARKET_IDS.EG,
-  MARKET_IDS.GLOBAL,
-] as [string, ...string[]]);
+/** Any market row id (seed market_* or wizard cuid). */
+const MarketIdSchema = z.string().trim().min(1).max(64);
 
 export const ProductMarketOfferInputSchema = z
   .object({
@@ -75,6 +71,7 @@ export function defaultCurrencyForMarketId(marketId: string): string {
   return MARKET_CURRENCY[marketId] ?? "USD";
 }
 
+/** Seed-only reverse map. Wizard markets must resolve code from DB at call site. */
 export function marketCodeFromMarketId(marketId: string): MarketCode | null {
   const entry = Object.entries(MARKET_IDS).find(([, id]) => id === marketId);
   return entry ? (entry[0] as MarketCode) : null;

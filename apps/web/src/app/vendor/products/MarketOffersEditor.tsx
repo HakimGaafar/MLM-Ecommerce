@@ -22,30 +22,64 @@ export type OfferDraft = {
   rejectionReason?: string | null;
 };
 
-const ALL_MARKET_OPTIONS = [
-  { id: MARKET_IDS.SA, code: "SA" as const, warehouseId: VANDSOQ_WAREHOUSE_IDS.SA },
-  { id: MARKET_IDS.OM, code: "OM" as const, warehouseId: VANDSOQ_WAREHOUSE_IDS.OM },
-  { id: MARKET_IDS.EG, code: "EG" as const, warehouseId: VANDSOQ_WAREHOUSE_IDS.EG },
-  { id: MARKET_IDS.GLOBAL, code: "GLOBAL" as const, warehouseId: null },
+export type MarketOfferOption = {
+  id: string;
+  code: string;
+  warehouseId: string | null;
+  defaultCurrency?: string;
+};
+
+const SEED_MARKET_OPTIONS: MarketOfferOption[] = [
+  { id: MARKET_IDS.SA, code: "SA", warehouseId: VANDSOQ_WAREHOUSE_IDS.SA },
+  { id: MARKET_IDS.OM, code: "OM", warehouseId: VANDSOQ_WAREHOUSE_IDS.OM },
+  { id: MARKET_IDS.EG, code: "EG", warehouseId: VANDSOQ_WAREHOUSE_IDS.EG },
+  { id: MARKET_IDS.GLOBAL, code: "GLOBAL", warehouseId: null },
 ];
 
-function launchVisibleOptions(activeMarketIds?: string[]) {
+const SEED_WAREHOUSE_BY_CODE: Record<string, string | null> = {
+  SA: VANDSOQ_WAREHOUSE_IDS.SA,
+  OM: VANDSOQ_WAREHOUSE_IDS.OM,
+  EG: VANDSOQ_WAREHOUSE_IDS.EG,
+  GLOBAL: null,
+};
+
+function launchVisibleOptions(
+  activeMarketIds?: string[],
+  activeMarkets?: Array<{ id: string; code: string; defaultCurrency?: string }>,
+): MarketOfferOption[] {
+  if (activeMarkets && activeMarkets.length > 0) {
+    return activeMarkets.map((m) => ({
+      id: m.id,
+      code: m.code,
+      warehouseId: SEED_WAREHOUSE_BY_CODE[m.code] ?? null,
+      defaultCurrency: m.defaultCurrency,
+    }));
+  }
   if (activeMarketIds && activeMarketIds.length > 0) {
     const allow = new Set(activeMarketIds);
-    return ALL_MARKET_OPTIONS.filter((m) => allow.has(m.id));
+    const known = SEED_MARKET_OPTIONS.filter((m) => allow.has(m.id));
+    const knownIds = new Set(known.map((m) => m.id));
+    const extras = activeMarketIds
+      .filter((id) => !knownIds.has(id))
+      .map((id) => ({ id, code: id, warehouseId: null as string | null }));
+    return [...known, ...extras];
   }
-  return ALL_MARKET_OPTIONS.filter((m) => MARKET_LAUNCH_ACTIVE[m.code as MarketCode]);
+  return SEED_MARKET_OPTIONS.filter((m) => {
+    const code = m.code as keyof typeof MARKET_LAUNCH_ACTIVE;
+    return code in MARKET_LAUNCH_ACTIVE ? MARKET_LAUNCH_ACTIVE[code] : false;
+  });
 }
 
 export function createDefaultOfferDrafts(
   homeMarketId?: string,
   activeMarketIds?: string[],
+  activeMarkets?: Array<{ id: string; code: string; defaultCurrency?: string }>,
 ): OfferDraft[] {
-  return launchVisibleOptions(activeMarketIds).map((m) => ({
+  return launchVisibleOptions(activeMarketIds, activeMarkets).map((m) => ({
     marketId: m.id,
     enabled: m.id === (homeMarketId ?? MARKET_IDS.SA),
     price: "",
-    currency: defaultCurrencyForMarketId(m.id),
+    currency: m.defaultCurrency ?? defaultCurrencyForMarketId(m.id),
     stockLocation: "MERCHANT",
     vandsoqMode: "FORSEIZ_STOCK",
     quantity: "0",
@@ -85,24 +119,29 @@ export default function MarketOffersEditor({
   onChange,
   labels,
   activeMarketIds,
+  activeMarkets,
 }: {
   drafts: OfferDraft[];
   onChange: (next: OfferDraft[]) => void;
   labels: Labels;
   activeMarketIds?: string[];
+  activeMarkets?: Array<{ id: string; code: string; defaultCurrency?: string }>;
 }) {
+  const options = launchVisibleOptions(activeMarketIds, activeMarkets);
+
   const nameFor = (code: string) => {
     if (code === "SA") return labels.marketSA;
     if (code === "OM") return labels.marketOM;
     if (code === "EG") return labels.marketEG;
-    return labels.marketGLOBAL;
+    if (code === "GLOBAL") return labels.marketGLOBAL;
+    return code;
   };
 
   function update(marketId: string, patch: Partial<OfferDraft>) {
     onChange(drafts.map((d) => (d.marketId === marketId ? { ...d, ...patch } : d)));
   }
 
-  const visibleIds = new Set<string>(launchVisibleOptions(activeMarketIds).map((m) => m.id));
+  const visibleIds = new Set<string>(options.map((m) => m.id));
   const visibleDrafts = drafts.filter((d) => visibleIds.has(d.marketId));
 
   return (
@@ -113,7 +152,9 @@ export default function MarketOffersEditor({
       </div>
       <div className="space-y-3">
         {visibleDrafts.map((draft) => {
-          const meta = ALL_MARKET_OPTIONS.find((m) => m.id === draft.marketId)!;
+          const meta =
+            options.find((m) => m.id === draft.marketId) ??
+            ({ id: draft.marketId, code: draft.marketId, warehouseId: null } as MarketOfferOption);
           const vandsoqAllowed = Boolean(meta.warehouseId);
           return (
             <article
@@ -280,12 +321,19 @@ export default function MarketOffersEditor({
   );
 }
 
-export function draftsToOffersPayload(drafts: OfferDraft[], activeMarketIds?: string[]) {
-  const allow = new Set<string>(launchVisibleOptions(activeMarketIds).map((m) => m.id));
+export function draftsToOffersPayload(
+  drafts: OfferDraft[],
+  activeMarketIds?: string[],
+  activeMarkets?: Array<{ id: string; code: string; defaultCurrency?: string }>,
+) {
+  const options = launchVisibleOptions(activeMarketIds, activeMarkets);
+  const allow = new Set<string>(options.map((m) => m.id));
   return drafts
     .filter((d) => d.enabled && allow.has(d.marketId))
     .map((d) => {
-      const meta = ALL_MARKET_OPTIONS.find((m) => m.id === d.marketId)!;
+      const meta =
+        options.find((m) => m.id === d.marketId) ??
+        ({ id: d.marketId, code: d.marketId, warehouseId: null } as MarketOfferOption);
       return {
         marketId: d.marketId,
         price: Number.parseFloat(d.price),

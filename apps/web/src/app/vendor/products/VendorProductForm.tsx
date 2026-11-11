@@ -78,6 +78,9 @@ export default function VendorProductForm({ productId }: { productId?: string })
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState("SAR");
   const [activeMarketIds, setActiveMarketIds] = useState<string[] | undefined>(undefined);
+  const [activeMarkets, setActiveMarkets] = useState<
+    Array<{ id: string; code: string; defaultCurrency?: string }> | undefined
+  >(undefined);
   const [offerDrafts, setOfferDrafts] = useState<OfferDraft[]>(() => createDefaultOfferDrafts());
   const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([]);
   const [categoryId, setCategoryId] = useState("");
@@ -148,10 +151,14 @@ export default function VendorProductForm({ productId }: { productId?: string })
           signal: ac.signal,
         });
         if (!res.ok) return;
-        const data = (await res.json()) as { marketIds: string[] };
+        const data = (await res.json()) as {
+          marketIds: string[];
+          markets?: Array<{ id: string; code: string; defaultCurrency?: string }>;
+        };
         setActiveMarketIds(data.marketIds);
+        setActiveMarkets(data.markets);
         if (!productId) {
-          setOfferDrafts(createDefaultOfferDrafts(undefined, data.marketIds));
+          setOfferDrafts(createDefaultOfferDrafts(undefined, data.marketIds, data.markets));
         }
       } catch (e) {
         if (e instanceof Error && e.name === "AbortError") return;
@@ -220,7 +227,7 @@ export default function VendorProductForm({ productId }: { productId?: string })
         setDescriptionAr(data.product.descriptionAr ?? "");
         setPrice(data.product.price);
         setCurrency(data.product.currency);
-        const drafts = createDefaultOfferDrafts(undefined, activeMarketIds);
+        const drafts = createDefaultOfferDrafts(undefined, activeMarketIds, activeMarkets);
         if (data.product.offers?.length) {
           for (const offer of data.product.offers) {
             const idx = drafts.findIndex((d) => d.marketId === offer.marketId);
@@ -394,7 +401,7 @@ export default function VendorProductForm({ productId }: { productId?: string })
     if (!images.some((img) => img.isPrimary)) {
       images[0].isPrimary = true;
     }
-    const offers = draftsToOffersPayload(offerDrafts, activeMarketIds);
+    const offers = draftsToOffersPayload(offerDrafts, activeMarketIds, activeMarkets);
     if (
       offers.length === 0 ||
       offers.some((o) => !Number.isFinite(o.price) || o.price <= 0)
@@ -549,6 +556,7 @@ export default function VendorProductForm({ productId }: { productId?: string })
           drafts={offerDrafts}
           onChange={setOfferDrafts}
           activeMarketIds={activeMarketIds}
+          activeMarkets={activeMarkets}
           labels={{
             title: ui.formOffersTitle,
             subtitle: ui.formOffersSubtitle,

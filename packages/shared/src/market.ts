@@ -1,9 +1,21 @@
+import { isMarketCodeFormat } from "./add-market-catalog";
+
+/** Seed / launch markets only (static catalog + MARKET_IDS). */
 export const MARKET_CODES = ["SA", "OM", "EG", "GLOBAL"] as const;
 
-export type MarketCode = (typeof MARKET_CODES)[number];
+export type SeedMarketCode = (typeof MARKET_CODES)[number];
+
+/**
+ * Any marketplace code: seed (SA/OM/EG/GLOBAL) or wizard DB markets (AE, …).
+ * Validate with {@link isMarketCodeFormat} at API boundaries.
+ */
+export type MarketCode = string;
+
+/** @deprecated Use SeedMarketCode for seed-only maps; MarketCode is now any DB code. */
+export type LegacySeedMarketCode = SeedMarketCode;
 
 export type MarketDefinition = {
-  code: MarketCode;
+  code: SeedMarketCode;
   subdomain: string;
   defaultCurrency: string;
   geoCountryCodes: string[];
@@ -52,13 +64,13 @@ export const MARKET_DEFINITIONS: readonly MarketDefinition[] = [
   },
 ] as const;
 
-/** Checkout currencies accepted per market (Phase 1 legal foundations). */
+/** Checkout currencies accepted per seed market (Phase 1 legal foundations). */
 export const MARKET_PAYMENT_CURRENCIES = {
   SA: ["SAR"],
   OM: ["OMR"],
   EG: ["EGP"],
   GLOBAL: ["OMR", "USD"],
-} as const satisfies Record<MarketCode, readonly string[]>;
+} as const satisfies Record<SeedMarketCode, readonly string[]>;
 
 /** Launch visibility defaults: Egypt built but closed/hidden. */
 export const MARKET_LAUNCH_ACTIVE = {
@@ -66,9 +78,9 @@ export const MARKET_LAUNCH_ACTIVE = {
   OM: true,
   EG: false,
   GLOBAL: true,
-} as const satisfies Record<MarketCode, boolean>;
+} as const satisfies Record<SeedMarketCode, boolean>;
 
-export const DEFAULT_MARKET_CODE: MarketCode = "SA";
+export const DEFAULT_MARKET_CODE: SeedMarketCode = "SA";
 
 /** Stable DB primary keys — kept in sync with migrations/seed (Phase X1). */
 export const MARKET_IDS = {
@@ -76,7 +88,7 @@ export const MARKET_IDS = {
   OM: "market_om",
   EG: "market_eg",
   GLOBAL: "market_global",
-} as const satisfies Record<MarketCode, string>;
+} as const satisfies Record<SeedMarketCode, string>;
 
 export const DEFAULT_MARKET_ID = MARKET_IDS.SA;
 
@@ -86,15 +98,25 @@ export type MarketScope = {
   defaultCurrency: string;
 };
 
-export function getMarketId(code: MarketCode): string {
+/** Seed market id only. For wizard markets use resolveMarketIdByCode (domain). */
+export function getMarketId(code: SeedMarketCode): string {
   return MARKET_IDS[code];
 }
 
-export function isMarketCode(value: string): value is MarketCode {
-  return (MARKET_CODES as readonly string[]).includes(value);
+/** True if value is one of the four seed market codes. */
+export function isSeedMarketCode(value: string): value is SeedMarketCode {
+  return (MARKET_CODES as readonly string[]).includes(value.trim().toUpperCase());
 }
 
-export function getMarketDefinition(code: MarketCode): MarketDefinition {
+/**
+ * True if value is a valid market code format (seed or wizard).
+ * Prefer this over {@link isSeedMarketCode} for request validation.
+ */
+export function isMarketCode(value: string): value is MarketCode {
+  return isMarketCodeFormat(value);
+}
+
+export function getMarketDefinition(code: SeedMarketCode): MarketDefinition {
   const found = MARKET_DEFINITIONS.find((m) => m.code === code);
   if (!found) throw new Error(`Unknown market code: ${code}`);
   return found;
@@ -105,7 +127,11 @@ export function getMarketBySubdomain(subdomain: string): MarketDefinition | null
   return MARKET_DEFINITIONS.find((m) => m.subdomain === normalized) ?? null;
 }
 
-export function resolveMarketFromGeoCountry(countryCode: string | null | undefined): MarketCode {
+/**
+ * Sync seed-catalog geo resolve only.
+ * Prefer domain `resolveActiveMarketCodeByGeoCountry` for DB markets (AE, …).
+ */
+export function resolveMarketFromGeoCountry(countryCode: string | null | undefined): SeedMarketCode {
   const cc = countryCode?.trim().toUpperCase();
   if (!cc) return "GLOBAL";
   const direct = MARKET_DEFINITIONS.find((m) => m.geoCountryCodes.includes(cc));
@@ -113,21 +139,50 @@ export function resolveMarketFromGeoCountry(countryCode: string | null | undefin
   return "GLOBAL";
 }
 
-export function getMarketCodeById(marketId: string): MarketCode | null {
+/** Seed id → code only. Wizard market ids return null — resolve via Prisma. */
+export function getMarketCodeById(marketId: string): SeedMarketCode | null {
   const entry = Object.entries(MARKET_IDS).find(([, id]) => id === marketId);
-  return entry ? (entry[0] as MarketCode) : null;
+  return entry ? (entry[0] as SeedMarketCode) : null;
 }
 
-/** Country on the shipping address → which marketplace should fulfill the order. */
-export function resolveDeliveryMarketForCountry(countryCode: string | null | undefined): MarketCode {
+/** Country on the shipping address → seed marketplace (sync fallback). */
+export function resolveDeliveryMarketForCountry(
+  countryCode: string | null | undefined,
+): SeedMarketCode {
   return resolveMarketFromGeoCountry(countryCode);
 }
 
+/**
+ * Whether a shipping country belongs on this market.
+ * Pass `marketGeoCountryCodes` from the DB market row for wizard markets.
+ */
 export function isShippingCountryAllowedForMarket(
   countryCode: string | null | undefined,
   activeMarketCode: MarketCode,
+  marketGeoCountryCodes?: readonly string[],
 ): boolean {
-  return resolveDeliveryMarketForCountry(countryCode) === activeMarketCode;
+  const cc = countryCode?.trim().toUpperCase();
+  if (!cc || cc.length !== 2) return false;
+
+  if (marketGeoCountryCodes && marketGeoCountryCodes.length > 0) {
+    return marketGeoCountryCodes.some((g) => g.trim().toUpperCase() === cc);
+  }
+
+  // GLOBAL: countries that do not map to a seed home market.
+  if (activeMarketCode === "GLOBAL") {
+    return resolveDeliveryMarketForCountry(cc) === "GLOBAL";
+  }
+
+  if (isSeedMarketCode(activeMarketCode)) {
+    return resolveDeliveryMarketForCountry(cc) === activeMarketCode;
+  }
+
+  // Wizard market without geo list: treat market code as the country claim when 2-letter.
+  if (activeMarketCode.length === 2) {
+    return cc === activeMarketCode.toUpperCase();
+  }
+
+  return false;
 }
 
 /** All market definitions (including launch-closed). Prefer {@link listLaunchActiveMarketDefinitions} for public surfaces. */

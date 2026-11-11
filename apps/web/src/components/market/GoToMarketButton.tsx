@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { MarketCode } from "@mlm/shared";
 import { useToast } from "@/components/toast/ToastProvider";
 
 export default function GoToMarketButton({
@@ -10,7 +9,7 @@ export default function GoToMarketButton({
   label,
   switchError,
 }: {
-  homeMarketCode: MarketCode;
+  homeMarketCode: string;
   returnTo: string;
   label: string;
   switchError: string;

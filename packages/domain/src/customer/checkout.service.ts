@@ -508,7 +508,12 @@ export async function getCheckoutQuoteForUser(
 }> {
   const market = await prisma.market.findUnique({
     where: { id: marketId },
-    select: { defaultCurrency: true, code: true, paymentCurrencies: true },
+    select: {
+      defaultCurrency: true,
+      code: true,
+      paymentCurrencies: true,
+      geoCountryCodes: true,
+    },
   });
   const defaultCurrency = market?.defaultCurrency ?? "SAR";
   const activeMarketCode = (market?.code ?? "SA") as MarketCode;
@@ -523,6 +528,7 @@ export async function getCheckoutQuoteForUser(
   const addressPick = pickShippingAddressForMarket({
     addresses: shippingAddresses,
     activeMarketCode,
+    marketGeoCountryCodes: market?.geoCountryCodes,
     requestedAddressId: options.shippingAddressId,
     profileCountryCode: profile?.countryCode ?? null,
   });
@@ -764,7 +770,7 @@ export async function resolveCheckoutShipping(
 
   const market = await prisma.market.findUnique({
     where: { id: marketId },
-    select: { code: true },
+    select: { code: true, geoCountryCodes: true },
   });
   const activeMarketCode = (market?.code ?? "SA") as MarketCode;
 
@@ -773,6 +779,7 @@ export async function resolveCheckoutShipping(
     const pick = pickShippingAddressForMarket({
       addresses: savedAddresses,
       activeMarketCode,
+      marketGeoCountryCodes: market?.geoCountryCodes,
       requestedAddressId: input.shippingAddressId,
     });
     if (!pick.selectedAddressId) {
@@ -831,7 +838,7 @@ export async function createOrderFromCart(
 ): Promise<string> {
   const idempotencyKey = input.idempotencyKey?.trim().slice(0, 120) || null;
   const shipping = await resolveCheckoutShipping(buyerUserId, marketId, input);
-  assertShippingCountryMatchesMarket({
+  await assertShippingCountryMatchesMarket({
     countryCode: shipping.shippingCountryCode,
     marketId,
   });

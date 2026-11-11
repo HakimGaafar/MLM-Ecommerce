@@ -1,13 +1,8 @@
 import { deleteAdminMarketBanner, updateAdminMarketBanner } from "@mlm/domain";
-import { AdminMarketBannerUpsertSchema, getMarketId, isMarketCode } from "@mlm/shared";
+import { AdminMarketBannerUpsertSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
+import { resolveAdminMarketIdFromRequest } from "@/lib/admin-market-code";
 import { requireSuperAdminSession } from "@/lib/require-super-admin-session";
-
-function resolveMarketId(request: NextRequest): string | null {
-  const marketCode = request.nextUrl.searchParams.get("marketCode")?.trim().toUpperCase();
-  if (marketCode && isMarketCode(marketCode)) return getMarketId(marketCode);
-  return request.nextUrl.searchParams.get("marketId")?.trim() || null;
-}
 
 export async function PATCH(
   request: NextRequest,
@@ -17,7 +12,7 @@ export async function PATCH(
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!auth.authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const marketId = resolveMarketId(request);
+  const marketId = await resolveAdminMarketIdFromRequest(request);
   if (!marketId) {
     return NextResponse.json({ error: "marketCode or marketId is required" }, { status: 400 });
   }
@@ -55,7 +50,7 @@ export async function DELETE(
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!auth.authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const marketId = resolveMarketId(request);
+  const marketId = await resolveAdminMarketIdFromRequest(request);
   if (!marketId) {
     return NextResponse.json({ error: "marketCode or marketId is required" }, { status: 400 });
   }

@@ -11,6 +11,7 @@ export type CatalogDeliveryContext = {
 export async function resolveCatalogDeliveryContext(params: {
   userId?: string | null;
   activeMarketCode: MarketCode;
+  marketGeoCountryCodes?: readonly string[];
   deliveryCountryCode?: string | null;
   deliveryCity?: string | null;
 }): Promise<CatalogDeliveryContext | null> {
@@ -29,6 +30,7 @@ export async function resolveCatalogDeliveryContext(params: {
   const pick = pickShippingAddressForMarket({
     addresses,
     activeMarketCode: params.activeMarketCode,
+    marketGeoCountryCodes: params.marketGeoCountryCodes,
   });
   if (!pick.selectedAddressId) return null;
 

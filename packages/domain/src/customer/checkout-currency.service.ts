@@ -38,7 +38,9 @@ export function paymentCurrenciesForMarket(params: {
   const code =
     (params.marketCode as MarketCode | null | undefined) ?? getMarketCodeById(params.marketId);
   if (code && code in MARKET_PAYMENT_CURRENCIES) {
-    return [...MARKET_PAYMENT_CURRENCIES[code]];
+    return [
+      ...MARKET_PAYMENT_CURRENCIES[code as keyof typeof MARKET_PAYMENT_CURRENCIES],
+    ];
   }
   return [];
 }

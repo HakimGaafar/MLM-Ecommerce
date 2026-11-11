@@ -5,11 +5,10 @@ import {
 import {
   AdminLegalPolicyVersionUpsertSchema,
   LEGAL_DOCUMENT_TYPES,
-  isMarketCode,
   type LegalDocumentType,
-  type MarketCode,
 } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
+import { parseAdminMarketCode } from "@/lib/admin-market-code";
 import { enforceUserRateLimit } from "@/lib/rate-limit-response";
 import { requireSuperAdminSession } from "@/lib/require-super-admin-session";
 
@@ -18,8 +17,8 @@ export async function GET(request: NextRequest) {
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!auth.authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const marketCode = request.nextUrl.searchParams.get("marketCode")?.trim().toUpperCase();
-  if (!marketCode || !isMarketCode(marketCode)) {
+  const marketCode = parseAdminMarketCode(request);
+  if (!marketCode) {
     return NextResponse.json({ error: "Valid marketCode is required" }, { status: 400 });
   }
 
@@ -31,7 +30,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const policies = await listAdminLegalPolicyVersions({
-      marketCode: marketCode as MarketCode,
+      marketCode,
       documentType,
     });
     return NextResponse.json({ policies });
@@ -51,8 +50,8 @@ export async function PUT(request: NextRequest) {
   const limited = await enforceUserRateLimit(request, auth.userId, "admin-legal-policies", 40, 10 * 60 * 1000);
   if (limited) return limited;
 
-  const marketCode = request.nextUrl.searchParams.get("marketCode")?.trim().toUpperCase();
-  if (!marketCode || !isMarketCode(marketCode)) {
+  const marketCode = parseAdminMarketCode(request);
+  if (!marketCode) {
     return NextResponse.json({ error: "Valid marketCode is required" }, { status: 400 });
   }
 
@@ -67,7 +66,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const policy = await upsertAdminLegalPolicyVersion({
-      marketCode: marketCode as MarketCode,
+      marketCode,
       input: parsed.data,
     });
     return NextResponse.json({ policy });

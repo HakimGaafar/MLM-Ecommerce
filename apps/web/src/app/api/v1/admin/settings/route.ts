@@ -1,24 +1,16 @@
 import { getAdminPlatformConfig, updateAdminPlatformConfig } from "@mlm/domain";
-import { AdminPlatformConfigUpdateSchema, getMarketId, isMarketCode } from "@mlm/shared";
+import { AdminPlatformConfigUpdateSchema } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
+import { resolveAdminMarketIdFromRequest } from "@/lib/admin-market-code";
 import { enforceUserRateLimit } from "@/lib/rate-limit-response";
 import { requireSuperAdminSession } from "@/lib/require-super-admin-session";
-
-function resolveMarketIdFromRequest(request: NextRequest): string | null {
-  const marketCode = request.nextUrl.searchParams.get("marketCode")?.trim().toUpperCase();
-  if (marketCode && isMarketCode(marketCode)) {
-    return getMarketId(marketCode);
-  }
-  const marketId = request.nextUrl.searchParams.get("marketId")?.trim();
-  return marketId || null;
-}
 
 export async function GET(request: NextRequest) {
   const auth = await requireSuperAdminSession(request);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!auth.authorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const marketId = resolveMarketIdFromRequest(request);
+  const marketId = await resolveAdminMarketIdFromRequest(request);
   if (!marketId) {
     return NextResponse.json({ error: "marketCode or marketId is required" }, { status: 400 });
   }
@@ -48,7 +40,7 @@ export async function PATCH(request: NextRequest) {
   );
   if (limited) return limited;
 
-  const marketId = resolveMarketIdFromRequest(request);
+  const marketId = await resolveAdminMarketIdFromRequest(request);
   if (!marketId) {
     return NextResponse.json({ error: "marketCode or marketId is required" }, { status: 400 });
   }

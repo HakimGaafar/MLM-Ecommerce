@@ -13,7 +13,7 @@ import {
   isOrderEligibleForRatings,
   type OrderItemRatingDto,
 } from "./order-item-ratings.service";
-import { isMarketCode, type MarketCode } from "@mlm/shared";
+import { isMarketCodeFormat } from "@mlm/shared";
 import { returnWindowDays as defaultReturnWindowDays } from "../business-rules";
 import { getReturnWindowDays } from "../platform-config/platform-config.service";
 import { listReturnableUnitsForOrder, isOrderInvoiceEligible } from "../orders/order-units.service";
@@ -463,7 +463,7 @@ export async function listCustomerOrdersForBuyer(params: {
 
 export type CustomerOrderHomeMarket = {
   marketId: string;
-  marketCode: MarketCode;
+  marketCode: string;
   marketNameEn: string;
   marketNameAr: string;
   marketSubdomain: string;
@@ -488,7 +488,7 @@ export async function findCustomerOrderHomeMarket(
       },
     },
   });
-  if (!row?.market || !isMarketCode(row.market.code)) return null;
+  if (!row?.market || !isMarketCodeFormat(row.market.code)) return null;
   return {
     marketId: row.marketId,
     marketCode: row.market.code,

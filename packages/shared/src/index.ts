@@ -26,6 +26,9 @@ export const LEDGER_STATUS = ["PENDING", "APPROVED", "DECLINED", "REVERSED"] as 
 export type LedgerStatus = (typeof LEDGER_STATUS)[number];
 
 export * from "./market";
+export * from "./gateway-currency";
+export * from "./host-check";
+export * from "./add-market-catalog";
 export * from "./address-catalog";
 export * from "./validation/pagination";
 export * from "./validation/customer-profile";
@@ -74,6 +77,7 @@ export * from "./validation/vendor-shipping";
 export * from "./validation/admin-vendor-shipping";
 export * from "./validation/admin-platform-config";
 export * from "./validation/admin-markets";
+export * from "./validation/admin-market-wizard";
 export * from "./validation/admin-legal-foundations";
 export * from "./validation/consent";
 export * from "./legal-policy";

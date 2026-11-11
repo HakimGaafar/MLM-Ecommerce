@@ -6,6 +6,8 @@ import {
   TAP_COMPLIANCE_POLICY_PATHS,
   getMarketDefinition,
   isMarketCode,
+  isMarketCodeFormat,
+  isSeedMarketCode,
   resolveMarketFromGeoCountry,
   type MarketCode,
 } from "@mlm/shared";
@@ -56,10 +58,16 @@ const TAP_DOCUMENT_TYPES = [
   "PRICING_PAYMENT",
 ] as const;
 
-/** Runtime primary market: closed home markets park on GLOBAL until opened. */
+/** Runtime primary market: closed home markets park on GLOBAL until opened. DB geo claims win. */
 export async function resolvePrimaryMarketCodeForCountry(
   countryCode: string | null | undefined,
 ): Promise<MarketCode> {
+  const { resolveActiveMarketCodeByGeoCountry } = await import("./market-routing.service");
+  const fromDb = await resolveActiveMarketCodeByGeoCountry(countryCode);
+  if (fromDb !== "GLOBAL" && isMarketCodeFormat(fromDb)) {
+    return fromDb as MarketCode;
+  }
+
   const natural = resolveMarketFromGeoCountry(countryCode);
   if (natural === "GLOBAL") return "GLOBAL";
   try {
@@ -80,10 +88,18 @@ export async function resolvePrimaryMarketIdForCountry(
   countryCode: string | null | undefined,
 ): Promise<string> {
   const code = await resolvePrimaryMarketCodeForCountry(countryCode);
-  return MARKET_IDS[code];
+  if (isSeedMarketCode(code)) return MARKET_IDS[code];
+  const row = await prisma.market.findUnique({
+    where: { code },
+    select: { id: true },
+  });
+  if (row) return row.id;
+  return MARKET_IDS.GLOBAL;
 }
 
-export async function getMarketReadiness(marketCode: MarketCode): Promise<MarketReadinessDto> {
+export async function getMarketReadiness(
+  marketCode: MarketCode | string,
+): Promise<MarketReadinessDto> {
   const market = await prisma.market.findUnique({
     where: { code: marketCode },
     select: {
@@ -146,7 +162,7 @@ export async function getMarketReadiness(marketCode: MarketCode): Promise<Market
   if (!paymentOk) blockers.push("PAYMENT_CURRENCY_MISSING");
 
   return {
-    marketCode,
+    marketCode: (isMarketCode(market.code) ? market.code : marketCode) as MarketCode,
     papersOk,
     paymentOk,
     tapPoliciesPublished,
@@ -160,7 +176,7 @@ export async function getMarketReadiness(marketCode: MarketCode): Promise<Market
   };
 }
 
-export async function assertMarketReadyToOpen(marketCode: MarketCode): Promise<void> {
+export async function assertMarketReadyToOpen(marketCode: MarketCode | string): Promise<void> {
   const readiness = await getMarketReadiness(marketCode);
   if (!readiness.papersOk) {
     throw new MarketGoLiveError(
@@ -169,9 +185,18 @@ export async function assertMarketReadyToOpen(marketCode: MarketCode): Promise<v
     );
   }
   if (!readiness.paymentOk) {
+    const market = await prisma.market.findUnique({
+      where: { code: marketCode },
+      select: { defaultCurrency: true },
+    });
+    const currency =
+      market?.defaultCurrency ??
+      (isSeedMarketCode(marketCode)
+        ? getMarketDefinition(marketCode).defaultCurrency
+        : String(marketCode));
     throw new MarketGoLiveError(
       "PAYMENT_CURRENCY_MISSING",
-      `Add ${getMarketDefinition(marketCode).defaultCurrency} to payment currencies before opening this market.`,
+      `Add ${currency} to payment currencies before opening this market.`,
     );
   }
 }
@@ -182,10 +207,16 @@ export async function assertMarketReadyToOpen(marketCode: MarketCode): Promise<v
  */
 export async function migrateGlobalVendorsToMarket(params: {
   marketId: string;
-  marketCode: MarketCode;
+  marketCode: string;
 }): Promise<{ vendorIds: string[]; ownerUserIds: string[] }> {
-  const def = getMarketDefinition(params.marketCode);
-  const geo = def.geoCountryCodes.map((c) => c.toUpperCase());
+  const market = await prisma.market.findUnique({
+    where: { id: params.marketId },
+    select: { geoCountryCodes: true },
+  });
+  let geo = (market?.geoCountryCodes ?? []).map((c) => c.toUpperCase());
+  if (geo.length === 0 && isSeedMarketCode(params.marketCode)) {
+    geo = getMarketDefinition(params.marketCode).geoCountryCodes.map((c) => c.toUpperCase());
+  }
   if (geo.length === 0) {
     return { vendorIds: [], ownerUserIds: [] };
   }
@@ -250,14 +281,14 @@ export async function flagPrimaryMarketMerchantsForReaccept(marketId: string): P
   });
 }
 
-export async function openMarketGoLive(marketCode: MarketCode): Promise<MarketGoLiveResult> {
+export async function openMarketGoLive(marketCode: MarketCode | string): Promise<MarketGoLiveResult> {
   await assertMarketReadyToOpen(marketCode);
 
   const market = await prisma.market.findUnique({
     where: { code: marketCode },
     select: { id: true, code: true, isActive: true },
   });
-  if (!market || !isMarketCode(market.code)) {
+  if (!market) {
     throw new MarketGoLiveError("MARKET_NOT_FOUND");
   }
 
@@ -281,7 +312,7 @@ export async function openMarketGoLive(marketCode: MarketCode): Promise<MarketGo
   const primaryFlagged = await flagPrimaryMarketMerchantsForReaccept(market.id);
 
   return {
-    marketCode,
+    marketCode: (isMarketCode(market.code) ? market.code : market.code) as MarketCode,
     isActive: true,
     migratedVendors: migrated.vendorIds.length,
     flaggedUsers: Math.max(flagged, primaryFlagged),
@@ -290,7 +321,7 @@ export async function openMarketGoLive(marketCode: MarketCode): Promise<MarketGo
 
 export async function getPendingMarketReaccept(userId: string): Promise<{
   marketId: string;
-  marketCode: MarketCode;
+  marketCode: string;
   flaggedAt: string;
 } | null> {
   const user = await prisma.user.findUnique({
@@ -302,8 +333,9 @@ export async function getPendingMarketReaccept(userId: string): Promise<{
     },
   });
   if (!user?.pendingMarketReacceptId || !user.pendingMarketReaccept) return null;
-  const code = user.pendingMarketReaccept.code;
-  if (!isMarketCode(code)) return null;
+  const code = user.pendingMarketReaccept.code.trim().toUpperCase();
+  // Accept DB markets (AE, …) — not only the static SA/OM/EG/GLOBAL set.
+  if (!isMarketCodeFormat(code)) return null;
   return {
     marketId: user.pendingMarketReacceptId,
     marketCode: code,
@@ -316,7 +348,7 @@ export async function completeMarketReaccept(params: {
   userId: string;
   remoteIp?: string | null;
   userAgent?: string | null;
-}): Promise<{ marketCode: MarketCode }> {
+}): Promise<{ marketCode: string }> {
   const pending = await getPendingMarketReaccept(params.userId);
   if (!pending) {
     throw new MarketGoLiveError("NO_PENDING_REACCEPT", "No market re-acceptance is pending.");
@@ -388,16 +420,38 @@ export async function getLiveTapComplianceUrls(params: {
 
 /** Active market IDs for offer editors / public surfaces. */
 export async function listActiveMarketIds(): Promise<string[]> {
+  const markets = await listActiveMarketsForOffers();
+  return markets.map((m) => m.id);
+}
+
+export type ActiveMarketOfferOption = {
+  id: string;
+  code: string;
+  defaultCurrency: string;
+};
+
+/** Active markets with code/currency for vendor offer editors. */
+export async function listActiveMarketsForOffers(): Promise<ActiveMarketOfferOption[]> {
   try {
     const rows = await prisma.market.findMany({
       where: { isActive: true },
-      select: { id: true, code: true },
+      select: { id: true, code: true, defaultCurrency: true },
       orderBy: { sortOrder: "asc" },
     });
-    if (rows.length > 0) return rows.map((r) => r.id);
+    if (rows.length > 0) {
+      return rows.map((r) => ({
+        id: r.id,
+        code: r.code,
+        defaultCurrency: r.defaultCurrency,
+      }));
+    }
   } catch {
     // fall through
   }
   const { listLaunchActiveMarketDefinitions, MARKET_IDS: ids } = await import("@mlm/shared");
-  return listLaunchActiveMarketDefinitions().map((d) => ids[d.code]);
+  return listLaunchActiveMarketDefinitions().map((d) => ({
+    id: ids[d.code],
+    code: d.code,
+    defaultCurrency: d.defaultCurrency,
+  }));
 }

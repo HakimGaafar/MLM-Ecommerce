@@ -1,15 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { MarketCode, RefundFeeCause, RefundFeePayer } from "@mlm/shared";
+import type { RefundFeeCause, RefundFeePayer } from "@mlm/shared";
 import { useToast } from "@/components/toast/ToastProvider";
 
 type Locale = "en" | "ar";
 
-type MarketOption = { code: MarketCode; nameEn: string; nameAr: string; isActive: boolean };
+type MarketOption = { code: string; nameEn: string; nameAr: string; isActive: boolean };
 
 type Annex = {
-  marketCode: MarketCode;
+  marketCode: string;
   isActive: boolean;
   defaultCurrency: string;
   paymentCurrencies: string[];
@@ -35,8 +35,8 @@ type Annex = {
 };
 
 type InvoicingRule = {
-  sellerMarketCode: MarketCode;
-  buyerMarketCode: MarketCode;
+  sellerMarketCode: string;
+  buyerMarketCode: string;
   invoicingParty: "MERCHANT" | "PLATFORM";
   commissionPercent: number | null;
 };
@@ -96,7 +96,7 @@ const CAUSES: RefundFeeCause[] = [
 export default function AdminLegalFoundationsForm({ locale, ui }: { locale: Locale; ui: Ui }) {
   const toast = useToast();
   const [markets, setMarkets] = useState<MarketOption[]>([]);
-  const [marketCode, setMarketCode] = useState<MarketCode>("OM");
+  const [marketCode, setMarketCode] = useState("OM");
   const [annex, setAnnex] = useState<Annex | null>(null);
   const [refundRules, setRefundRules] = useState<RefundRule[]>([]);
   const [invoicingRules, setInvoicingRules] = useState<InvoicingRule[]>([]);
@@ -118,7 +118,7 @@ export default function AdminLegalFoundationsForm({ locale, ui }: { locale: Loca
     }
   }, [marketCode]);
 
-  const loadAnnexAndRules = useCallback(async (code: MarketCode) => {
+  const loadAnnexAndRules = useCallback(async (code: string) => {
     const [annexRes, refundRes, invRes] = await Promise.all([
       fetch(`/api/v1/admin/markets/annex?marketCode=${code}`, { credentials: "include" }),
       fetch(`/api/v1/admin/refund-fee-rules?marketCode=${code}`, { credentials: "include" }),
@@ -274,7 +274,7 @@ export default function AdminLegalFoundationsForm({ locale, ui }: { locale: Loca
         <select
           className="app-input"
           value={marketCode}
-          onChange={(e) => setMarketCode(e.target.value as MarketCode)}
+          onChange={(e) => setMarketCode(e.target.value)}
         >
           {markets.map((m) => (
             <option key={m.code} value={m.code}>

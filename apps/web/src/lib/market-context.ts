@@ -50,11 +50,16 @@ export function parseHostSubdomain(host: string, rootDomain?: string): string | 
   return sub;
 }
 
+/** Sync static fallback only — prefer async DB resolve in market-server / routing. */
 export function resolveMarketCodeFromHost(host: string, rootDomain?: string): MarketCode | null {
   const sub = parseHostSubdomain(host, rootDomain);
   if (!sub) return null;
   const def = MARKET_DEFINITIONS.find((m) => m.subdomain === sub);
   return def?.code ?? null;
+}
+
+export function parseHostSubdomainOrNull(host: string, rootDomain?: string): string | null {
+  return parseHostSubdomain(host, rootDomain);
 }
 
 export function isApexOrWwwHost(host: string, rootDomain?: string): boolean {

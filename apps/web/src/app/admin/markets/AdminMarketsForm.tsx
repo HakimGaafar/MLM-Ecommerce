@@ -1,14 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { MarketCode } from "@mlm/shared";
 import { useToast } from "@/components/toast/ToastProvider";
 
 type Locale = "en" | "ar";
 
 type MarketRow = {
   id: string;
-  code: MarketCode;
+  code: string;
   subdomain: string;
   nameEn: string;
   nameAr: string;
@@ -16,6 +15,7 @@ type MarketRow = {
   paymentCurrencies?: string[];
   geoCountryCodes: string[];
   isActive: boolean;
+  lifecycleStatus?: string;
   sortOrder: number;
   canDisable: boolean;
 };
@@ -49,6 +49,7 @@ type Ui = {
   legalLink: string;
   papersIncompleteError: string;
   paymentCurrencyError: string;
+  wizardLink: string;
 };
 
 type EditDraft = {
@@ -63,9 +64,9 @@ export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: U
   const toast = useToast();
   const [markets, setMarkets] = useState<MarketRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [savingCode, setSavingCode] = useState<MarketCode | null>(null);
-  const [editingCode, setEditingCode] = useState<MarketCode | null>(null);
-  const [drafts, setDrafts] = useState<Partial<Record<MarketCode, EditDraft>>>({});
+  const [savingCode, setSavingCode] = useState<string | null>(null);
+  const [editingCode, setEditingCode] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Partial<Record<string, EditDraft>>>({});
 
   const loadMarkets = useCallback(async () => {
     setLoading(true);
@@ -164,7 +165,12 @@ export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: U
                 ? ui.papersIncompleteError
                 : code === "PAYMENT_CURRENCY_MISSING"
                   ? ui.paymentCurrencyError
-                  : data?.error || ui.saveError;
+                  : code === "DNS_NOT_VERIFIED" ||
+                      code === "ROUTING_NOT_BOUND" ||
+                      code === "NOT_READY" ||
+                      code === "GATEWAY_CURRENCY_UNSUPPORTED"
+                    ? data?.error || ui.saveError
+                    : data?.error || ui.saveError;
         toast.error(message);
         return;
       }
@@ -212,6 +218,11 @@ export default function AdminMarketsForm({ locale, ui }: { locale: Locale; ui: U
                   <div className="mt-1 text-xs text-[var(--muted)]">
                     {ui.sortOrder}: {market.sortOrder} · {ui.geoCountries}: {market.geoCountryCodes.join(", ") || "—"}
                   </div>
+                  {market.lifecycleStatus ? (
+                    <div className="mt-1 text-xs text-[var(--muted)]">
+                      Lifecycle: {market.lifecycleStatus}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span

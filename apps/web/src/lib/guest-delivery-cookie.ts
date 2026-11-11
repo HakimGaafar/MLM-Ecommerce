@@ -36,9 +36,10 @@ export function serializeGuestDeliveryCookie(value: GuestDeliveryCookieValue): s
   });
 }
 
-/** Default country for a market storefront. */
+/** Default country for a market storefront (address catalog countries only). */
 export function defaultCountryForMarket(marketCode: string): AddressCountryCode {
-  if (marketCode === "OM") return "OM";
-  if (marketCode === "EG") return "EG";
+  const code = marketCode.trim().toUpperCase();
+  if (code === "OM") return "OM";
+  if (code === "EG") return "EG";
   return "SA";
 }

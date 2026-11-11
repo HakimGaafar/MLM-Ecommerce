@@ -38,10 +38,15 @@ async function resolveCartDeliveryAddress(
   marketId: string,
   activeMarketCode: MarketCode,
 ): Promise<{ city: string; countryCode: string } | null> {
+  const market = await prisma.market.findUnique({
+    where: { id: marketId },
+    select: { geoCountryCodes: true },
+  });
   const addresses = await listAllCustomerShippingAddressesForCheckout(userId);
   const pick = pickShippingAddressForMarket({
     addresses,
     activeMarketCode,
+    marketGeoCountryCodes: market?.geoCountryCodes,
   });
   if (pick.selectedAddressId) {
     const addr = addresses.find((row) => row.id === pick.selectedAddressId);

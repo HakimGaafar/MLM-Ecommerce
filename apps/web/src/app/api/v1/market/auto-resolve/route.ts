@@ -1,16 +1,7 @@
 import { resolveDefaultVendorMarketCode } from "@mlm/domain";
-import {
-  buildMarketOrigin,
-  ACTIVE_MARKET_COOKIE,
-  definitionToSnapshot,
-} from "@/lib/market-context";
-import { isMarketCodeActive } from "@/lib/market-server";
-import {
-  DEFAULT_MARKET_CODE,
-  getMarketDefinition,
-  isMarketCode,
-  type MarketCode,
-} from "@mlm/shared";
+import { buildMarketOrigin, ACTIVE_MARKET_COOKIE } from "@/lib/market-context";
+import { getMarketSnapshotByCode, isMarketCodeActive } from "@/lib/market-server";
+import { DEFAULT_MARKET_CODE, isMarketCodeFormat } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { getAccessTokenFromRequest, verifyAccessToken } from "@/lib/auth";
 import { loginPathForRequestPath } from "@/lib/auth-login-path";
@@ -29,12 +20,16 @@ function safeReturnPath(value: string | null | undefined): string {
   return path.startsWith("/") && !path.startsWith("//") ? path : "/";
 }
 
-function marketRedirectUrl(request: NextRequest, code: MarketCode, returnTo: string): string {
-  const def = getMarketDefinition(code);
+async function marketRedirectUrl(
+  request: NextRequest,
+  code: string,
+  returnTo: string,
+): Promise<string> {
+  const market = await getMarketSnapshotByCode(code);
   const host = request.headers.get("host") ?? request.nextUrl.host;
   const rootDomain = process.env.APP_ROOT_DOMAIN?.trim();
   const origin = buildMarketOrigin({
-    market: definitionToSnapshot(def),
+    market,
     protocol: request.nextUrl.protocol,
     rootDomain,
     fallbackHost: host,
@@ -45,7 +40,7 @@ function marketRedirectUrl(request: NextRequest, code: MarketCode, returnTo: str
 async function resolveMarketForSession(
   userId: string,
   roles: string[],
-): Promise<MarketCode | null> {
+): Promise<string | null> {
   if (roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")) {
     return DEFAULT_MARKET_CODE;
   }
@@ -76,7 +71,7 @@ async function handleAutoResolve(request: NextRequest, returnTo: string, asRedir
 
   const roles = session.roles ?? [];
   const marketCode = await resolveMarketForSession(session.sub, roles);
-  if (!marketCode || !isMarketCode(marketCode)) {
+  if (!marketCode || !isMarketCodeFormat(marketCode)) {
     if (asRedirect) {
       return NextResponse.redirect(new URL("/market", request.url));
     }
@@ -90,7 +85,7 @@ async function handleAutoResolve(request: NextRequest, returnTo: string, asRedir
     return NextResponse.json({ error: "Market is not available" }, { status: 403 });
   }
 
-  const redirectUrl = marketRedirectUrl(request, marketCode, returnTo);
+  const redirectUrl = await marketRedirectUrl(request, marketCode, returnTo);
   if (asRedirect) {
     const res = NextResponse.redirect(redirectUrl);
     res.cookies.set(ACTIVE_MARKET_COOKIE, marketCode, cookieOptions());

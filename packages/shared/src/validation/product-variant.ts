@@ -1,12 +1,7 @@
 import { z } from "zod";
-import { MARKET_IDS } from "../market";
 
-const MarketIdSchema = z.enum([
-  MARKET_IDS.SA,
-  MARKET_IDS.OM,
-  MARKET_IDS.EG,
-  MARKET_IDS.GLOBAL,
-] as [string, ...string[]]);
+/** Any market row id (seed market_* or wizard cuid). */
+const MarketIdSchema = z.string().trim().min(1).max(64);
 
 export const ProductVariantOfferInputSchema = z.object({
   marketId: MarketIdSchema,

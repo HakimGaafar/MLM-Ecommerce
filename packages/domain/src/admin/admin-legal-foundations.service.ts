@@ -4,18 +4,17 @@ import {
   DEFAULT_REFUND_FEE_PAYERS,
   LEGAL_DOCUMENT_TITLES,
   REFUND_FEE_CAUSES,
-  getMarketId,
-  isMarketCode,
+  isMarketCodeFormat,
   type AdminLegalPolicyVersionUpsertInput,
   type AdminMarketAnnexUpdateInput,
   type AdminMarketInvoicingRuleUpsertInput,
   type AdminRefundFeeRuleUpsertInput,
   type InvoicingParty,
   type LegalDocumentType,
-  type MarketCode,
   type RefundFeeCause,
   type RefundFeePayer,
 } from "@mlm/shared";
+import { resolveMarketIdByCode } from "../markets/resolve-market-id";
 
 function normalizeOptionalText(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
@@ -24,7 +23,7 @@ function normalizeOptionalText(value: string | null | undefined): string | null 
 
 export type MarketAnnexDto = {
   marketId: string;
-  marketCode: MarketCode;
+  marketCode: string;
   isActive: boolean;
   defaultCurrency: string;
   paymentCurrencies: string[];
@@ -53,7 +52,7 @@ export type MarketAnnexDto = {
 export type LegalPolicyVersionDto = {
   id: string;
   marketId: string;
-  marketCode: MarketCode;
+  marketCode: string;
   documentType: LegalDocumentType;
   version: string;
   titleEn: string;
@@ -68,21 +67,25 @@ export type LegalPolicyVersionDto = {
 
 export type MarketInvoicingRuleDto = {
   id: string;
-  sellerMarketCode: MarketCode;
-  buyerMarketCode: MarketCode;
+  sellerMarketCode: string;
+  buyerMarketCode: string;
   invoicingParty: InvoicingParty;
   commissionPercent: number | null;
 };
 
 export type RefundFeeRuleDto = {
-  marketCode: MarketCode;
+  marketCode: string;
   cause: RefundFeeCause;
   payer: RefundFeePayer;
 };
 
-async function requireMarket(code: MarketCode) {
+async function requireMarket(code: string) {
+  const normalized = code.trim().toUpperCase();
+  if (!isMarketCodeFormat(normalized)) {
+    throw new Error("MARKET_NOT_FOUND");
+  }
   const market = await prisma.market.findUnique({
-    where: { code },
+    where: { code: normalized },
     select: {
       id: true,
       code: true,
@@ -91,19 +94,13 @@ async function requireMarket(code: MarketCode) {
       paymentCurrencies: true,
     },
   });
-  if (!market || !isMarketCode(market.code)) {
+  if (!market) {
     throw new Error("MARKET_NOT_FOUND");
   }
-  return market as {
-    id: string;
-    code: MarketCode;
-    isActive: boolean;
-    defaultCurrency: string;
-    paymentCurrencies: string[];
-  };
+  return market;
 }
 
-export async function getAdminMarketAnnex(marketCode: MarketCode): Promise<MarketAnnexDto> {
+export async function getAdminMarketAnnex(marketCode: string): Promise<MarketAnnexDto> {
   const market = await requireMarket(marketCode);
   const issuer = await prisma.marketInvoiceIssuer.findUnique({
     where: { marketId: market.id },
@@ -140,7 +137,7 @@ export async function getAdminMarketAnnex(marketCode: MarketCode): Promise<Marke
 }
 
 export async function updateAdminMarketAnnex(params: {
-  marketCode: MarketCode;
+  marketCode: string;
   input: AdminMarketAnnexUpdateInput;
 }): Promise<MarketAnnexDto> {
   const market = await requireMarket(params.marketCode);
@@ -231,7 +228,7 @@ function mapPolicyRow(row: {
   updatedAt: Date;
   market: { code: string };
 }): LegalPolicyVersionDto {
-  if (!isMarketCode(row.market.code)) {
+  if (!isMarketCodeFormat(row.market.code)) {
     throw new Error("MARKET_NOT_FOUND");
   }
   return {
@@ -252,7 +249,7 @@ function mapPolicyRow(row: {
 }
 
 export async function listAdminLegalPolicyVersions(params: {
-  marketCode: MarketCode;
+  marketCode: string;
   documentType?: LegalDocumentType;
 }): Promise<LegalPolicyVersionDto[]> {
   const market = await requireMarket(params.marketCode);
@@ -268,7 +265,7 @@ export async function listAdminLegalPolicyVersions(params: {
 }
 
 export async function upsertAdminLegalPolicyVersion(params: {
-  marketCode: MarketCode;
+  marketCode: string;
   input: AdminLegalPolicyVersionUpsertInput;
 }): Promise<LegalPolicyVersionDto> {
   const market = await requireMarket(params.marketCode);
@@ -335,12 +332,13 @@ export async function listAdminMarketInvoicingRules(): Promise<MarketInvoicingRu
   });
   return rows
     .filter(
-      (row) => isMarketCode(row.sellerMarket.code) && isMarketCode(row.buyerMarket.code),
+      (row) =>
+        isMarketCodeFormat(row.sellerMarket.code) && isMarketCodeFormat(row.buyerMarket.code),
     )
     .map((row) => ({
       id: row.id,
-      sellerMarketCode: row.sellerMarket.code as MarketCode,
-      buyerMarketCode: row.buyerMarket.code as MarketCode,
+      sellerMarketCode: row.sellerMarket.code,
+      buyerMarketCode: row.buyerMarket.code,
       invoicingParty: row.invoicingParty as InvoicingParty,
       commissionPercent:
         row.commissionRate != null ? Math.round(Number(row.commissionRate) * 1000) / 10 : null,
@@ -350,11 +348,14 @@ export async function listAdminMarketInvoicingRules(): Promise<MarketInvoicingRu
 export async function upsertAdminMarketInvoicingRule(
   input: AdminMarketInvoicingRuleUpsertInput,
 ): Promise<MarketInvoicingRuleDto> {
-  if (!isMarketCode(input.sellerMarketCode) || !isMarketCode(input.buyerMarketCode)) {
+  if (
+    !isMarketCodeFormat(input.sellerMarketCode) ||
+    !isMarketCodeFormat(input.buyerMarketCode)
+  ) {
     throw new Error("MARKET_NOT_FOUND");
   }
-  const sellerMarketId = getMarketId(input.sellerMarketCode);
-  const buyerMarketId = getMarketId(input.buyerMarketCode);
+  const sellerMarketId = await resolveMarketIdByCode(input.sellerMarketCode);
+  const buyerMarketId = await resolveMarketIdByCode(input.buyerMarketCode);
   const commissionRate =
     input.commissionPercent == null
       ? null
@@ -382,29 +383,29 @@ export async function upsertAdminMarketInvoicingRule(
 
   return {
     id: row.id,
-    sellerMarketCode: row.sellerMarket.code as MarketCode,
-    buyerMarketCode: row.buyerMarket.code as MarketCode,
+    sellerMarketCode: row.sellerMarket.code,
+    buyerMarketCode: row.buyerMarket.code,
     invoicingParty: row.invoicingParty as InvoicingParty,
     commissionPercent:
       row.commissionRate != null ? Math.round(Number(row.commissionRate) * 1000) / 10 : null,
   };
 }
 
-export async function listAdminRefundFeeRules(marketCode: MarketCode): Promise<RefundFeeRuleDto[]> {
+export async function listAdminRefundFeeRules(marketCode: string): Promise<RefundFeeRuleDto[]> {
   const market = await requireMarket(marketCode);
   const rows = await prisma.refundFeeRule.findMany({
     where: { marketId: market.id },
   });
   const byCause = new Map(rows.map((r) => [r.cause as RefundFeeCause, r.payer as RefundFeePayer]));
   return REFUND_FEE_CAUSES.map((cause) => ({
-    marketCode,
+    marketCode: market.code,
     cause,
     payer: byCause.get(cause) ?? DEFAULT_REFUND_FEE_PAYERS[cause],
   }));
 }
 
 export async function upsertAdminRefundFeeRule(params: {
-  marketCode: MarketCode;
+  marketCode: string;
   input: AdminRefundFeeRuleUpsertInput;
 }): Promise<RefundFeeRuleDto> {
   const market = await requireMarket(params.marketCode);
@@ -420,14 +421,14 @@ export async function upsertAdminRefundFeeRule(params: {
     update: { payer: params.input.payer },
   });
   return {
-    marketCode: params.marketCode,
+    marketCode: market.code,
     cause: params.input.cause,
     payer: params.input.payer,
   };
 }
 
 export async function bulkUpsertAdminRefundFeeRules(params: {
-  marketCode: MarketCode;
+  marketCode: string;
   rules: AdminRefundFeeRuleUpsertInput[];
 }): Promise<RefundFeeRuleDto[]> {
   for (const rule of params.rules) {

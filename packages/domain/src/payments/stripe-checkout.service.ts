@@ -95,7 +95,7 @@ export async function createStripeCheckoutSession(
 
   // Fail before charging: a deliverable address must exist for this market.
   const shipping = await resolveCheckoutShipping(buyerUserId, marketId, input);
-  assertShippingCountryMatchesMarket({
+  await assertShippingCountryMatchesMarket({
     countryCode: shipping.shippingCountryCode,
     marketId,
   });

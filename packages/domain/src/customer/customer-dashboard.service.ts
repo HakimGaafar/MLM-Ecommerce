@@ -118,9 +118,17 @@ export async function getCustomerDashboardOverview(
   locale: "en" | "ar",
   marketId: string,
 ): Promise<CustomerDashboardOverviewDto> {
-  const marketCode = getMarketCodeById(marketId);
+  const marketRow = await prisma.market.findUnique({
+    where: { id: marketId },
+    select: { code: true, geoCountryCodes: true },
+  });
+  const marketCode = marketRow?.code ?? getMarketCodeById(marketId);
   const delivery = marketCode
-    ? await resolveCatalogDeliveryContext({ userId: buyerUserId, activeMarketCode: marketCode })
+    ? await resolveCatalogDeliveryContext({
+        userId: buyerUserId,
+        activeMarketCode: marketCode,
+        marketGeoCountryCodes: marketRow?.geoCountryCodes,
+      })
     : null;
 
   const [

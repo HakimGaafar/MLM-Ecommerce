@@ -1,5 +1,5 @@
 import { handleMarketRouting, shouldRunMarketRouting } from "@/lib/market-routing";
-import { resolveMarketIdFromRequestCookies } from "@/lib/market-request-cookies";
+import { resolveMarketIdFromRequestCookiesAsync } from "@/lib/market-request-cookies";
 import { getPermissionsForVendorActor, resolveVendorAccessForUser } from "@mlm/domain";
 import { canAccessVendorPath, firstAllowedVendorNavHref } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
@@ -133,7 +133,7 @@ export async function proxy(request: NextRequest) {
 
   const token = getAccessTokenFromRequest(request);
   const session = token ? await verifyAccessToken(token).catch(() => null) : null;
-  const activeMarketId = resolveMarketIdFromRequestCookies(request);
+  const activeMarketId = await resolveMarketIdFromRequestCookiesAsync(request);
 
   const activeRoleCookie = request.cookies.get(ACTIVE_ROLE_COOKIE)?.value ?? null;
   const activeRole = session

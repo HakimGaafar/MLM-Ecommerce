@@ -1584,6 +1584,13 @@ model ReferralRelation {
   @@map("referral_relations")
 }
 
+enum MarketLifecycleStatus {
+  DRAFT
+  READY
+  LIVE
+  SUSPENDED
+}
+
 /// Country marketplace (Phase X1). Core tables scoped by market_id (Phase X2).
 model Market {
   id              String            @id @default(cuid())
@@ -1597,6 +1604,15 @@ model Market {
   geoCountryCodes String[]          @map("geo_country_codes")
   /// Closed/hidden when false — not shown to customers or merchants.
   isActive        Boolean           @default(true) @map("is_active")
+  /// Phase 7 — Add Market wizard lifecycle (synced with isActive on publish/suspend).
+  lifecycleStatus MarketLifecycleStatus @default(DRAFT) @map("lifecycle_status")
+  /// Admin confirmed annex papers are on file (wizard Step 7).
+  papersComplete  Boolean           @default(false) @map("papers_complete")
+  /// Admin confirmed DNS/host for subdomain already points at the app (wizard routing step).
+  hostRoutingConfirmed Boolean      @default(false) @map("host_routing_confirmed")
+  hostRoutingConfirmedAt DateTime?  @map("host_routing_confirmed_at")
+  /// Source market code used when cloning legal/rates pack (default OM).
+  cloneSourceCode String?           @map("clone_source_code") @db.VarChar(16)
   sortOrder       Int               @default(0) @map("sort_order")
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")

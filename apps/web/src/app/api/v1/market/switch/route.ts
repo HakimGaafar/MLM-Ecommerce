@@ -1,22 +1,25 @@
 import {
   buildMarketOrigin,
   ACTIVE_MARKET_COOKIE,
-  definitionToSnapshot,
   isApexOrWwwHost,
   resolveMarketCodeFromHost,
 } from "@/lib/market-context";
-import { isMarketCodeActive } from "@/lib/market-server";
 import {
-  getMarketDefinition,
-  isMarketCode,
-  resolveMarketFromGeoCountry,
-  type MarketCode,
-} from "@mlm/shared";
+  getMarketSnapshotByCode,
+  isMarketCodeActive,
+  resolveMarketCodeFromHostAsync,
+} from "@/lib/market-server";
+import { resolveActiveMarketCodeByGeoCountry } from "@mlm/domain";
+import { isMarketCodeFormat } from "@mlm/shared";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const SwitchSchema = z.object({
-  marketCode: z.enum(["SA", "OM", "EG", "GLOBAL"]),
+  marketCode: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .refine((v) => isMarketCodeFormat(v), "Invalid market code"),
 });
 
 function cookieOptions() {
@@ -28,12 +31,12 @@ function cookieOptions() {
   };
 }
 
-function marketRedirectUrl(request: NextRequest, code: MarketCode): string {
-  const def = getMarketDefinition(code);
+async function marketRedirectUrl(request: NextRequest, code: string): Promise<string> {
+  const market = await getMarketSnapshotByCode(code);
   const host = request.headers.get("host") ?? request.nextUrl.host;
   const rootDomain = process.env.APP_ROOT_DOMAIN?.trim();
   const origin = buildMarketOrigin({
-    market: definitionToSnapshot(def),
+    market,
     protocol: request.nextUrl.protocol,
     rootDomain,
     fallbackHost: host,
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
   if (!(await isMarketCodeActive(code))) {
     return NextResponse.json({ error: "Market is not available" }, { status: 403 });
   }
-  const redirectUrl = marketRedirectUrl(request, code);
+  const redirectUrl = await marketRedirectUrl(request, code);
   const res = NextResponse.json({ ok: true, redirectUrl, marketCode: code });
   res.cookies.set(ACTIVE_MARKET_COOKIE, code, cookieOptions());
   return res;
@@ -64,14 +67,16 @@ export async function GET(request: NextRequest) {
   const geoHeader = process.env.GEO_IP_HEADER?.trim() || "cf-ipcountry";
   const country =
     request.headers.get(geoHeader) ?? request.headers.get("x-vercel-ip-country");
-  const suggested = resolveMarketFromGeoCountry(country);
+  const suggested = await resolveActiveMarketCodeByGeoCountry(country);
   const host = request.headers.get("host") ?? "";
   const rootDomain = process.env.APP_ROOT_DOMAIN?.trim();
-  const fromHost = resolveMarketCodeFromHost(host, rootDomain);
-  const cookieCode = request.cookies.get(ACTIVE_MARKET_COOKIE)?.value;
+  const fromHost =
+    (await resolveMarketCodeFromHostAsync(host, rootDomain)) ??
+    resolveMarketCodeFromHost(host, rootDomain);
+  const cookieCode = request.cookies.get(ACTIVE_MARKET_COOKIE)?.value?.trim().toUpperCase();
   const active =
     fromHost ??
-    (cookieCode && isMarketCode(cookieCode) ? cookieCode : null) ??
+    (cookieCode && isMarketCodeFormat(cookieCode) ? cookieCode : null) ??
     suggested;
 
   return NextResponse.json({
