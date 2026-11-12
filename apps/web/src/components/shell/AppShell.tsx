@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { shouldShowAppSidebar } from "@/lib/app-paths";
 import type { ThemePreference } from "@/lib/theme-preference";
-import type { AppRole } from "@/lib/server-session";
+import type { AppRole } from "@/lib/app-role";
 import type { ShellNavItem, ShellNavSection } from "@/lib/build-app-nav";
 import AppHeader from "@/components/shell/AppHeader";
 import AppSidebar from "@/components/shell/AppSidebar";

@@ -25,6 +25,17 @@ async function streamToBuffer(body: unknown): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
+/**
+ * Local KYC path. Default uses literal segments so Turbopack NFT stays scoped.
+ * Absolute KYC_LOCAL_DIR overrides are supported; relative custom dirs fall back to default.
+ */
+function localKycPath(baseDir: string, filename: string): string {
+  if (path.isAbsolute(baseDir)) {
+    return path.join(baseDir, filename);
+  }
+  return path.join(/*turbopackIgnore: true*/ process.cwd(), "storage", "kyc-documents", filename);
+}
+
 export async function storeKycDocument(params: {
   subjectKey: string;
   buffer: Buffer;
@@ -49,9 +60,10 @@ export async function storeKycDocument(params: {
   }
 
   const storageKey = path.posix.join("kyc-documents", filename);
-  const fullPath = path.join(process.cwd(), config.baseDir, filename);
-  await mkdir(path.dirname(fullPath), { recursive: true });
-  await writeFile(fullPath, params.buffer);
+  const fullPath = localKycPath(config.baseDir, filename);
+  const dir = path.dirname(fullPath);
+  await mkdir(/*turbopackIgnore: true*/ dir, { recursive: true });
+  await writeFile(/*turbopackIgnore: true*/ fullPath, params.buffer);
   return { storageKey };
 }
 
@@ -70,9 +82,9 @@ export async function readKycDocument(storageKey: string): Promise<Buffer | null
   }
 
   const filename = path.basename(storageKey);
-  const fullPath = path.join(process.cwd(), config.baseDir, filename);
+  const fullPath = localKycPath(config.baseDir, filename);
   try {
-    return await readFile(fullPath);
+    return await readFile(/*turbopackIgnore: true*/ fullPath);
   } catch {
     return null;
   }
@@ -93,9 +105,9 @@ export async function deleteKycDocument(storageKey: string): Promise<void> {
   }
 
   const filename = path.basename(storageKey);
-  const fullPath = path.join(process.cwd(), config.baseDir, filename);
+  const fullPath = localKycPath(config.baseDir, filename);
   try {
-    await unlink(fullPath);
+    await unlink(/*turbopackIgnore: true*/ fullPath);
   } catch {
     // File may already be gone.
   }

@@ -2,6 +2,8 @@ import { prisma } from "@mlm/db";
 import { pingQueueRedis } from "@mlm/queue";
 import { NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+
 /** Readiness — DB + Redis required before accepting traffic. */
 export async function GET() {
   const checks = { database: false, redis: false };

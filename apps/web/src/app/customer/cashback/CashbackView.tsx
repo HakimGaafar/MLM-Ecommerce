@@ -105,6 +105,7 @@ type OtpUi = {
     verifyError: string;
     invalidCode: string;
     loading: string;
+    previewCodeLabel: string;
   };
   cashbackTitle: string;
   cashbackBody: string;

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { ThemePreference } from "@/lib/theme-preference";
-import type { AppRole } from "@/lib/server-session";
+import type { AppRole } from "@/lib/app-role";
 import { isShellNavItemActive, type ShellNavItem } from "@/lib/build-app-nav";
 import { useAppLocale, useSetAppLocale } from "@/components/providers/LocaleProvider";
 import { useToast } from "@/components/toast/ToastProvider";

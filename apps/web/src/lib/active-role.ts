@@ -1,5 +1,5 @@
-import type { AppRole } from "@/lib/server-session";
-import { resolvePrimaryRole } from "@/lib/server-session";
+import type { AppRole } from "@/lib/app-role";
+import { resolvePrimaryRole } from "@/lib/app-role";
 
 export const ACTIVE_ROLE_COOKIE = "mlm_active_role";
 

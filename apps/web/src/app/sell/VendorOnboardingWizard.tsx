@@ -476,7 +476,7 @@ export default function VendorOnboardingWizard({
             key={String(s.key)}
             className={step === s.key ? "text-[var(--primary)]" : "text-[var(--muted)]"}
           >
-            {s.key}. {(ui as Record<string, string>)[s.labelKey] ?? s.labelKey}
+            {s.key}. {(ui as unknown as Record<string, string>)[s.labelKey] ?? s.labelKey}
           </li>
         ))}
       </ol>
@@ -727,7 +727,7 @@ export default function VendorOnboardingWizard({
             </select>
           </Field>
           <p className="text-xs text-[var(--muted)]">
-            {ui.primaryMarketTitle}: {(ui as Record<string, string>)[`primaryMarket${primaryMarket}`] ?? primaryMarket}
+            {ui.primaryMarketTitle}: {(ui as unknown as Record<string, string>)[`primaryMarket${primaryMarket}`] ?? primaryMarket}
           </p>
 
           <div className="rounded-lg border border-dashed border-[var(--border)] p-3 space-y-3">

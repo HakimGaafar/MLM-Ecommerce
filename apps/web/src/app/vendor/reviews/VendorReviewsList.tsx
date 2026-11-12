@@ -46,6 +46,8 @@ type Ui = {
   filteredByLine: string;
   clearFilter: string;
   stars: string;
+  reviewCountOne: string;
+  reviewCountMany: string;
 };
 
 const TABS: { key: VendorReviewListTab; labelKey: keyof Pick<Ui, "tabAll" | "tabLow" | "tabCommented"> }[] = [

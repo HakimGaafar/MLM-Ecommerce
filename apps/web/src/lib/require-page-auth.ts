@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { homePathForActiveRole, resolveActiveRole } from "@/lib/active-role";
 import { loginPathForRequiredRole } from "@/lib/auth-login-path";
-import type { AppRole } from "@/lib/server-session";
-import { getServerSession, resolvePrimaryRole } from "@/lib/server-session";
+import type { AppRole } from "@/lib/app-role";
+import { resolvePrimaryRole } from "@/lib/app-role";
+import { getServerSession } from "@/lib/server-session";
 
 /** Fallback home from JWT roles when no active-role cookie is available. */
 export function homePathForRoles(roles: string[] = []): string {

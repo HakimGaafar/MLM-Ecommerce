@@ -1,5 +1,5 @@
 import { VENDOR_NAV_ITEMS, vendorHasPermission, type VendorPermissionCode } from "@mlm/shared";
-import type { AppRole } from "@/lib/server-session";
+import type { AppRole } from "@/lib/app-role";
 
 export type ShellNavItem = {
   href: string;

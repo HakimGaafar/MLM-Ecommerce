@@ -240,6 +240,7 @@ export default function CheckoutView({
       verifyError: string;
       invalidCode: string;
       loading: string;
+      previewCodeLabel: string;
     };
     checkoutTitle: string;
     checkoutBody: string;
@@ -1092,9 +1093,9 @@ export default function CheckoutView({
               </label>
             ))}
           </div>
-          {quote?.lockedFxRate && quote.paymentCurrency !== quote.ledgerCurrency ? (
+          {quote?.lockedFxRate && quote.paymentCurrency !== quote.ledgerCurrency && ui.lockedFxNote ? (
             <p className="text-xs text-[var(--muted)]">
-              {(ui.lockedFxNote)
+              {ui.lockedFxNote
                 .replace("{from}", quote.paymentCurrency ?? "")
                 .replace("{to}", quote.ledgerCurrency ?? "")
                 .replace("{rate}", quote.lockedFxRate)}

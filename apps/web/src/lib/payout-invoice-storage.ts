@@ -2,8 +2,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-const LOCAL_DIR = (process.env.PAYOUT_INVOICE_LOCAL_DIR ?? "storage/payout-invoices").trim();
-
 const EXT: Record<string, string> = {
   "application/pdf": "pdf",
   "image/jpeg": "jpg",
@@ -19,9 +17,28 @@ export function buildPayoutInvoiceStorageKey(vendorId: string, ext: string): str
   return `payout-invoices/${vendorId}-${randomUUID()}.${ext}`;
 }
 
+/**
+ * On-disk path for a payout invoice key.
+ * Default uses literal segments so Turbopack NFT stays scoped.
+ * Absolute PAYOUT_INVOICE_LOCAL_DIR overrides are supported.
+ */
 function localPathForKey(storageKey: string): string {
   const filename = path.basename(storageKey);
-  return path.join(process.cwd(), LOCAL_DIR, filename);
+  const override = process.env.PAYOUT_INVOICE_LOCAL_DIR?.trim();
+  if (override && path.isAbsolute(override)) {
+    return path.join(override, filename);
+  }
+  return path.join(/*turbopackIgnore: true*/ process.cwd(), "storage", "payout-invoices", filename);
+}
+
+function legacyPublicPath(filename: string): string {
+  return path.join(
+    /*turbopackIgnore: true*/ process.cwd(),
+    "public",
+    "uploads",
+    "payout-invoices",
+    filename,
+  );
 }
 
 export async function storePayoutInvoiceFile(params: {
@@ -33,8 +50,9 @@ export async function storePayoutInvoiceFile(params: {
   if (!ext) throw new Error("Unsupported payout invoice content type.");
   const storageKey = buildPayoutInvoiceStorageKey(params.vendorId, ext);
   const fullPath = localPathForKey(storageKey);
-  await mkdir(path.dirname(fullPath), { recursive: true });
-  await writeFile(fullPath, params.buffer);
+  const dir = path.dirname(fullPath);
+  await mkdir(/*turbopackIgnore: true*/ dir, { recursive: true });
+  await writeFile(/*turbopackIgnore: true*/ fullPath, params.buffer);
   return { storageKey };
 }
 
@@ -45,16 +63,18 @@ export async function readPayoutInvoiceFile(storageKey: string): Promise<Buffer 
   // Legacy public uploads (pre-private storage).
   if (key.startsWith("/uploads/payout-invoices/")) {
     const filename = path.basename(key);
+    const legacyPath = legacyPublicPath(filename);
     try {
-      return await readFile(path.join(process.cwd(), "public", "uploads", "payout-invoices", filename));
+      return await readFile(/*turbopackIgnore: true*/ legacyPath);
     } catch {
       return null;
     }
   }
 
   if (!key.startsWith("payout-invoices/")) return null;
+  const fullPath = localPathForKey(key);
   try {
-    return await readFile(localPathForKey(key));
+    return await readFile(/*turbopackIgnore: true*/ fullPath);
   } catch {
     return null;
   }

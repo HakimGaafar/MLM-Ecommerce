@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: monorepoRoot,
   transpilePackages: ["@mlm/shared", "@mlm/domain", "@mlm/db", "@mlm/queue"],
   /** pdfkit loads Helvetica.afm from disk; must not be bundled by Turbopack. */
-  serverExternalPackages: ["pdfkit", "@prisma/client", "prisma"],
+  serverExternalPackages: ["pdfkit", "@prisma/client", "prisma", "bullmq", "ioredis"],
   outputFileTracingIncludes: {
     "/**": [
       "./node_modules/pdfkit/js/data/**",
